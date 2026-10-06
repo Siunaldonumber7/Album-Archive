@@ -19,7 +19,7 @@
 :root {
 
     --bg: #f5f5f7;
-    --sidebar: 226px;
+    --sidebar: 248px;
     --text: #171719;
     --sub: #77777d;
     --muted: #a1a1a6;
@@ -91,7 +91,7 @@ a {
     height: 100vh;
 
     padding:
-        27px 17px;
+        24px 14px;
 
     border-right:
         1px solid var(--border);
@@ -244,6 +244,103 @@ a {
 
 
 /* =========================================================
+   Compact sidebar filters
+========================================================= */
+
+.side-filter-panel {
+    margin-top: 22px;
+    padding: 17px 9px 0;
+    border-top: 1px solid var(--border);
+}
+
+.side-filter-heading {
+    margin-bottom: 14px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .8px;
+}
+
+.side-filter-group {
+    margin-bottom: 15px;
+}
+
+.side-filter-name {
+    display: block;
+    margin-bottom: 7px;
+    color: #77777d;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.side-filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.side-chip {
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.045);
+    color: #5c5c62;
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 720;
+    transition: .15s ease;
+}
+
+.side-chip:hover {
+    background: rgba(0,0,0,.08);
+}
+
+.side-chip.active {
+    background: rgba(250,45,72,.11);
+    color: var(--accent);
+}
+
+.side-genre-form {
+    width: 100%;
+}
+
+.side-genre-select {
+    width: 100%;
+    height: 31px;
+    padding: 0 28px 0 9px;
+    border: 0;
+    border-radius: 9px;
+    background: rgba(0,0,0,.05);
+    color: #55555b;
+    outline: none;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.side-filter-reset {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+    border-radius: 9px;
+    text-decoration: none;
+    background: rgba(0,0,0,.035);
+    color: #8a8a90;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.side-filter-reset:hover {
+    background: rgba(0,0,0,.07);
+    color: #555;
+}
+
+
+/* =========================================================
    Main
 ========================================================= */
 
@@ -366,12 +463,12 @@ a {
 
 .content {
 
-    max-width: 1500px;
+    max-width: 1740px;
 
     margin: auto;
 
     padding:
-        40px 42px
+        36px 34px
         80px;
 }
 
@@ -428,6 +525,8 @@ h1 {
 ========================================================= */
 
 .filters {
+
+    display: none;
 
     margin-bottom: 30px;
 
@@ -544,11 +643,11 @@ h1 {
     grid-template-columns:
         repeat(
             auto-fill,
-            minmax(195px, 1fr)
+            minmax(250px, 1fr)
         );
 
     gap:
-        38px 24px;
+        42px 28px;
 }
 
 
@@ -574,7 +673,7 @@ h1 {
 
     overflow: hidden;
 
-    border-radius: 14px;
+    border-radius: 18px;
 
     background:
         linear-gradient(
@@ -584,8 +683,8 @@ h1 {
         );
 
     box-shadow:
-        0 8px 22px
-        rgba(0,0,0,.11);
+        0 10px 28px
+        rgba(0,0,0,.13);
 
     transition:
         transform .22s ease,
@@ -601,8 +700,8 @@ h1 {
         scale(1.01);
 
     box-shadow:
-        0 17px 35px
-        rgba(0,0,0,.17);
+        0 20px 42px
+        rgba(0,0,0,.20);
 }
 
 
@@ -662,9 +761,9 @@ h1 {
 
     overflow: hidden;
 
-    font-size: 15px;
+    font-size: 16px;
 
-    font-weight: 750;
+    font-weight: 780;
 
     white-space: nowrap;
 
@@ -754,6 +853,18 @@ h1 {
             60px;
     }
 
+    .filters {
+        display: block;
+    }
+
+    .album-grid {
+        grid-template-columns:
+            repeat(
+                3,
+                minmax(0, 1fr)
+            );
+    }
+
 }
 
 
@@ -802,102 +913,80 @@ h1 {
 
 <aside class="sidebar">
 
-
 <div class="brand">
-
-
-<div class="brand-icon">
-
-♫
-
+    <div class="brand-icon">♫</div>
+    <div class="brand-name">My Archive</div>
 </div>
 
+<div class="nav-label">LIBRARY</div>
 
-<div class="brand-name">
-
-My Archive
-
-</div>
-
-
-</div>
-
-
-
-<div class="nav-label">
-
-LIBRARY
-
-</div>
-
-
-<a
-    href="{{ url_for('index') }}"
-    class="nav-item active"
->
-
-<span class="nav-icon">
-
-▦
-
-</span>
-
-내 앨범
-
-
-<span class="nav-count">
-
-{{ total_album_count }}
-
-</span>
-
-
+<a href="{{ url_for('index') }}" class="nav-item active">
+    <span class="nav-icon">▦</span>
+    내 앨범
+    <span class="nav-count">{{ total_album_count }}</span>
 </a>
 
+<div class="side-filter-panel">
 
+<div class="side-filter-heading">FILTER</div>
 
-<a
-    href="{{ url_for(
-        'index',
-        classification='한국'
-    ) }}"
-    class="nav-item"
->
+<div class="side-filter-group">
+    <span class="side-filter-name">분류</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if not classification_filter %}active{% endif %}">전체</a>
+        <a href="{{ url_for('index', library_q=library_q, classification='한국', media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if classification_filter == '한국' %}active{% endif %}">한국</a>
+        <a href="{{ url_for('index', library_q=library_q, classification='해외', media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if classification_filter == '해외' %}active{% endif %}">해외</a>
+    </div>
+</div>
 
-<span class="nav-icon">
+<div class="side-filter-group">
+    <span class="side-filter-name">포맷</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if not format_filter %}active{% endif %}">전체</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='CD', album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if format_filter == 'CD' %}active{% endif %}">CD</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='LP', album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if format_filter == 'LP' %}active{% endif %}">LP</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='ETC', album_type=album_type_filter, genre=genre_filter) }}"
+           class="side-chip {% if format_filter == 'ETC' %}active{% endif %}">기타</a>
+    </div>
+</div>
 
-♪
+<div class="side-filter-group">
+    <span class="side-filter-name">종류</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, genre=genre_filter) }}"
+           class="side-chip {% if not album_type_filter %}active{% endif %}">전체</a>
+        {% for type_name in ['앨범', 'EP(미니)', '싱글', '믹스테잎'] %}
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, album_type=type_name, genre=genre_filter) }}"
+           class="side-chip {% if album_type_filter == type_name %}active{% endif %}">{{ type_name }}</a>
+        {% endfor %}
+    </div>
+</div>
 
-</span>
+<div class="side-filter-group">
+    <span class="side-filter-name">장르</span>
+    <form class="side-genre-form" method="GET" action="{{ url_for('index') }}">
+        {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+        {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+        {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+        {% if album_type_filter %}<input type="hidden" name="album_type" value="{{ album_type_filter }}">{% endif %}
+        <select class="side-genre-select" name="genre" onchange="this.form.submit()">
+            <option value="">전체 장르</option>
+            {% for genre_name in genre_options %}
+            <option value="{{ genre_name }}" {% if genre_filter == genre_name %}selected{% endif %}>{{ genre_name }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
 
-한국 음반
+<a class="side-filter-reset" href="{{ url_for('index') }}">필터 초기화</a>
 
-</a>
-
-
-
-<a
-    href="{{ url_for(
-        'index',
-        classification='해외'
-    ) }}"
-    class="nav-item"
->
-
-<span class="nav-icon">
-
-◉
-
-</span>
-
-해외 음반
-
-</a>
-
-
-
-
-
+</div>
 
 </aside>
 
@@ -1023,7 +1112,7 @@ My Album Archive
      Filters
 ===================================================== -->
 
-<div class="filters">
+<div class="filters mobile-filters">
 
 <div class="filter-row">
 <div class="filter-label">분류</div>
