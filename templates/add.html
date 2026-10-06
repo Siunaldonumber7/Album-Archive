@@ -360,7 +360,8 @@ textarea {
     <div class="nav-label">LIBRARY</div>
     <a href="{{ url_for('index') }}" class="nav">▦ 내 앨범</a>
 
-    <div class="nav-label">COLLECTION</div>
+    <div class="nav-label">ADMIN</div>
+    <a href="{{ url_for('admin_dashboard') }}" class="nav">⌂ 관리자 메뉴</a>
     <a href="{{ url_for('add_album_page') }}" class="nav active">＋ 앨범 추가</a>
     <a href="{{ url_for('manage_albums') }}" class="nav">⚙ 앨범 관리</a>
 </aside>
