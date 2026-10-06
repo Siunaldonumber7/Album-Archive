@@ -104,6 +104,7 @@ TRACK_CACHE_SECONDS = 3600
 APPLE_PAGE_CACHE = BoundedCache(300)
 APPLE_PAGE_CACHE_SECONDS = 3600
 KR_TITLE_CACHE = BoundedCache(1000)
+LOGIN_ATTEMPTS = BoundedCache(500)
 
 # =========================================================
 # MusicBrainz - 인디/한글 아티스트 공식명·별칭 보조 검색
@@ -3045,17 +3046,41 @@ def admin_login():
 
     error = ''
 
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    client_key = (
+        forwarded_for.split(',')[0].strip()
+        if forwarded_for
+        else (request.remote_addr or 'unknown')
+    )
+
+    attempt = LOGIN_ATTEMPTS.get(
+        client_key,
+        {'count': 0, 'started_at': time.time()}
+    )
+
+    if time.time() - attempt.get('started_at', 0) > 900:
+        attempt = {'count': 0, 'started_at': time.time()}
+        LOGIN_ATTEMPTS[client_key] = attempt
+
     if request.method == 'POST':
+        if attempt.get('count', 0) >= 5:
+            error = 'PIN 입력을 여러 번 실패했습니다. 15분 뒤 다시 시도해 주세요.'
+            return render_template('admin_login.html', error=error), 429
+
         submitted_pin = str(request.form.get('pin', '') or '').strip()
 
         if submitted_pin and hmac.compare_digest(submitted_pin, ADMIN_PIN):
+            LOGIN_ATTEMPTS.pop(client_key, None)
             session.clear()
             session['admin_authenticated'] = True
             session.permanent = True
             session['_csrf_token'] = secrets.token_urlsafe(32)
             return redirect(url_for('admin_dashboard'))
 
-        error = 'PIN이 올바르지 않습니다.'
+        attempt['count'] = attempt.get('count', 0) + 1
+        LOGIN_ATTEMPTS[client_key] = attempt
+        remaining = max(0, 5 - attempt['count'])
+        error = f'PIN이 올바르지 않습니다. 남은 시도 {remaining}회'
 
     return render_template('admin_login.html', error=error)
 
