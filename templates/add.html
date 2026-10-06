@@ -407,6 +407,7 @@ textarea {
         </div>
 
         <form class="link-form" method="POST" action="{{ url_for('add_album_from_link') }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input
                 name="apple_url"
                 placeholder="https://music.apple.com/kr/album/..."
@@ -431,7 +432,7 @@ textarea {
             <article class="result-card">
                 <div class="cover">
                     {% if item.cover %}
-                    <img src="{{ item.cover }}" alt="{{ item.title }}">
+                    <img src="{{ item.thumb or item.cover }}" alt="{{ item.title }}" loading="lazy" decoding="async">
                     {% else %}
                     <div class="no-cover">♫</div>
                     {% endif %}
@@ -447,6 +448,7 @@ textarea {
                 </div>
 
                 <form action="{{ url_for('register') }}" method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="apple_id" value="{{ item.apple_id }}">
                     <input type="hidden" name="apple_artist_id" value="{{ item.artist_id }}">
                     <input type="hidden" name="search_artist" value="{{ artist }}">
@@ -483,6 +485,7 @@ textarea {
             action="{{ url_for('add_album_manual') }}"
             enctype="multipart/form-data"
         >
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field">
                 <label>아티스트 *</label>
                 <input
