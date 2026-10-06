@@ -1114,6 +1114,7 @@ X
         '{{ album.album_title }} 앨범을 정말 삭제하시겠습니까?'
     );"
 >
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
 
 <button
