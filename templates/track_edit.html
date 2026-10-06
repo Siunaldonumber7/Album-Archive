@@ -289,6 +289,7 @@ input:focus {
     </div>
 
     <form method="POST" action="{{ url_for('save_album_tracks', album_row_id=album.id) }}" id="trackForm">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="panel">
             <div class="table-head">
                 <div>DISC</div>
@@ -341,7 +342,8 @@ input:focus {
     </form>
 
     {% if manual_track_mode %}
-    <form method="POST" action="{{ url_for('reset_album_tracks', album_row_id=album.id) }}" id="resetForm"></form>
+    <form method="POST" action="{{ url_for('reset_album_tracks', album_row_id=album.id) }}" id="resetForm">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"></form>
     {% endif %}
 
 </main>
