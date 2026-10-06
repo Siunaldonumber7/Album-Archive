@@ -268,6 +268,37 @@ h1 {
     color: white;
 }
 
+.sort-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+}
+
+.sort-select {
+    height: 31px;
+    padding: 0 30px 0 10px;
+    border: 0;
+    border-radius: 9px;
+    background: #ededee;
+    color: #4f4f54;
+    font-size: 11px;
+    font-weight: 700;
+    outline: none;
+}
+
+.sort-button {
+    height: 31px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: #222;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
 
 /* Table */
 
@@ -559,6 +590,9 @@ td {
 >
 
 
+<input type="hidden" name="sort_by" value="{{ sort_by }}">
+<input type="hidden" name="sort_order" value="{{ sort_order }}">
+
 <button type="submit">
 
 검색
@@ -804,6 +838,39 @@ X
 
 </a>
 
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+정렬
+</div>
+
+<form class="sort-form" method="GET" action="{{ url_for('manage_albums') }}">
+    {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+    {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+    {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+    {% if status_filter %}<input type="hidden" name="open_status" value="{{ status_filter }}">{% endif %}
+    {% if signed_filter %}<input type="hidden" name="signed" value="{{ signed_filter }}">{% endif %}
+
+    <select class="sort-select" name="sort_by">
+        <option value="id" {% if sort_by == 'id' %}selected{% endif %}>등록순</option>
+        <option value="management_no" {% if sort_by == 'management_no' %}selected{% endif %}>관리번호</option>
+        <option value="artist" {% if sort_by == 'artist' %}selected{% endif %}>아티스트</option>
+        <option value="album_title" {% if sort_by == 'album_title' %}selected{% endif %}>앨범명</option>
+        <option value="release_year" {% if sort_by == 'release_year' %}selected{% endif %}>발매년도</option>
+        <option value="purchase_price" {% if sort_by == 'purchase_price' %}selected{% endif %}>구입금액</option>
+    </select>
+
+    <select class="sort-select" name="sort_order">
+        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>오름차순</option>
+        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>내림차순</option>
+    </select>
+
+    <button class="sort-button" type="submit">적용</button>
+</form>
 
 </div>
 
