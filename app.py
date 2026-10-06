@@ -2626,6 +2626,23 @@ def reset_album_tracks(album_row_id):
     )
 
 
+@app.route('/admin')
+def admin_dashboard():
+    conn = get_db()
+    stats = {
+        'total': conn.execute("SELECT COUNT(*) AS count FROM albums").fetchone()['count'],
+        'korean': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE classification = '한국'").fetchone()['count'],
+        'overseas': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE classification = '해외'").fetchone()['count'],
+        'cd': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE media_format = 'CD'").fetchone()['count'],
+        'lp': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE media_format = 'LP'").fetchone()['count'],
+    }
+    recent_albums = conn.execute(
+        "SELECT id, management_no, artist, album_title, cover_url FROM albums ORDER BY id DESC LIMIT 5"
+    ).fetchall()
+    conn.close()
+    return render_template('admin.html', stats=stats, recent_albums=recent_albums)
+
+
 @app.route('/manage')
 def manage_albums():
     library_q = request.args.get('library_q', '').strip()
