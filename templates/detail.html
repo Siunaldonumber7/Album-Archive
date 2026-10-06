@@ -1,29 +1,33 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>{{ album.album_title }} · {{ album.artist }}</title>
 
 <style>
 :root {
+    --bg: #f5f5f7;
+    --text: #171719;
+    --sub: #737378;
+    --muted: #9b9ba1;
+    --border: rgba(0,0,0,.07);
     --accent: #fa2d48;
-    --text: #1d1d1f;
-    --sub: #6e6e73;
-    --muted: #98989d;
-    --border: rgba(0,0,0,.08);
+    --card: rgba(255,255,255,.82);
 }
 
 * {
     box-sizing: border-box;
 }
 
-html,
+html {
+    background: var(--bg);
+}
+
 body {
     margin: 0;
-    min-height: 100%;
+    color: var(--text);
+    background: var(--bg);
     font-family:
         -apple-system,
         BlinkMacSystemFont,
@@ -35,55 +39,42 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-body {
-    background: #f5f5f7;
-    color: var(--text);
+a {
+    color: inherit;
 }
 
-/* =========================================================
-   Topbar
-========================================================= */
-
 .topbar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
     z-index: 50;
-    height: 62px;
+    height: 66px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 0 28px;
-    border-bottom: 1px solid rgba(0,0,0,.04);
-    background: rgba(245,245,247,.68);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border-bottom: 1px solid rgba(0,0,0,.055);
+    background: rgba(245,245,247,.82);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
 .back {
-    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #55555b;
     text-decoration: none;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 760;
 }
 
-.archive {
-    color: #777;
-    font-size: 12px;
-    font-weight: 650;
+.back:hover {
+    color: #111;
 }
-
-/* =========================================================
-   Hero
-========================================================= */
 
 .hero {
     position: relative;
     overflow: hidden;
-    min-height: 535px;
-    padding-top: 62px;
-    background: #252528;
+    min-height: 500px;
 }
 
 .hero-background {
@@ -91,44 +82,48 @@ body {
     inset: -70px;
     background-position: center;
     background-size: cover;
-    filter: blur(55px) saturate(1.30);
-    transform: scale(1.12);
-    opacity: .64;
+    filter: blur(58px) saturate(125%);
+    transform: scale(1.10);
+    opacity: .46;
 }
 
-.hero-dark {
+.hero-overlay {
     position: absolute;
     inset: 0;
     background:
         linear-gradient(
             180deg,
-            rgba(0,0,0,.08),
-            rgba(0,0,0,.18) 35%,
-            rgba(0,0,0,.78)
+            rgba(245,245,247,.12) 0%,
+            rgba(245,245,247,.60) 62%,
+            var(--bg) 100%
         );
 }
 
-.hero-content {
+.hero-inner {
     position: relative;
     z-index: 2;
-    max-width: 1200px;
-    min-height: 470px;
-    margin: auto;
-    display: flex;
-    align-items: flex-end;
-    gap: 38px;
-    padding: 55px 35px 42px;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 62px 34px 70px;
+    display: grid;
+    grid-template-columns: minmax(300px, 430px) minmax(0, 1fr);
+    align-items: end;
+    gap: 58px;
 }
 
 .cover {
-    width: min(31vw, 310px);
-    min-width: 260px;
     aspect-ratio: 1;
-    flex-shrink: 0;
     overflow: hidden;
-    border-radius: 18px;
-    background: rgba(255,255,255,.14);
-    box-shadow: 0 22px 60px rgba(0,0,0,.38);
+    border-radius: 25px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.72),
+            rgba(218,218,221,.92)
+        );
+    box-shadow:
+        0 28px 75px rgba(0,0,0,.22),
+        0 3px 10px rgba(0,0,0,.08);
 }
 
 .cover img {
@@ -144,176 +139,131 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255,255,255,.5);
+    color: rgba(0,0,0,.24);
     font-size: 64px;
 }
 
 .album-info {
-    min-width: 0;
-    padding-bottom: 5px;
-    color: white;
+    padding-bottom: 12px;
 }
 
-.album-type {
-    margin-bottom: 9px;
-    color: rgba(255,255,255,.58);
-    font-size: 12px;
-    font-weight: 750;
-    letter-spacing: .8px;
-}
-
-.album-title {
-    max-width: 760px;
-    margin: 0;
-    font-size: clamp(38px, 5vw, 66px);
-    line-height: 1;
-    letter-spacing: -2.7px;
-    overflow-wrap: anywhere;
-}
-
-.artist {
-    margin-top: 14px;
-    font-size: 21px;
-    font-weight: 650;
-}
-
-.meta {
-    margin-top: 11px;
-    color: rgba(255,255,255,.65);
-    font-size: 13px;
+.eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 18px;
 }
 
 .pill {
+    min-height: 29px;
     display: inline-flex;
     align-items: center;
-    min-height: 25px;
-    margin-left: 8px;
-    padding: 0 9px;
-    border: 1px solid rgba(255,255,255,.23);
+    padding: 0 11px;
+    border: 1px solid rgba(0,0,0,.07);
     border-radius: 999px;
-    background: rgba(255,255,255,.10);
-    color: white;
-    font-size: 10px;
-    font-weight: 750;
+    background: rgba(255,255,255,.70);
+    color: #535358;
+    font-size: 11px;
+    font-weight: 800;
+    backdrop-filter: blur(12px);
 }
 
-/* =========================================================
-   Main
-========================================================= */
-
-.main {
-    max-width: 1050px;
-    margin: auto;
-    padding: 45px 35px 100px;
+.pill.type {
+    color: var(--accent);
 }
 
-.section {
-    margin-bottom: 52px;
-}
-
-.heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 14px;
-}
-
-.heading h2 {
+.album-title {
     margin: 0;
-    font-size: 25px;
-    letter-spacing: -.7px;
+    max-width: 850px;
+    font-size: clamp(42px, 5.2vw, 76px);
+    line-height: .98;
+    letter-spacing: -3.7px;
+    font-weight: 870;
+    text-wrap: balance;
 }
 
-.summary {
-    color: var(--sub);
+.artist {
+    margin-top: 19px;
+    color: #4d4d52;
+    font-size: clamp(21px, 2.4vw, 31px);
+    font-weight: 710;
+    letter-spacing: -.6px;
+}
+
+.meta-line {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: #66666c;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.dot {
+    color: #aaaab0;
+}
+
+.track-summary {
+    margin-top: 30px;
+    color: #7a7a80;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.content {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 34px 80px;
+}
+
+.section-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 17px;
+}
+
+.section-title {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: -.8px;
+}
+
+.section-sub {
+    color: var(--muted);
     font-size: 12px;
 }
 
-.heading-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.track-edit-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 13px;
-    border-radius: 9px;
-    background: #ececee;
-    color: #3f3f44;
-    text-decoration: none;
-    font-size: 11px;
-    font-weight: 800;
-    transition: .15s ease;
-}
-
-.track-edit-button:hover {
-    background: #e1e1e4;
-}
-
-.kr-info {
-    margin-bottom: 20px;
-    color: #999;
-    font-size: 11px;
-}
-
-.kr-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 23px;
-    margin-right: 7px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: rgba(250,45,72,.09);
-    color: var(--accent);
-    font-size: 10px;
-    font-weight: 800;
-}
-
-.manual-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 23px;
-    margin-right: 7px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: rgba(52,120,246,.10);
-    color: #3478f6;
-    font-size: 10px;
-    font-weight: 800;
-}
-
-/* =========================================================
-   Track list
-========================================================= */
-
-.track-list {
-    border-top: 1px solid rgba(0,0,0,.10);
+.track-panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: var(--card);
+    box-shadow: 0 12px 34px rgba(0,0,0,.045);
+    backdrop-filter: blur(18px);
 }
 
 .disc-title {
-    padding: 28px 13px 9px;
-    color: var(--sub);
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: .5px;
+    padding: 18px 22px 10px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 1.1px;
 }
 
 .track-row {
-    min-height: 60px;
+    min-height: 66px;
     display: grid;
-    grid-template-columns: 46px minmax(0,1fr) 60px;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 7px;
-    padding: 7px 13px;
-    border-bottom: 1px solid rgba(0,0,0,.075);
-    transition: background .15s ease;
+    gap: 12px;
+    padding: 8px 22px;
+    border-top: 1px solid rgba(0,0,0,.055);
+    transition: background .14s ease;
 }
 
 .track-row:hover {
@@ -321,263 +271,106 @@ body {
 }
 
 .track-number {
-    color: #a1a1a6;
+    color: #a0a0a6;
+    font-size: 12px;
+    font-weight: 760;
     text-align: center;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-}
-
-.track-info {
-    min-width: 0;
 }
 
 .track-name {
     overflow: hidden;
-    color: #202023;
+    color: #252529;
     font-size: 14px;
-    font-weight: 550;
-    text-overflow: ellipsis;
+    font-weight: 730;
     white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .track-artist {
     margin-top: 3px;
     overflow: hidden;
-    color: #8a8a8f;
+    color: #8b8b91;
     font-size: 11px;
-    text-overflow: ellipsis;
     white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-.duration {
-    color: var(--muted);
-    text-align: right;
-    font-size: 12px;
+.track-duration {
+    color: #96969c;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
 }
 
-/* =========================================================
-   내 보유본
-========================================================= */
-
-.owned-section {
-    padding-top: 6px;
-}
-
-.owned-description {
-    margin: -3px 0 18px;
-    color: #8b8b90;
-    font-size: 12px;
-    line-height: 1.6;
-}
-
-.owned-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.copy-card {
-    position: relative;
-    min-width: 0;
-    padding: 17px;
-    border: 1px solid rgba(0,0,0,.075);
-    border-radius: 15px;
-    background: rgba(255,255,255,.78);
-    box-shadow: 0 4px 18px rgba(0,0,0,.035);
-}
-
-.copy-card.current {
-    border-color: rgba(250,45,72,.28);
-    box-shadow: 0 0 0 3px rgba(250,45,72,.045);
-}
-
-.copy-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.management-no {
-    min-width: 0;
-    color: #1f1f22;
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: -.25px;
-}
-
-.current-badge {
-    display: inline-flex;
-    flex-shrink: 0;
-    align-items: center;
-    height: 23px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: rgba(250,45,72,.10);
-    color: var(--accent);
-    font-size: 9px;
-    font-weight: 800;
-}
-
-.copy-info {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 16px;
-}
-
-.info-item {
-    min-width: 0;
-}
-
-.info-label {
-    margin-bottom: 4px;
-    color: #9a9aa0;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.info-value {
-    overflow: hidden;
-    color: #3d3d42;
-    font-size: 12px;
-    font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.signed-value {
-    color: var(--accent);
-}
-
-.copy-memo {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(0,0,0,.06);
-    color: #77777d;
-    font-size: 11px;
-    line-height: 1.55;
-    white-space: pre-wrap;
-}
-
-.copy-footer {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 15px;
-}
-
-.edit-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 32px;
-    padding: 0 12px;
-    border-radius: 8px;
-    background: #ececee;
-    color: #444449;
-    text-decoration: none;
-    font-size: 11px;
-    font-weight: 750;
-    transition: .15s ease;
-}
-
-.edit-button:hover {
-    background: #e2e2e5;
-}
-
-/* =========================================================
-   Empty
-========================================================= */
-
-.empty {
-    min-height: 230px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border: 1px dashed #d1d1d5;
-    border-radius: 17px;
-    color: #999;
+.empty-tracks {
+    padding: 52px 24px;
+    color: #99999f;
     text-align: center;
+    font-size: 13px;
 }
 
-.empty-icon {
-    font-size: 40px;
-    opacity: .4;
-}
-
-.empty-title {
-    color: #606066;
-    font-size: 15px;
-    font-weight: 750;
-}
-
-.empty-sub {
-    max-width: 450px;
-    font-size: 12px;
-    line-height: 1.6;
-}
-
-/* =========================================================
-   Mobile
-========================================================= */
-
-@media(max-width:760px) {
-
-    .topbar {
-        height: 58px;
-        padding: 0 16px;
-    }
-
-    .archive {
-        display: none;
-    }
-
-    .hero {
-        min-height: auto;
-        padding-top: 58px;
-    }
-
-    .hero-content {
-        min-height: auto;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 25px;
-        padding: 35px 20px 32px;
-    }
-
-    .cover {
-        width: min(72vw, 300px);
-        min-width: 0;
-        margin: auto;
-    }
-
-    .album-info {
-        width: 100%;
+@media(max-width: 900px) {
+    .hero-inner {
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 34px;
+        padding-top: 46px;
     }
 
     .album-title {
-        font-size: 39px;
-        letter-spacing: -1.6px;
+        letter-spacing: -2.4px;
+    }
+}
+
+@media(max-width: 700px) {
+    .topbar {
+        height: 58px;
+        padding: 0 17px;
+    }
+
+    .hero {
+        min-height: 0;
+    }
+
+    .hero-inner {
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 27px;
+        padding: 28px 18px 54px;
+    }
+
+    .cover {
+        width: min(88vw, 420px);
+        margin: 0 auto;
+        border-radius: 21px;
+    }
+
+    .album-info {
+        padding: 0 4px;
+    }
+
+    .album-title {
+        font-size: clamp(38px, 12vw, 58px);
+        letter-spacing: -2.6px;
     }
 
     .artist {
-        font-size: 18px;
+        font-size: 22px;
     }
 
-    .main {
-        padding: 30px 15px 70px;
+    .content {
+        padding: 0 18px 60px;
+    }
+
+    .track-panel {
+        border-radius: 18px;
     }
 
     .track-row {
-        grid-template-columns: 34px minmax(0,1fr) 45px;
-        padding: 7px 3px;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        padding: 8px 14px;
     }
 
-    .owned-grid {
-        grid-template-columns: 1fr;
+    .disc-title {
+        padding-left: 16px;
     }
 }
 </style>
@@ -587,7 +380,6 @@ body {
 
 <header class="topbar">
     <a href="{{ url_for('index') }}" class="back">‹ 내 앨범</a>
-    <div class="archive">MY ALBUM ARCHIVE</div>
 </header>
 
 <section class="hero">
@@ -599,9 +391,9 @@ body {
 ></div>
 {% endif %}
 
-<div class="hero-dark"></div>
+<div class="hero-overlay"></div>
 
-<div class="hero-content">
+<div class="hero-inner">
 
     <div class="cover">
         {% if album.cover_url %}
@@ -616,42 +408,43 @@ body {
 
     <div class="album-info">
 
-        <div class="album-type">ALBUM</div>
+        <div class="eyebrow">
+            {% if album.album_type %}
+            <span class="pill type">{{ album.album_type }}</span>
+            {% endif %}
 
-        <h1 class="album-title">
-            {{ album.album_title }}
-        </h1>
-
-        <div class="artist">
-            {{ album.artist }}
+            {% if album.genre %}
+            <span class="pill">{{ album.genre }}</span>
+            {% endif %}
         </div>
 
-        <div class="meta">
+        <h1 class="album-title">{{ album.album_title }}</h1>
 
+        <div class="artist">{{ album.artist }}</div>
+
+        <div class="meta-line">
             {% if album.release_year %}
-            {{ album.release_year }}
+            <span>{{ album.release_year }}</span>
             {% endif %}
 
-            {% if album.classification %}
+            {% if tracks %}
                 {% if album.release_year %}
-                &nbsp;·&nbsp;
+                <span class="dot">·</span>
                 {% endif %}
-                {{ album.classification }}
+                <span>{{ tracks|length }}곡</span>
             {% endif %}
 
-            {% if album.media_format %}
-            <span class="pill">
-                {{ album.media_format }}
-            </span>
+            {% if total_discs and total_discs > 1 %}
+            <span class="dot">·</span>
+            <span>{{ total_discs }} DISC</span>
             {% endif %}
-
-            {% if owned_count > 1 %}
-            <span class="pill">
-                보유 {{ owned_count }}장
-            </span>
-            {% endif %}
-
         </div>
+
+        {% if tracks %}
+        <div class="track-summary">
+            앨범 수록곡 {{ tracks|length }}곡
+        </div>
+        {% endif %}
 
     </div>
 
@@ -659,211 +452,63 @@ body {
 
 </section>
 
-<main class="main">
+<main class="content">
 
-<section class="section">
-
-    <div class="heading">
-        <h2>수록곡</h2>
-
-        <div class="heading-actions">
-            {% if tracks %}
-            <div class="summary">
-                {{ tracks|length }}곡
-
-                {% if total_discs > 1 %}
-                · {{ total_discs }} Disc
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <a
-                class="track-edit-button"
-                href="{{ url_for('edit_album_tracks', album_row_id=album.id) }}"
-            >
-                수록곡 편집
-            </a>
-        </div>
-    </div>
-
-    {% if tracks %}
-
-        {% if manual_track_mode %}
-        <div class="kr-info">
-            <span class="manual-badge">직접 편집</span>
-            내 아카이브에 저장된 수록곡 정보
-        </div>
-        {% else %}
-        <div class="kr-info">
-            <span class="kr-badge">KR</span>
-            Apple Music 한국 스토어 기준
-        </div>
+    <div class="section-head">
+        <h2 class="section-title">트랙리스트</h2>
+        {% if tracks %}
+        <div class="section-sub">{{ tracks|length }} Tracks</div>
         {% endif %}
-
-    <div class="track-list">
-
-        {% set ns = namespace(last_disc=0) %}
-
-        {% for track in tracks %}
-
-            {% if
-                total_discs > 1
-                and track.disc_number != ns.last_disc
-            %}
-
-            <div class="disc-title">
-                DISC {{ track.disc_number }}
-            </div>
-
-            {% set ns.last_disc = track.disc_number %}
-
-            {% endif %}
-
-            <div class="track-row">
-
-                <div class="track-number">
-                    {{ track.track_number }}
-                </div>
-
-                <div class="track-info">
-
-                    <div class="track-name">
-                        {{ track.title }}
-                    </div>
-
-                    {% if
-                        track.artist
-                        and track.artist != album.artist
-                    %}
-                    <div class="track-artist">
-                        {{ track.artist }}
-                    </div>
-                    {% endif %}
-
-                </div>
-
-                <div class="duration">
-                    {{ track.duration }}
-                </div>
-
-            </div>
-
-        {% endfor %}
-
     </div>
 
-    {% else %}
+    <section class="track-panel">
 
-    <div class="empty">
-        <div class="empty-icon">♫</div>
-        <div class="empty-title">
-            {% if manual_track_mode %}
-            직접 입력한 수록곡이 없습니다.
-            {% else %}
-            수록곡 정보를 찾지 못했습니다.
-            {% endif %}
-        </div>
-        <div class="empty-sub">
-            위의 ‘수록곡 편집’ 버튼에서 DISC 번호, 트랙 번호, 곡명과 재생시간을 직접 입력할 수 있습니다.
-        </div>
-    </div>
+        {% if tracks %}
 
-    {% endif %}
+            {% set ns = namespace(last_disc=0) %}
 
-</section>
+            {% for track in tracks %}
 
-
-<section class="section owned-section">
-
-    <div class="heading">
-        <h2>내 보유본</h2>
-        <div class="summary">
-            {{ owned_count }}장 보유
-        </div>
-    </div>
-
-    <div class="owned-description">
-        같은 앨범으로 등록된 실물 음반을 한곳에서 확인합니다.
-    </div>
-
-    <div class="owned-grid">
-
-        {% for copy in owned_copies %}
-
-        <article class="copy-card {% if copy.id == album.id %}current{% endif %}">
-
-            <div class="copy-top">
-
-                <div class="management-no">
-                    {{ copy.management_no }}
-                </div>
-
-                {% if copy.id == album.id %}
-                <span class="current-badge">
-                    현재 보유본
-                </span>
+                {% if total_discs > 1 and track.disc_number != ns.last_disc %}
+                <div class="disc-title">DISC {{ track.disc_number }}</div>
+                {% set ns.last_disc = track.disc_number %}
                 {% endif %}
 
-            </div>
+                <div class="track-row">
 
-            <div class="copy-info">
-
-                <div class="info-item">
-                    <div class="info-label">포맷</div>
-                    <div class="info-value">
-                        {{ copy.media_format or '-' }}
+                    <div class="track-number">
+                        {{ track.track_number }}
                     </div>
-                </div>
 
-                <div class="info-item">
-                    <div class="info-label">상태</div>
-                    <div class="info-value">
-                        {{ copy.open_status or '-' }}
-                    </div>
-                </div>
+                    <div>
+                        <div class="track-name">
+                            {{ track.title }}
+                        </div>
 
-                <div class="info-item">
-                    <div class="info-label">사인</div>
-                    <div class="info-value {% if copy.signed == 'O' %}signed-value{% endif %}">
-                        {{ copy.signed or '-' }}
-                    </div>
-                </div>
-
-                <div class="info-item">
-                    <div class="info-label">구입금액</div>
-                    <div class="info-value">
-                        {% if copy.purchase_price %}
-                        ₩ {{ "{:,}".format(copy.purchase_price) }}
-                        {% else %}
-                        -
+                        {% if track.artist and track.artist != album.artist %}
+                        <div class="track-artist">
+                            {{ track.artist }}
+                        </div>
                         {% endif %}
                     </div>
+
+                    <div class="track-duration">
+                        {{ track.duration or '' }}
+                    </div>
+
                 </div>
 
-            </div>
+            {% endfor %}
 
-            {% if copy.memo %}
-            <div class="copy-memo">
-                {{ copy.memo }}
-            </div>
-            {% endif %}
+        {% else %}
 
-            <div class="copy-footer">
-                <a
-                    href="{{ url_for('edit_album', album_row_id=copy.id) }}"
-                    class="edit-button"
-                >
-                    수정
-                </a>
-            </div>
+        <div class="empty-tracks">
+            수록곡 정보가 없습니다.
+        </div>
 
-        </article>
+        {% endif %}
 
-        {% endfor %}
-
-    </div>
-
-</section>
+    </section>
 
 </main>
 
