@@ -739,6 +739,26 @@ USB
 </div>
 
 
+<div class="field">
+<label>앨범 종류 <span style="color:#999;font-weight:500;">· Apple 자동</span></label>
+<select name="album_type" required>
+{% for type_name in ['앨범','EP(미니)','싱글','믹스테잎'] %}
+<option value="{{ type_name }}" {% if (album.album_type or '앨범') == type_name %}selected{% endif %}>{{ type_name }}</option>
+{% endfor %}
+</select>
+</div>
+
+
+<div class="field">
+<label>장르 <span style="color:#999;font-weight:500;">· Apple 자동</span></label>
+<input
+    name="genre"
+    value="{{ album.genre or '' }}"
+    placeholder="Apple Music 장르"
+>
+</div>
+
+
 
 <!-- 아티스트 -->
 
