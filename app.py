@@ -15,7 +15,7 @@ from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 import requests
 app = Flask(__name__)
-DB_NAME = 'albums.db'
+DB_NAME = os.environ.get('ALBUM_DB_PATH', 'albums.db')
 APPLE_SESSION = requests.Session()
 APPLE_WEB_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36', 'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.6', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}
 SEARCH_CACHE = {}
