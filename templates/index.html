@@ -298,6 +298,30 @@ a {
 }
 
 
+.top-tools {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.admin-shortcut {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    text-decoration: none;
+    font-size: 18px;
+    background: rgba(0,0,0,.055);
+    transition: transform .16s ease, background .16s ease;
+}
+
+.admin-shortcut:hover {
+    background: white;
+    transform: translateY(-1px) rotate(-5deg);
+}
+
 .top-search {
 
     width: 370px;
@@ -487,6 +511,25 @@ h1 {
     background: var(--accent);
 
     color: white;
+}
+
+.genre-form {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.genre-select {
+    height: 31px;
+    min-width: 190px;
+    padding: 0 30px 0 11px;
+    border: 0;
+    border-radius: 999px;
+    background: #eaeaec;
+    color: #4f4f55;
+    font-size: 11px;
+    font-weight: 700;
+    outline: none;
 }
 
 
@@ -853,29 +896,7 @@ LIBRARY
 
 
 
-<div class="nav-label">
 
-ADMIN
-
-</div>
-
-
-<a
-    href="{{ url_for(
-        'admin_dashboard'
-    ) }}"
-    class="nav-item"
->
-
-<span class="nav-icon">
-
-⚙
-
-</span>
-
-관리자 메뉴
-
-</a>
 
 
 </aside>
@@ -899,6 +920,15 @@ My Album Archive
 </div>
 
 
+
+<div class="top-tools">
+
+<a
+    href="{{ url_for('admin_dashboard') }}"
+    class="admin-shortcut"
+    title="관리자 메뉴"
+    aria-label="관리자 메뉴"
+>🎛️</a>
 
 <form
     class="top-search"
@@ -935,9 +965,17 @@ My Album Archive
 
 {% endif %}
 
+{% if album_type_filter %}
+<input type="hidden" name="album_type" value="{{ album_type_filter }}">
+{% endif %}
+
+{% if genre_filter %}
+<input type="hidden" name="genre" value="{{ genre_filter }}">
+{% endif %}
 
 </form>
 
+</div>
 
 </header>
 
@@ -987,160 +1025,58 @@ My Album Archive
 
 <div class="filters">
 
+<div class="filter-row">
+<div class="filter-label">분류</div>
+
+<a href="{{ url_for('index', library_q=library_q, media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if not classification_filter %}active{% endif %}">전체</a>
+<a href="{{ url_for('index', library_q=library_q, classification='한국', media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if classification_filter == '한국' %}active{% endif %}">한국</a>
+<a href="{{ url_for('index', library_q=library_q, classification='해외', media_format=format_filter, album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if classification_filter == '해외' %}active{% endif %}">해외</a>
+</div>
 
 <div class="filter-row">
+<div class="filter-label">포맷</div>
 
-
-<div class="filter-label">
-
-분류
-
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if not format_filter %}active{% endif %}">전체</a>
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='CD', album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if format_filter == 'CD' %}active{% endif %}">CD</a>
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='LP', album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if format_filter == 'LP' %}active{% endif %}">LP</a>
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='ETC', album_type=album_type_filter, genre=genre_filter) }}"
+   class="chip {% if format_filter == 'ETC' %}active{% endif %}">기타</a>
 </div>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        media_format=format_filter
-    ) }}"
-    class="chip
-    {% if not classification_filter %}
-    active
-    {% endif %}"
->
-
-전체
-
-</a>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification='한국',
-        media_format=format_filter
-    ) }}"
-    class="chip
-    {% if classification_filter == '한국' %}
-    active
-    {% endif %}"
->
-
-한국
-
-</a>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification='해외',
-        media_format=format_filter
-    ) }}"
-    class="chip
-    {% if classification_filter == '해외' %}
-    active
-    {% endif %}"
->
-
-해외
-
-</a>
-
-
-</div>
-
-
 
 <div class="filter-row">
+<div class="filter-label">종류</div>
 
-
-<div class="filter-label">
-
-포맷
-
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, genre=genre_filter) }}"
+   class="chip {% if not album_type_filter %}active{% endif %}">전체</a>
+{% for type_name in ['앨범', 'EP(미니)', '싱글', '믹스테잎'] %}
+<a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, album_type=type_name, genre=genre_filter) }}"
+   class="chip {% if album_type_filter == type_name %}active{% endif %}">{{ type_name }}</a>
+{% endfor %}
 </div>
 
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification=classification_filter
-    ) }}"
-    class="chip
-    {% if not format_filter %}
-    active
-    {% endif %}"
->
-
-전체
-
-</a>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification=classification_filter,
-        media_format='CD'
-    ) }}"
-    class="chip
-    {% if format_filter == 'CD' %}
-    active
-    {% endif %}"
->
-
-CD
-
-</a>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification=classification_filter,
-        media_format='LP'
-    ) }}"
-    class="chip
-    {% if format_filter == 'LP' %}
-    active
-    {% endif %}"
->
-
-LP
-
-</a>
-
-
-<a
-    href="{{ url_for(
-        'index',
-        library_q=library_q,
-        classification=classification_filter,
-        media_format='ETC'
-    ) }}"
-    class="chip
-    {% if format_filter == 'ETC' %}
-    active
-    {% endif %}"
->
-
-기타
-
-</a>
-
-
+<div class="filter-row">
+<div class="filter-label">장르</div>
+<form class="genre-form" method="GET" action="{{ url_for('index') }}">
+    {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+    {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+    {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+    {% if album_type_filter %}<input type="hidden" name="album_type" value="{{ album_type_filter }}">{% endif %}
+    <select class="genre-select" name="genre" onchange="this.form.submit()">
+        <option value="">전체 장르</option>
+        {% for genre_name in genre_options %}
+        <option value="{{ genre_name }}" {% if genre_filter == genre_name %}selected{% endif %}>{{ genre_name }}</option>
+        {% endfor %}
+    </select>
+</form>
 </div>
 
-
 </div>
-
 
 
 <!-- =====================================================
@@ -1249,6 +1185,13 @@ LP
 
 {{ album.media_format or '' }}
 
+{% if album.album_type %}
+&nbsp;·&nbsp;{{ album.album_type }}
+{% endif %}
+
+{% if album.genre %}
+&nbsp;·&nbsp;{{ album.genre }}
+{% endif %}
 
 </div>
 
