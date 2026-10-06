@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for
-from werkzeug.utils import secure_filename
 import base64
 import html as html_lib
 import json
@@ -8,7 +7,6 @@ import re
 import sqlite3
 import time
 import threading
-import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
@@ -131,12 +129,34 @@ def save_uploaded_cover(file):
         return None
     if not allowed_image_file(file.filename):
         return None
-    original_name = secure_filename(file.filename)
-    extension = original_name.rsplit('.', 1)[1].lower()
-    unique_filename = f'{uuid.uuid4().hex}.{extension}'
-    save_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+
+    # 원본 파일명(한글/공백 포함)을 최대한 유지하되 경로 문자는 제거한다.
+    original_name = os.path.basename(file.filename.replace('\\', '/')).strip()
+    original_name = ''.join(
+        ch for ch in original_name
+        if ch not in {'/', '\\'} and ord(ch) >= 32
+    ).strip(' .')
+
+    if not original_name or '.' not in original_name:
+        return None
+
+    stem, extension = os.path.splitext(original_name)
+    extension = extension.lower()
+
+    # 파일명이 "." 등으로만 구성된 경우를 방지한다.
+    stem = stem.strip(' .') or 'cover'
+    filename = f'{stem}{extension}'
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    # 같은 파일명이 이미 있으면 _2, _3 ... 을 붙여 기존 파일을 덮어쓰지 않는다.
+    counter = 2
+    while os.path.exists(save_path):
+        filename = f'{stem}_{counter}{extension}'
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        counter += 1
+
     file.save(save_path)
-    return url_for('static', filename=f'uploads/{unique_filename}')
+    return url_for('static', filename=f'uploads/{filename}')
 
 def delete_local_cover(cover_url):
     if not cover_url:
