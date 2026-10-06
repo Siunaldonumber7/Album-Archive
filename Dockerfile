@@ -14,4 +14,4 @@ RUN mkdir -p /app/static/uploads /data
 
 EXPOSE 5001
 
-CMD ["sh", "-c", "python -c 'from app import init_db; init_db()' && exec gunicorn --bind 0.0.0.0:5001 --workers 1 --threads 4 --timeout 120 app:app"]
+CMD ["sh", "-c", "python -c 'from app import init_db; init_db()' && exec gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 1 --threads 4 --timeout 120 app:app"]
