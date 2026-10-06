@@ -13,7 +13,9 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 .back:hover{color:#111}
 .title-area h1{margin:0;font-size:34px;letter-spacing:-1.4px}
 .title-area p{margin:8px 0 0;color:#777}
+.top-actions{display:flex;align-items:center;gap:9px}
 .badge{padding:8px 12px;border-radius:999px;background:#111;color:#fff;font-size:13px;font-weight:800}
+.logout{border:0;border-radius:999px;padding:8px 11px;background:#e9e9e5;color:#666;font-size:12px;font-weight:750;cursor:pointer}
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
 .stat{background:#fff;border:1px solid #e7e7e2;border-radius:18px;padding:18px 20px}
 .stat .label{font-size:13px;color:#888;margin-bottom:8px}
@@ -56,7 +58,13 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
       <h1>관리자 메뉴</h1>
       <p>앨범 등록과 컬렉션 관리 기능을 한곳에서 사용합니다.</p>
     </div>
-    <div class="badge">ADMIN</div>
+    <div class="top-actions">
+      <div class="badge">ADMIN</div>
+      <form method="POST" action="{{ url_for('admin_logout') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="logout" type="submit">로그아웃</button>
+      </form>
+    </div>
   </div>
 
   <section class="stats">
@@ -86,7 +94,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
       {% for album in recent_albums %}
       <a class="row" href="{{ url_for('album_detail', album_row_id=album.id) }}">
         {% if album.cover_url %}
-          <img class="cover" src="{{ album.cover_url }}" alt="">
+          <img class="cover" src="{{ album.cover_url }}" alt="" loading="lazy" decoding="async">
         {% else %}
           <div class="cover no-cover">♫</div>
         {% endif %}
