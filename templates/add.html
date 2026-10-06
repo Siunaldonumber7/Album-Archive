@@ -437,7 +437,11 @@ textarea {
 
                 <div class="title">{{ item.title }}</div>
                 <div class="artist">{{ item.artist }}</div>
-                <div class="year">{{ item.release_year }}</div>
+                <div class="year">
+                    {{ item.release_year }}
+                    {% if item.album_type %} · {{ item.album_type }}{% endif %}
+                    {% if item.genre %} · {{ item.genre }}{% endif %}
+                </div>
 
                 <form action="{{ url_for('register') }}" method="POST">
                     <input type="hidden" name="apple_id" value="{{ item.apple_id }}">
@@ -447,6 +451,8 @@ textarea {
                     <input type="hidden" name="album_title" value="{{ item.title }}">
                     <input type="hidden" name="release_year" value="{{ item.release_year }}">
                     <input type="hidden" name="cover_url" value="{{ item.cover }}">
+                    <input type="hidden" name="album_type" value="{{ item.album_type or '앨범' }}">
+                    <input type="hidden" name="genre" value="{{ item.genre or '' }}">
                     <button type="submit" class="add-button">＋ 컬렉션에 추가</button>
                 </form>
             </article>
@@ -519,6 +525,24 @@ textarea {
                     <option value="USB">USB</option>
                     <option value="기타">기타</option>
                 </select>
+            </div>
+
+            <div class="form-field">
+                <label>앨범 종류</label>
+                <select name="album_type">
+                    <option value="앨범" selected>앨범</option>
+                    <option value="EP(미니)">EP(미니)</option>
+                    <option value="싱글">싱글</option>
+                    <option value="믹스테잎">믹스테잎</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>장르</label>
+                <input
+                    name="genre"
+                    placeholder="예: R&B/Soul, Rock, K-Pop"
+                >
             </div>
 
             <div class="form-field">
