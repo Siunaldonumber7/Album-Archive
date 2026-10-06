@@ -74,13 +74,97 @@ def normalize_genre_name(value):
     if not value:
         return ''
 
+    # Apple Music / iTunes의 영문 장르명을 컬렉션에서 보기 편한
+    # 한글 표기로 최대한 통일한다. 널리 쓰이는 약어(R&B 등)는 유지한다.
     genre_map = {
         'hip-hop/rap': '힙합',
         'hip hop/rap': '힙합',
         'hip-hop': '힙합',
         'hip hop': '힙합',
+        'rap': '힙합',
+
         'r&b/soul': 'R&B',
         'r&b': 'R&B',
+        'soul': '소울',
+
+        'pop': '팝',
+        'k-pop': '케이팝',
+        'kpop': '케이팝',
+        'j-pop': '제이팝',
+        'jpop': '제이팝',
+        'mandopop': '만도팝',
+        'cantopop': '칸토팝',
+        'french pop': '프렌치 팝',
+        'german pop': '저먼 팝',
+
+        'rock': '록',
+        'indie rock': '인디 록',
+        'alternative': '얼터너티브',
+        'alternative & indie': '얼터너티브/인디',
+        'alternative/indie': '얼터너티브/인디',
+        'indie': '인디',
+        'punk': '펑크',
+        'punk rock': '펑크 록',
+        'metal': '메탈',
+        'hard rock': '하드 록',
+        'progressive rock': '프로그레시브 록',
+        'psychedelic': '사이키델릭',
+
+        'electronic': '일렉트로닉',
+        'electronica': '일렉트로니카',
+        'dance': '댄스',
+        'house': '하우스',
+        'techno': '테크노',
+        'trance': '트랜스',
+        'ambient': '앰비언트',
+        'downtempo': '다운템포',
+
+        'jazz': '재즈',
+        'blues': '블루스',
+        'folk': '포크',
+        'country': '컨트리',
+        'reggae': '레게',
+        'ska': '스카',
+        'funk': '펑크(Funk)',
+        'disco': '디스코',
+
+        'singer/songwriter': '싱어송라이터',
+        'singer-songwriter': '싱어송라이터',
+        'vocal': '보컬',
+        'easy listening': '이지 리스닝',
+        'adult contemporary': '어덜트 컨템포러리',
+
+        'classical': '클래식',
+        'opera': '오페라',
+        'new age': '뉴에이지',
+        'soundtrack': '사운드트랙',
+        'original score': '영화음악',
+        'musicals': '뮤지컬',
+
+        'latin': '라틴',
+        'brazilian': '브라질',
+        'african': '아프리카',
+        'world': '월드뮤직',
+        'worldwide': '월드뮤직',
+        'international': '월드뮤직',
+
+        'christian & gospel': 'CCM/가스펠',
+        'christian': 'CCM',
+        'gospel': '가스펠',
+
+        "children's music": '어린이 음악',
+        'children': '어린이 음악',
+        'holiday': '홀리데이',
+        'christmas': '크리스마스',
+        'comedy': '코미디',
+        'spoken word': '스포큰 워드',
+        'fitness & workout': '피트니스',
+        'disney': '디즈니',
+
+        'indian': '인도 음악',
+        'bollywood': '볼리우드',
+        'korean': '한국 음악',
+        'japanese': '일본 음악',
     }
 
     return genre_map.get(value.lower(), value)
