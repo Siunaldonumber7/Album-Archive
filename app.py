@@ -69,22 +69,50 @@ def init_db():
 ALBUM_TYPES = ('앨범', 'EP(미니)', '싱글', '믹스테잎')
 
 
+def normalize_genre_name(value):
+    value = str(value or '').strip()
+    if not value:
+        return ''
+
+    genre_map = {
+        'hip-hop/rap': '힙합',
+        'hip hop/rap': '힙합',
+        'hip-hop': '힙합',
+        'hip hop': '힙합',
+        'r&b/soul': 'R&B',
+        'r&b': 'R&B',
+    }
+
+    return genre_map.get(value.lower(), value)
+
+
 def extract_apple_genre(item):
     if not isinstance(item, dict):
         return ''
+
     attrs = item.get('attributes') if isinstance(item.get('attributes'), dict) else {}
     genre_names = attrs.get('genreNames') or item.get('genreNames')
+
     if isinstance(genre_names, list):
         cleaned = [str(v or '').strip() for v in genre_names if str(v or '').strip()]
         for value in cleaned:
             if value.lower() not in {'music', '음악'}:
-                return value
+                return normalize_genre_name(value)
         if cleaned:
-            return cleaned[0]
-    raw = item.get('primaryGenreName') or attrs.get('primaryGenreName') or item.get('genre') or attrs.get('genre') or ''
+            return normalize_genre_name(cleaned[0])
+
+    raw = (
+        item.get('primaryGenreName')
+        or attrs.get('primaryGenreName')
+        or item.get('genre')
+        or attrs.get('genre')
+        or ''
+    )
+
     if isinstance(raw, list):
         raw = next((str(v or '').strip() for v in raw if str(v or '').strip()), '')
-    return str(raw or '').strip()
+
+    return normalize_genre_name(raw)
 
 
 def normalize_apple_album_type(item, title=''):
@@ -2866,7 +2894,7 @@ def add_album_manual():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = request.form.get('genre', '').strip()
+    genre = normalize_genre_name(request.form.get('genre', '').strip())
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
     purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
@@ -3029,7 +3057,7 @@ def save_album():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = request.form.get('genre', '').strip()
+    genre = normalize_genre_name(request.form.get('genre', '').strip())
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -3071,7 +3099,7 @@ def update_album(album_row_id):
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = request.form.get('genre', '').strip()
+    genre = normalize_genre_name(request.form.get('genre', '').strip())
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
