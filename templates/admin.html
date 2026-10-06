@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>관리자 메뉴</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f2;color:#171717}
+.wrap{max-width:1120px;margin:0 auto;padding:34px 24px 60px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
+.back{display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:#555;font-weight:700}
+.back:hover{color:#111}
+.title-area h1{margin:0;font-size:34px;letter-spacing:-1.4px}
+.title-area p{margin:8px 0 0;color:#777}
+.badge{padding:8px 12px;border-radius:999px;background:#111;color:#fff;font-size:13px;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid #e7e7e2;border-radius:18px;padding:18px 20px}
+.stat .label{font-size:13px;color:#888;margin-bottom:8px}
+.stat .value{font-size:25px;font-weight:850;letter-spacing:-.5px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0 34px}
+.action{display:block;background:#fff;border:1px solid #e4e4df;border-radius:24px;padding:28px;text-decoration:none;color:#171717;transition:.18s ease}
+.action:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.07);border-color:#cacac4}
+.action-icon{font-size:30px;margin-bottom:18px}
+.action h2{font-size:22px;margin:0 0 8px;letter-spacing:-.6px}
+.action p{margin:0;color:#777;line-height:1.6;font-size:14px}
+.section-title{font-size:17px;font-weight:850;margin:0 0 14px}
+.recent{background:#fff;border:1px solid #e4e4df;border-radius:20px;overflow:hidden}
+.row{display:grid;grid-template-columns:52px 120px 1fr 1.25fr;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid #eeeeea;text-decoration:none;color:#222}
+.row:last-child{border-bottom:0}
+.row:hover{background:#fafaf7}
+.cover{width:46px;height:46px;border-radius:8px;background:#ecece7;object-fit:cover}
+.no-cover{display:flex;align-items:center;justify-content:center;font-size:18px;color:#aaa}
+.management{font-size:12px;color:#888;font-weight:700}
+.artist{font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.album{color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{padding:28px;color:#888;text-align:center}
+@media(max-width:760px){
+  .wrap{padding:22px 16px 40px}
+  .topbar{align-items:flex-start}
+  .title-area h1{font-size:28px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stats .stat:first-child{grid-column:span 2}
+  .actions{grid-template-columns:1fr}
+  .row{grid-template-columns:50px 1fr}
+  .management{display:none}
+  .album{grid-column:2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title-area">
+      <a class="back" href="{{ url_for('index') }}">‹ 내 앨범으로 돌아가기</a>
+      <h1>관리자 메뉴</h1>
+      <p>앨범 등록과 컬렉션 관리 기능을 한곳에서 사용합니다.</p>
+    </div>
+    <div class="badge">ADMIN</div>
+  </div>
+
+  <section class="stats">
+    <div class="stat"><div class="label">전체 앨범</div><div class="value">{{ stats.total }}</div></div>
+    <div class="stat"><div class="label">한국 음반</div><div class="value">{{ stats.korean }}</div></div>
+    <div class="stat"><div class="label">해외 음반</div><div class="value">{{ stats.overseas }}</div></div>
+    <div class="stat"><div class="label">CD</div><div class="value">{{ stats.cd }}</div></div>
+    <div class="stat"><div class="label">LP</div><div class="value">{{ stats.lp }}</div></div>
+  </section>
+
+  <section class="actions">
+    <a class="action" href="{{ url_for('add_album_page') }}">
+      <div class="action-icon">＋</div>
+      <h2>앨범 추가</h2>
+      <p>Apple Music 검색, 링크 등록, 수동 등록으로 새로운 음반을 컬렉션에 추가합니다.</p>
+    </a>
+    <a class="action" href="{{ url_for('manage_albums') }}">
+      <div class="action-icon">⚙</div>
+      <h2>앨범 관리</h2>
+      <p>관리번호, 분류, 포맷, 개봉 여부, 사인 여부를 검색하고 수정하거나 삭제합니다.</p>
+    </a>
+  </section>
+
+  <h3 class="section-title">최근 등록</h3>
+  <section class="recent">
+    {% if recent_albums %}
+      {% for album in recent_albums %}
+      <a class="row" href="{{ url_for('album_detail', album_row_id=album.id) }}">
+        {% if album.cover_url %}
+          <img class="cover" src="{{ album.cover_url }}" alt="">
+        {% else %}
+          <div class="cover no-cover">♫</div>
+        {% endif %}
+        <div class="management">{{ album.management_no or '-' }}</div>
+        <div class="artist">{{ album.artist }}</div>
+        <div class="album">{{ album.album_title }}</div>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty">아직 등록된 앨범이 없습니다.</div>
+    {% endif %}
+  </section>
+</div>
+</body>
+</html>
