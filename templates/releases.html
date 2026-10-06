@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>발매판 선택</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 40px 30px;
+}
+
+.back {
+    color: #555;
+    text-decoration: none;
+}
+
+.header {
+    margin: 25px 0 30px;
+}
+
+.header h1 {
+    margin-bottom: 7px;
+}
+
+.header p {
+    color: #777;
+}
+
+.release-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+
+    display: grid;
+    grid-template-columns: 150px 1fr 130px;
+    gap: 22px;
+    align-items: center;
+}
+
+.cover {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #eee;
+}
+
+.release-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.artist {
+    color: #555;
+    margin-bottom: 13px;
+}
+
+.meta-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 5px 12px;
+    font-size: 14px;
+}
+
+.meta-name {
+    color: #999;
+}
+
+.meta-value {
+    color: #333;
+}
+
+.comment {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    background: #f5f5f5;
+    font-size: 13px;
+}
+
+.select-button {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-radius: 9px;
+    background: #111;
+    color: white;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.empty {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    text-align: center;
+}
+
+@media(max-width:800px) {
+
+    .release-card {
+        grid-template-columns: 100px 1fr;
+    }
+
+    .cover {
+        width: 100px;
+        height: 100px;
+    }
+
+    .button-area {
+        grid-column: 1 / -1;
+    }
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+<a
+    href="javascript:history.back()"
+    class="back"
+>
+← 검색 결과
+</a>
+
+
+<div class="header">
+
+<h1>
+{{ artist }} — {{ album_title }}
+</h1>
+
+<p>
+MusicBrainz 실제 발매판 {{ releases|length }}개
+</p>
+
+</div>
+
+
+{% if not releases %}
+
+<div class="empty">
+
+등록된 실제 발매판 정보가 없습니다.
+
+</div>
+
+{% endif %}
+
+
+{% for item in releases %}
+
+<div class="release-card">
+
+
+<div>
+
+<img
+    class="cover"
+    src="{{ item.cover }}"
+    onerror="
+        this.onerror=null;
+        this.src='{{ group_cover }}';
+    "
+>
+
+</div>
+
+
+<div>
+
+<div class="release-title">
+{{ item.title }}
+</div>
+
+<div class="artist">
+{{ item.artist or artist }}
+</div>
+
+
+<div class="meta-grid">
+
+<div class="meta-name">
+발매일
+</div>
+
+<div class="meta-value">
+{{ item.date or '-' }}
+</div>
+
+
+<div class="meta-name">
+국가
+</div>
+
+<div class="meta-value">
+{{ item.region or '-' }}
+</div>
+
+
+<div class="meta-name">
+포맷
+</div>
+
+<div class="meta-value">
+<strong>
+{{ item.format or '-' }}
+</strong>
+</div>
+
+
+<div class="meta-name">
+트랙
+</div>
+
+<div class="meta-value">
+{{ item.track_count or '-' }}
+</div>
+
+
+<div class="meta-name">
+레이블
+</div>
+
+<div class="meta-value">
+{{ item.label or '-' }}
+</div>
+
+
+<div class="meta-name">
+카탈로그 번호
+</div>
+
+<div class="meta-value">
+{{ item.catalog_number or '-' }}
+</div>
+
+
+<div class="meta-name">
+바코드
+</div>
+
+<div class="meta-value">
+{{ item.barcode or '-' }}
+</div>
+
+
+<div class="meta-name">
+패키징
+</div>
+
+<div class="meta-value">
+{{ item.packaging or '-' }}
+</div>
+
+
+<div class="meta-name">
+상태
+</div>
+
+<div class="meta-value">
+{{ item.status or '-' }}
+</div>
+
+</div>
+
+
+{% if item.comment %}
+
+<div class="comment">
+
+판본 설명:
+{{ item.comment }}
+
+</div>
+
+{% endif %}
+
+</div>
+
+
+<div class="button-area">
+
+<form
+    action="/register"
+    method="POST"
+>
+
+<input
+    type="hidden"
+    name="source"
+    value="MusicBrainz"
+>
+
+<input
+    type="hidden"
+    name="source_id"
+    value="{{ item.release_id }}"
+>
+
+<input
+    type="hidden"
+    name="release_group_id"
+    value="{{ release_group_id }}"
+>
+
+<input
+    type="hidden"
+    name="artist"
+    value="{{ item.artist or artist }}"
+>
+
+<input
+    type="hidden"
+    name="album_title"
+    value="{{ item.title }}"
+>
+
+<input
+    type="hidden"
+    name="release_date"
+    value="{{ item.date }}"
+>
+
+<input
+    type="hidden"
+    name="release_type"
+    value="{{ release_type }}"
+>
+
+<input
+    type="hidden"
+    name="track_count"
+    value="{{ item.track_count }}"
+>
+
+<input
+    type="hidden"
+    name="cover_url"
+    value="{{ item.cover }}"
+>
+
+<input
+    type="hidden"
+    name="album_format"
+    value="{{ item.format }}"
+>
+
+<input
+    type="hidden"
+    name="region"
+    value="{{ item.region }}"
+>
+
+<input
+    type="hidden"
+    name="label"
+    value="{{ item.label }}"
+>
+
+<input
+    type="hidden"
+    name="catalog_number"
+    value="{{ item.catalog_number }}"
+>
+
+<input
+    type="hidden"
+    name="barcode"
+    value="{{ item.barcode }}"
+>
+
+<input
+    type="hidden"
+    name="packaging"
+    value="{{ item.packaging }}"
+>
+
+<input
+    type="hidden"
+    name="release_status"
+    value="{{ item.status }}"
+>
+
+<button class="select-button">
+
+이 판본 선택
+
+</button>
+
+</form>
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+</body>
+</html>

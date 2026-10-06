@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>My Album Archive</title>
+
+
+<style>
+
+:root {
+
+    --bg: #f5f5f7;
+    --sidebar: 226px;
+    --text: #171719;
+    --sub: #77777d;
+    --muted: #a1a1a6;
+    --accent: #fa2d48;
+    --border: rgba(0,0,0,.07);
+}
+
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+
+    margin: 0;
+
+    background: var(--bg);
+
+    color: var(--text);
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+
+    -webkit-font-smoothing:
+        antialiased;
+}
+
+
+a {
+    color: inherit;
+}
+
+
+/* =========================================================
+   Layout
+========================================================= */
+
+.app {
+
+    min-height: 100vh;
+
+    display: grid;
+
+    grid-template-columns:
+        var(--sidebar) 1fr;
+}
+
+
+/* =========================================================
+   Sidebar
+========================================================= */
+
+.sidebar {
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: var(--sidebar);
+
+    height: 100vh;
+
+    padding:
+        27px 17px;
+
+    border-right:
+        1px solid var(--border);
+
+    background:
+        rgba(246,246,248,.90);
+
+    backdrop-filter:
+        blur(30px)
+        saturate(180%);
+
+    -webkit-backdrop-filter:
+        blur(30px)
+        saturate(180%);
+
+    z-index: 50;
+}
+
+
+.brand {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    padding:
+        2px 10px
+        28px;
+}
+
+
+.brand-icon {
+
+    width: 35px;
+    height: 35px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ff375f,
+            #fa233b
+        );
+
+    color: white;
+
+    font-size: 19px;
+
+    box-shadow:
+        0 7px 19px
+        rgba(250,45,72,.25);
+}
+
+
+.brand-name {
+
+    font-size: 17px;
+
+    font-weight: 800;
+}
+
+
+.nav-label {
+
+    margin:
+        19px 10px
+        7px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+    letter-spacing: .7px;
+
+    text-transform: uppercase;
+}
+
+
+.nav-item {
+
+    min-height: 42px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    padding:
+        0 11px;
+
+    margin-bottom: 2px;
+
+    border-radius: 10px;
+
+    color: #424247;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    font-weight: 650;
+
+    transition: .16s;
+}
+
+
+.nav-item:hover {
+
+    background:
+        rgba(0,0,0,.05);
+}
+
+
+.nav-item.active {
+
+    background:
+        rgba(250,45,72,.10);
+
+    color: var(--accent);
+}
+
+
+.nav-icon {
+
+    width: 21px;
+
+    text-align: center;
+}
+
+
+.nav-count {
+
+    margin-left: auto;
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   Main
+========================================================= */
+
+.main {
+
+    grid-column: 2;
+
+    min-width: 0;
+}
+
+
+/* =========================================================
+   Topbar
+========================================================= */
+
+.topbar {
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 40;
+
+    height: 72px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding:
+        0 42px;
+
+    border-bottom:
+        1px solid var(--border);
+
+    background:
+        rgba(245,245,247,.82);
+
+    backdrop-filter:
+        blur(25px)
+        saturate(180%);
+}
+
+
+.top-title {
+
+    font-size: 14px;
+
+    font-weight: 750;
+}
+
+
+.top-search {
+
+    width: 370px;
+}
+
+
+.top-search input {
+
+    width: 100%;
+
+    height: 39px;
+
+    padding:
+        0 15px;
+
+    border: 0;
+
+    border-radius: 11px;
+
+    background:
+        rgba(0,0,0,.055);
+
+    outline: none;
+
+    font-size: 14px;
+}
+
+
+.top-search input:focus {
+
+    background: white;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(250,45,72,.08);
+}
+
+
+/* =========================================================
+   Content
+========================================================= */
+
+.content {
+
+    max-width: 1500px;
+
+    margin: auto;
+
+    padding:
+        40px 42px
+        80px;
+}
+
+
+.notice {
+
+    margin-bottom: 25px;
+
+    padding:
+        14px 17px;
+
+    border-radius: 12px;
+
+    background: #e9f8ed;
+
+    color: #24763a;
+
+    font-weight: 650;
+}
+
+
+/* =========================================================
+   Header
+========================================================= */
+
+.page-head {
+
+    margin-bottom: 30px;
+}
+
+
+h1 {
+
+    margin: 0;
+
+    font-size: 48px;
+
+    letter-spacing: -2px;
+}
+
+
+.page-sub {
+
+    margin-top: 8px;
+
+    color: var(--sub);
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   Filters
+========================================================= */
+
+.filters {
+
+    margin-bottom: 30px;
+
+    padding: 15px 17px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 15px;
+
+    background:
+        rgba(255,255,255,.7);
+}
+
+
+.filter-row {
+
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 7px;
+
+    margin-bottom: 9px;
+}
+
+
+.filter-row:last-child {
+
+    margin-bottom: 0;
+}
+
+
+.filter-label {
+
+    width: 52px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    font-weight: 800;
+}
+
+
+.chip {
+
+    min-height: 30px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    padding:
+        0 12px;
+
+    border-radius: 999px;
+
+    background: #eaeaec;
+
+    color: #606066;
+
+    text-decoration: none;
+
+    font-size: 11px;
+
+    font-weight: 700;
+}
+
+
+.chip:hover {
+
+    background: #dfdfe2;
+}
+
+
+.chip.active {
+
+    background: var(--accent);
+
+    color: white;
+}
+
+
+/* =========================================================
+   Album Grid
+========================================================= */
+
+.album-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fill,
+            minmax(195px, 1fr)
+        );
+
+    gap:
+        38px 24px;
+}
+
+
+.album-card {
+
+    min-width: 0;
+}
+
+
+.cover-link {
+
+    display: block;
+
+    text-decoration: none;
+}
+
+
+.cover {
+
+    position: relative;
+
+    aspect-ratio: 1;
+
+    overflow: hidden;
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #dadadc,
+            #eeeeef
+        );
+
+    box-shadow:
+        0 8px 22px
+        rgba(0,0,0,.11);
+
+    transition:
+        transform .22s ease,
+        box-shadow .22s ease;
+}
+
+
+.album-card:hover
+.cover {
+
+    transform:
+        translateY(-5px)
+        scale(1.01);
+
+    box-shadow:
+        0 17px 35px
+        rgba(0,0,0,.17);
+}
+
+
+.cover::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        rgba(0,0,0,0);
+
+    transition:
+        background .2s ease;
+}
+
+
+.album-card:hover
+.cover::after {
+
+    background:
+        rgba(0,0,0,.035);
+}
+
+
+.cover img {
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+    display: block;
+}
+
+
+.no-cover {
+
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #aaa;
+
+    font-size: 35px;
+}
+
+
+.album-title {
+
+    margin-top: 12px;
+
+    overflow: hidden;
+
+    font-size: 15px;
+
+    font-weight: 750;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+}
+
+
+.album-title a {
+
+    text-decoration: none;
+}
+
+
+.album-title a:hover {
+
+    color: var(--accent);
+}
+
+
+.artist {
+
+    margin-top: 3px;
+
+    overflow: hidden;
+
+    color: var(--sub);
+
+    font-size: 13px;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+}
+
+
+.meta {
+
+    margin-top: 5px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   Mobile
+========================================================= */
+
+@media(max-width:900px) {
+
+    .app {
+
+        display: block;
+    }
+
+
+    .sidebar {
+
+        display: none;
+    }
+
+
+    .main {
+
+        display: block;
+    }
+
+
+    .topbar {
+
+        padding:
+            0 18px;
+    }
+
+
+    .top-search {
+
+        width: 55%;
+    }
+
+
+    .content {
+
+        padding:
+            28px 18px
+            60px;
+    }
+
+}
+
+
+@media(max-width:600px) {
+
+    h1 {
+
+        font-size: 36px;
+    }
+
+
+    .album-grid {
+
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+
+        gap:
+            30px 15px;
+    }
+
+
+    .filter-label {
+
+        width: 100%;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="app">
+
+
+<!-- =====================================================
+     Sidebar
+===================================================== -->
+
+<aside class="sidebar">
+
+
+<div class="brand">
+
+
+<div class="brand-icon">
+
+♫
+
+</div>
+
+
+<div class="brand-name">
+
+My Archive
+
+</div>
+
+
+</div>
+
+
+
+<div class="nav-label">
+
+LIBRARY
+
+</div>
+
+
+<a
+    href="{{ url_for('index') }}"
+    class="nav-item active"
+>
+
+<span class="nav-icon">
+
+▦
+
+</span>
+
+내 앨범
+
+
+<span class="nav-count">
+
+{{ total_album_count }}
+
+</span>
+
+
+</a>
+
+
+
+<a
+    href="{{ url_for(
+        'index',
+        classification='한국'
+    ) }}"
+    class="nav-item"
+>
+
+<span class="nav-icon">
+
+♪
+
+</span>
+
+한국 음반
+
+</a>
+
+
+
+<a
+    href="{{ url_for(
+        'index',
+        classification='해외'
+    ) }}"
+    class="nav-item"
+>
+
+<span class="nav-icon">
+
+◉
+
+</span>
+
+해외 음반
+
+</a>
+
+
+
+<div class="nav-label">
+
+COLLECTION
+
+</div>
+
+
+<a
+    href="{{ url_for(
+        'add_album_page'
+    ) }}"
+    class="nav-item"
+>
+
+<span class="nav-icon">
+
+＋
+
+</span>
+
+앨범 추가
+
+</a>
+
+
+
+<a
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+    class="nav-item"
+>
+
+<span class="nav-icon">
+
+⚙
+
+</span>
+
+앨범 관리
+
+</a>
+
+
+</aside>
+
+
+
+<!-- =====================================================
+     Main
+===================================================== -->
+
+<main class="main">
+
+
+<header class="topbar">
+
+
+<div class="top-title">
+
+My Album Archive
+
+</div>
+
+
+
+<form
+    class="top-search"
+    method="GET"
+    action="{{ url_for('index') }}"
+>
+
+
+<input
+    name="library_q"
+    value="{{ library_q }}"
+    placeholder="앨범 또는 아티스트 검색"
+>
+
+
+{% if classification_filter %}
+
+<input
+    type="hidden"
+    name="classification"
+    value="{{ classification_filter }}"
+>
+
+{% endif %}
+
+
+{% if format_filter %}
+
+<input
+    type="hidden"
+    name="media_format"
+    value="{{ format_filter }}"
+>
+
+{% endif %}
+
+
+</form>
+
+
+</header>
+
+
+
+<div class="content">
+
+
+{% if saved %}
+
+
+<div class="notice">
+
+✓ 새 앨범이 추가되었습니다.
+
+</div>
+
+
+{% endif %}
+
+
+
+<div class="page-head">
+
+
+<h1>
+
+내 앨범
+
+</h1>
+
+
+<div class="page-sub">
+
+{{ total_album_count }}장의 음악 컬렉션
+
+</div>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     Filters
+===================================================== -->
+
+<div class="filters">
+
+
+<div class="filter-row">
+
+
+<div class="filter-label">
+
+분류
+
+</div>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        media_format=format_filter
+    ) }}"
+    class="chip
+    {% if not classification_filter %}
+    active
+    {% endif %}"
+>
+
+전체
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification='한국',
+        media_format=format_filter
+    ) }}"
+    class="chip
+    {% if classification_filter == '한국' %}
+    active
+    {% endif %}"
+>
+
+한국
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification='해외',
+        media_format=format_filter
+    ) }}"
+    class="chip
+    {% if classification_filter == '해외' %}
+    active
+    {% endif %}"
+>
+
+해외
+
+</a>
+
+
+</div>
+
+
+
+<div class="filter-row">
+
+
+<div class="filter-label">
+
+포맷
+
+</div>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification=classification_filter
+    ) }}"
+    class="chip
+    {% if not format_filter %}
+    active
+    {% endif %}"
+>
+
+전체
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification=classification_filter,
+        media_format='CD'
+    ) }}"
+    class="chip
+    {% if format_filter == 'CD' %}
+    active
+    {% endif %}"
+>
+
+CD
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification=classification_filter,
+        media_format='LP'
+    ) }}"
+    class="chip
+    {% if format_filter == 'LP' %}
+    active
+    {% endif %}"
+>
+
+LP
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'index',
+        library_q=library_q,
+        classification=classification_filter,
+        media_format='ETC'
+    ) }}"
+    class="chip
+    {% if format_filter == 'ETC' %}
+    active
+    {% endif %}"
+>
+
+기타
+
+</a>
+
+
+</div>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     Albums
+===================================================== -->
+
+{% if albums %}
+
+
+<div class="album-grid">
+
+
+{% for album in albums %}
+
+
+<article class="album-card">
+
+
+<a
+    href="{{ url_for(
+        'album_detail',
+        album_row_id=album.id
+    ) }}"
+    class="cover-link"
+>
+
+
+<div class="cover">
+
+
+{% if album.cover_url %}
+
+
+<img
+    src="{{ album.cover_url }}"
+    alt="{{ album.album_title }}"
+>
+
+
+{% else %}
+
+
+<div class="no-cover">
+
+♫
+
+</div>
+
+
+{% endif %}
+
+
+</div>
+
+
+</a>
+
+
+
+<div class="album-title">
+
+
+<a
+    href="{{ url_for(
+        'album_detail',
+        album_row_id=album.id
+    ) }}"
+>
+
+{{ album.album_title }}
+
+</a>
+
+
+</div>
+
+
+
+<div class="artist">
+
+{{ album.artist }}
+
+</div>
+
+
+
+<div class="meta">
+
+
+{% if album.release_year %}
+
+{{ album.release_year }}
+
+{% endif %}
+
+
+{% if
+    album.release_year
+    and album.media_format
+%}
+
+&nbsp;·&nbsp;
+
+{% endif %}
+
+
+{{ album.media_format or '' }}
+
+
+</div>
+
+
+</article>
+
+
+{% endfor %}
+
+
+</div>
+
+
+{% else %}
+
+
+<div style="
+    padding:80px 0;
+    text-align:center;
+    color:#999;
+">
+
+조건에 맞는 앨범이 없습니다.
+
+</div>
+
+
+{% endif %}
+
+
+</div>
+
+
+</main>
+
+
+</div>
+
+
+</body>
+
+</html>

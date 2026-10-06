@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+>
+
+<title>앨범 관리</title>
+
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    margin: 0;
+
+    background: #f5f5f7;
+
+    color: #1c1c1e;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        Arial,
+        sans-serif;
+}
+
+
+.header {
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 30;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    height: 68px;
+
+    padding:
+        0 32px;
+
+    border-bottom:
+        1px solid rgba(0,0,0,.07);
+
+    background:
+        rgba(245,245,247,.88);
+
+    backdrop-filter:
+        blur(25px);
+}
+
+
+.back {
+
+    color: #fa2d48;
+
+    text-decoration: none;
+
+    font-weight: 700;
+}
+
+
+.container {
+
+    max-width: 1450px;
+
+    margin: auto;
+
+    padding:
+        38px 30px
+        80px;
+}
+
+
+h1 {
+
+    margin:
+        0 0 8px;
+
+    font-size: 38px;
+
+    letter-spacing: -1.4px;
+}
+
+
+.subtitle {
+
+    margin-bottom: 28px;
+
+    color: #777;
+}
+
+
+/* Message */
+
+.message {
+
+    margin-bottom: 22px;
+
+    padding: 13px 16px;
+
+    border-radius: 11px;
+
+    font-weight: 650;
+}
+
+
+.success {
+
+    background: #e9f8ed;
+
+    color: #25763b;
+}
+
+
+.delete-message {
+
+    background: #fff0f1;
+
+    color: #b52c3b;
+}
+
+
+/* Search */
+
+.search {
+
+    display: flex;
+
+    gap: 9px;
+
+    margin-bottom: 16px;
+}
+
+
+.search input {
+
+    flex: 1;
+
+    height: 43px;
+
+    padding:
+        0 14px;
+
+    border:
+        1px solid #ddd;
+
+    border-radius: 10px;
+
+    background: white;
+
+    outline: none;
+}
+
+
+.search button {
+
+    padding:
+        0 18px;
+
+    border: 0;
+
+    border-radius: 10px;
+
+    background: #222;
+
+    color: white;
+
+    font-weight: 700;
+}
+
+
+/* Filters */
+
+.filters {
+
+    margin-bottom: 25px;
+
+    padding: 15px;
+
+    border-radius: 14px;
+
+    background: white;
+
+    border:
+        1px solid rgba(0,0,0,.06);
+}
+
+
+.row {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    gap: 7px;
+
+    margin-bottom: 9px;
+}
+
+
+.row:last-child {
+
+    margin-bottom: 0;
+}
+
+
+.label {
+
+    width: 55px;
+
+    color: #999;
+
+    font-size: 11px;
+
+    font-weight: 800;
+}
+
+
+.chip {
+
+    display: inline-flex;
+
+    min-height: 29px;
+
+    align-items: center;
+
+    padding:
+        0 11px;
+
+    border-radius: 999px;
+
+    background: #ededee;
+
+    color: #555;
+
+    text-decoration: none;
+
+    font-size: 11px;
+
+    font-weight: 700;
+}
+
+
+.chip.active {
+
+    background: #fa2d48;
+
+    color: white;
+}
+
+
+/* Table */
+
+.table-box {
+
+    overflow-x: auto;
+
+    border:
+        1px solid rgba(0,0,0,.07);
+
+    border-radius: 16px;
+
+    background: white;
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 1100px;
+}
+
+
+th {
+
+    padding:
+        12px 13px;
+
+    background: #f7f7f8;
+
+    color: #777;
+
+    text-align: left;
+
+    font-size: 11px;
+
+    white-space: nowrap;
+}
+
+
+td {
+
+    padding:
+        11px 13px;
+
+    border-top:
+        1px solid #eee;
+
+    font-size: 12px;
+
+    vertical-align: middle;
+}
+
+
+.cover {
+
+    width: 52px;
+    height: 52px;
+
+    overflow: hidden;
+
+    border-radius: 7px;
+
+    background: #eee;
+}
+
+
+.cover img {
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+
+.title {
+
+    font-weight: 750;
+}
+
+
+.artist {
+
+    margin-top: 3px;
+
+    color: #777;
+}
+
+
+.badge {
+
+    display: inline-flex;
+
+    padding:
+        4px 7px;
+
+    border-radius: 6px;
+
+    background: #eee;
+
+    font-size: 10px;
+
+    font-weight: 700;
+}
+
+
+.signed {
+
+    color: #fa2d48;
+
+    font-weight: 800;
+}
+
+
+.edit {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    height: 31px;
+
+    padding:
+        0 11px;
+
+    border-radius: 8px;
+
+    background: #ededee;
+
+    color: #333;
+
+    text-decoration: none;
+
+    font-size: 11px;
+
+    font-weight: 750;
+}
+
+
+.delete-button {
+
+    height: 31px;
+
+    padding:
+        0 11px;
+
+    border: 0;
+
+    border-radius: 8px;
+
+    background: #fff0f1;
+
+    color: #fa2d48;
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+    cursor: pointer;
+}
+
+
+.action {
+
+    display: flex;
+
+    gap: 6px;
+}
+
+
+@media(max-width:700px) {
+
+    .container {
+
+        padding:
+            25px 14px
+            60px;
+    }
+
+    .header {
+
+        padding:
+            0 15px;
+    }
+
+    .label {
+
+        width: 100%;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header class="header">
+
+
+<a
+    href="{{ url_for('index') }}"
+    class="back"
+>
+
+‹ 내 앨범
+
+</a>
+
+
+<a
+    href="{{ url_for(
+        'add_album_page'
+    ) }}"
+    class="back"
+>
+
+＋ 앨범 추가
+
+</a>
+
+
+</header>
+
+
+
+<div class="container">
+
+
+<h1>
+
+앨범 관리
+
+</h1>
+
+
+<div class="subtitle">
+
+관리정보 수정 및 삭제 · 총 {{ total_album_count }}장
+
+</div>
+
+
+{% if updated %}
+
+<div class="message success">
+
+✓ {{ updated }} 수정 완료
+
+</div>
+
+{% endif %}
+
+
+{% if deleted %}
+
+<div class="message delete-message">
+
+{{ deleted }} 삭제 완료
+
+</div>
+
+{% endif %}
+
+
+
+<form
+    class="search"
+    method="GET"
+    action="{{ url_for(
+        'manage_albums'
+    ) }}"
+>
+
+
+<input
+    name="library_q"
+    value="{{ library_q }}"
+    placeholder="관리번호, 앨범ID, 아티스트, 앨범명 검색"
+>
+
+
+<button type="submit">
+
+검색
+
+</button>
+
+
+</form>
+
+
+
+<div class="filters">
+
+
+<div class="row">
+
+
+<div class="label">
+분류
+</div>
+
+
+<a
+    class="chip
+    {% if not classification_filter %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+>
+
+전체
+
+</a>
+
+
+<a
+    class="chip
+    {% if classification_filter == '한국' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        classification='한국'
+    ) }}"
+>
+
+한국
+
+</a>
+
+
+<a
+    class="chip
+    {% if classification_filter == '해외' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        classification='해외'
+    ) }}"
+>
+
+해외
+
+</a>
+
+
+</div>
+
+
+
+<div class="row">
+
+
+<div class="label">
+포맷
+</div>
+
+
+<a
+    class="chip
+    {% if not format_filter %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+>
+
+전체
+
+</a>
+
+
+<a
+    class="chip
+    {% if format_filter == 'CD' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        media_format='CD'
+    ) }}"
+>
+
+CD
+
+</a>
+
+
+<a
+    class="chip
+    {% if format_filter == 'LP' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        media_format='LP'
+    ) }}"
+>
+
+LP
+
+</a>
+
+
+</div>
+
+
+
+<div class="row">
+
+
+<div class="label">
+상태
+</div>
+
+
+<a
+    class="chip
+    {% if not status_filter %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+>
+
+전체
+
+</a>
+
+
+<a
+    class="chip
+    {% if status_filter == '개봉' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        open_status='개봉'
+    ) }}"
+>
+
+개봉
+
+</a>
+
+
+<a
+    class="chip
+    {% if status_filter == '미개봉' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        open_status='미개봉'
+    ) }}"
+>
+
+미개봉
+
+</a>
+
+
+</div>
+
+
+
+<div class="row">
+
+
+<div class="label">
+사인
+</div>
+
+
+<a
+    class="chip
+    {% if not signed_filter %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+>
+
+전체
+
+</a>
+
+
+<a
+    class="chip
+    {% if signed_filter == 'O' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        signed='O'
+    ) }}"
+>
+
+O
+
+</a>
+
+
+<a
+    class="chip
+    {% if signed_filter == 'X' %}
+    active
+    {% endif %}"
+    href="{{ url_for(
+        'manage_albums',
+        signed='X'
+    ) }}"
+>
+
+X
+
+</a>
+
+
+</div>
+
+
+</div>
+
+
+
+<div class="table-box">
+
+
+<table>
+
+
+<thead>
+
+
+<tr>
+
+<th>
+커버
+</th>
+
+<th>
+관리번호
+</th>
+
+<th>
+앨범ID
+</th>
+
+<th>
+앨범
+</th>
+
+<th>
+분류
+</th>
+
+<th>
+포맷
+</th>
+
+<th>
+년도
+</th>
+
+<th>
+상태
+</th>
+
+<th>
+사인
+</th>
+
+<th>
+구입금액
+</th>
+
+<th>
+관리
+</th>
+
+</tr>
+
+
+</thead>
+
+
+
+<tbody>
+
+
+{% for album in albums %}
+
+
+<tr>
+
+
+<td>
+
+
+<div class="cover">
+
+
+{% if album.cover_url %}
+
+<img
+    src="{{ album.cover_url }}"
+>
+
+{% endif %}
+
+
+</div>
+
+
+</td>
+
+
+
+<td>
+
+<strong>
+{{ album.management_no }}
+</strong>
+
+</td>
+
+
+
+<td>
+
+{{ album.album_id }}
+
+</td>
+
+
+
+<td>
+
+
+<div class="title">
+
+{{ album.album_title }}
+
+</div>
+
+
+<div class="artist">
+
+{{ album.artist }}
+
+</div>
+
+
+</td>
+
+
+
+<td>
+
+{{ album.classification }}
+
+</td>
+
+
+
+<td>
+
+<span class="badge">
+
+{{ album.media_format }}
+
+</span>
+
+</td>
+
+
+
+<td>
+
+{{ album.release_year }}
+
+</td>
+
+
+
+<td>
+
+{{ album.open_status }}
+
+</td>
+
+
+
+<td>
+
+
+{% if album.signed == 'O' %}
+
+<span class="signed">
+
+O
+
+</span>
+
+{% else %}
+
+X
+
+{% endif %}
+
+
+</td>
+
+
+
+<td>
+
+
+{% if album.purchase_price %}
+
+₩ {{ "{:,}".format(album.purchase_price) }}
+
+{% endif %}
+
+
+</td>
+
+
+
+<td>
+
+
+<div class="action">
+
+
+<a
+    href="{{ url_for(
+        'edit_album',
+        album_row_id=album.id
+    ) }}"
+    class="edit"
+>
+
+수정
+
+</a>
+
+
+
+<form
+    action="{{ url_for(
+        'delete_album',
+        album_row_id=album.id
+    ) }}"
+    method="POST"
+
+    onsubmit="return confirm(
+        '{{ album.album_title }} 앨범을 정말 삭제하시겠습니까?'
+    );"
+>
+
+
+<button
+    type="submit"
+    class="delete-button"
+>
+
+삭제
+
+</button>
+
+
+</form>
+
+
+</div>
+
+
+</td>
+
+
+</tr>
+
+
+{% endfor %}
+
+
+</tbody>
+
+
+</table>
+
+
+</div>
+
+
+</div>
+
+
+</body>
+
+</html>

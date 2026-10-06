@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>앨범 등록</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+
+    background: #f5f5f7;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    color: #111;
+}
+
+.container {
+    max-width: 1050px;
+
+    margin: auto;
+
+    padding: 40px 30px;
+}
+
+.back {
+    display: inline-block;
+
+    margin-bottom: 20px;
+
+    color: #555;
+
+    text-decoration: none;
+
+    font-weight: 600;
+}
+
+.card {
+    background: white;
+
+    border-radius: 20px;
+
+    padding: 30px;
+
+    display: grid;
+
+    grid-template-columns:
+        300px 1fr;
+
+    gap: 38px;
+}
+
+.cover {
+    width: 100%;
+
+    aspect-ratio: 1;
+
+    object-fit: cover;
+
+    border-radius: 15px;
+
+    background: #eee;
+}
+
+.no-cover {
+    width: 100%;
+
+    aspect-ratio: 1;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 15px;
+
+    background: #eee;
+
+    color: #999;
+}
+
+.number-box {
+    margin-top: 18px;
+
+    padding: 16px;
+
+    border-radius: 10px;
+
+    background: #f7f7f7;
+
+    line-height: 1.8;
+}
+
+.number-label {
+    font-size: 13px;
+
+    color: #888;
+}
+
+.number-value {
+    font-size: 17px;
+
+    font-weight: 700;
+}
+
+h1 {
+    margin-top: 0;
+
+    margin-bottom: 25px;
+}
+
+
+/* =========================================================
+   중복 앨범 알림
+========================================================= */
+
+.duplicate-warning {
+    margin-bottom: 25px;
+
+    padding: 20px;
+
+    border: 1px solid #e7c66b;
+
+    border-radius: 13px;
+
+    background: #fff9e8;
+}
+
+.duplicate-title {
+    margin-bottom: 8px;
+
+    font-size: 17px;
+
+    font-weight: 800;
+
+    color: #765700;
+}
+
+.duplicate-description {
+    margin-bottom: 15px;
+
+    color: #725f25;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+.duplicate-count {
+    font-weight: 800;
+}
+
+.duplicate-list {
+    overflow-x: auto;
+
+    border-radius: 9px;
+
+    background: white;
+
+    border: 1px solid #eadba9;
+}
+
+.duplicate-table {
+    width: 100%;
+
+    min-width: 570px;
+
+    border-collapse: collapse;
+}
+
+.duplicate-table th,
+.duplicate-table td {
+    padding: 10px;
+
+    border-bottom: 1px solid #eee;
+
+    text-align: center;
+
+    font-size: 13px;
+}
+
+.duplicate-table th {
+    background: #faf8ef;
+
+    color: #665b38;
+}
+
+.duplicate-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.duplicate-ok {
+    margin-top: 13px;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    color: #725900;
+}
+
+
+/* =========================================================
+   등록 Form
+========================================================= */
+
+.form-grid {
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 17px;
+}
+
+.field.full {
+    grid-column:
+        1 / -1;
+}
+
+label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #555;
+
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+
+    padding: 12px 13px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 9px;
+
+    background: white;
+
+    font-size: 15px;
+
+    font-family: inherit;
+}
+
+textarea {
+    min-height: 120px;
+
+    resize: vertical;
+}
+
+.save-button {
+    width: 100%;
+
+    height: 55px;
+
+    margin-top: 28px;
+
+    border: 0;
+
+    border-radius: 11px;
+
+    background: #111;
+
+    color: white;
+
+    font-size: 17px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.save-button:hover {
+    background: #333;
+}
+
+
+/* 중복일 때 버튼 문구는 다르지만
+   등록 자체는 정상적으로 가능 */
+
+.duplicate-save {
+    background: #111;
+}
+
+
+@media(max-width:800px) {
+
+    .container {
+        padding: 25px 15px;
+    }
+
+    .card {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+<a
+    href="{{ url_for('index') }}"
+    class="back"
+>
+
+← 검색 결과로 돌아가기
+
+</a>
+
+
+
+<div class="card">
+
+
+<!-- =====================================================
+     왼쪽 : 커버 / 번호
+===================================================== -->
+
+<div>
+
+
+{% if album.cover_url %}
+
+<img
+    class="cover"
+    src="{{ album.cover_url }}"
+    alt="{{ album.album_title }}"
+>
+
+{% else %}
+
+<div class="no-cover">
+
+NO IMAGE
+
+</div>
+
+{% endif %}
+
+
+
+<div class="number-box">
+
+
+<div class="number-label">
+
+관리번호
+
+</div>
+
+
+<div class="number-value">
+
+포맷 선택 후 자동 생성
+
+</div>
+
+
+<br>
+
+
+<div class="number-label">
+
+앨범ID
+
+</div>
+
+
+<div class="number-value">
+
+{{ album.preview_album_id }}
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     오른쪽
+===================================================== -->
+
+<div>
+
+
+<h1>
+
+앨범 등록
+
+</h1>
+
+
+
+<!-- =====================================================
+     중복 앨범 경고
+===================================================== -->
+
+{% if duplicate_count > 0 %}
+
+
+<div class="duplicate-warning">
+
+
+<div class="duplicate-title">
+
+⚠ 이미 보유 중인 앨범입니다.
+
+</div>
+
+
+<div class="duplicate-description">
+
+현재
+
+<span class="duplicate-count">
+
+{{ duplicate_count }}개
+
+</span>
+
+의 동일 앨범을 보유하고 있습니다.
+
+<br>
+
+같은 앨범의 다른 포맷, 개봉/미개봉,
+사인본 등을 추가로 등록하려는 경우에는
+그대로 등록하시면 됩니다.
+
+</div>
+
+
+
+<div class="duplicate-list">
+
+
+<table class="duplicate-table">
+
+
+<thead>
+
+<tr>
+
+<th>관리번호</th>
+
+<th>앨범ID</th>
+
+<th>포맷</th>
+
+<th>상태</th>
+
+<th>사인</th>
+
+<th>구입금액</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+
+{% for item in duplicate_items %}
+
+
+<tr>
+
+
+<td>
+
+<strong>
+
+{{ item.management_no }}
+
+</strong>
+
+</td>
+
+
+<td>
+
+{{ item.album_id }}
+
+</td>
+
+
+<td>
+
+{{ item.media_format or '' }}
+
+</td>
+
+
+<td>
+
+{{ item.open_status or '' }}
+
+</td>
+
+
+<td>
+
+{{ item.signed or '' }}
+
+</td>
+
+
+<td>
+
+{% if item.purchase_price %}
+
+{{ "{:,}".format(item.purchase_price) }}원
+
+{% else %}
+
+-
+
+{% endif %}
+
+</td>
+
+
+</tr>
+
+
+{% endfor %}
+
+
+</tbody>
+
+
+</table>
+
+
+</div>
+
+
+<div class="duplicate-ok">
+
+※ 중복 등록은 차단하지 않습니다.
+
+</div>
+
+
+</div>
+
+
+{% endif %}
+
+
+
+<!-- =====================================================
+     등록 FORM
+===================================================== -->
+
+<form
+    action="{{ url_for('save_album') }}"
+    method="POST"
+>
+
+
+<!-- Apple 내부 정보 -->
+
+<input
+    type="hidden"
+    name="apple_id"
+    value="{{ album.apple_id }}"
+>
+
+
+<input
+    type="hidden"
+    name="apple_artist_id"
+    value="{{ album.apple_artist_id }}"
+>
+
+
+<input
+    type="hidden"
+    name="search_artist"
+    value="{{ album.search_artist }}"
+>
+
+
+<input
+    type="hidden"
+    name="cover_url"
+    value="{{ album.cover_url }}"
+>
+
+
+
+<div class="form-grid">
+
+
+
+<!-- 분류 -->
+
+<div class="field">
+
+
+<label>
+
+분류
+
+</label>
+
+
+<select
+    name="classification"
+    required
+>
+
+
+<option
+    value="한국"
+>
+
+한국
+
+</option>
+
+
+<option
+    value="해외"
+>
+
+해외
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<!-- 포맷 -->
+
+<div class="field">
+
+
+<label>
+
+포맷
+
+</label>
+
+
+<select
+    name="media_format"
+    required
+>
+
+
+<option
+    value="CD"
+>
+
+CD
+
+</option>
+
+
+<option
+    value="LP"
+>
+
+LP
+
+</option>
+
+
+<option
+    value="Casette"
+>
+
+Casette
+
+</option>
+
+
+<option
+    value="USB"
+>
+
+USB
+
+</option>
+
+
+<option
+    value="기타"
+>
+
+기타
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<!-- 아티스트 -->
+
+<div class="field">
+
+
+<label>
+
+아티스트
+
+</label>
+
+
+<input
+    type="text"
+    name="artist"
+    value="{{ album.artist }}"
+    required
+>
+
+
+</div>
+
+
+
+<!-- 앨범명 -->
+
+<div class="field">
+
+
+<label>
+
+앨범명
+
+</label>
+
+
+<input
+    type="text"
+    name="album_title"
+    value="{{ album.album_title }}"
+    required
+>
+
+
+</div>
+
+
+
+<!-- 발매년도 -->
+
+<div class="field">
+
+
+<label>
+
+발매년도
+
+</label>
+
+
+<input
+    type="text"
+    name="release_year"
+    value="{{ album.release_year }}"
+>
+
+
+</div>
+
+
+
+<!-- 개봉 / 미개봉 -->
+
+<div class="field">
+
+
+<label>
+
+개봉 / 미개봉
+
+</label>
+
+
+<select
+    name="open_status"
+    required
+>
+
+
+<option
+    value="개봉"
+>
+
+개봉
+
+</option>
+
+
+<option
+    value="미개봉"
+>
+
+미개봉
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<!-- 사인 여부 -->
+
+<div class="field">
+
+
+<label>
+
+사인 여부
+
+</label>
+
+
+<select
+    name="signed"
+    required
+>
+
+
+<option
+    value="X"
+>
+
+X
+
+</option>
+
+
+<option
+    value="O"
+>
+
+O
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<!-- 구입금액 -->
+
+<div class="field">
+
+
+<label>
+
+구입금액
+
+</label>
+
+
+<input
+    type="number"
+    name="purchase_price"
+    placeholder="예: 25000"
+>
+
+
+</div>
+
+
+
+<!-- 메모 -->
+
+<div class="field full">
+
+
+<label>
+
+메모
+
+</label>
+
+
+<textarea
+    name="memo"
+    placeholder="앨범 버전, 특이사항 등을 입력하세요."
+></textarea>
+
+
+</div>
+
+
+</div>
+
+
+
+<button
+    type="submit"
+    class="save-button
+    {% if duplicate_count > 0 %}
+    duplicate-save
+    {% endif %}
+    "
+>
+
+
+{% if duplicate_count > 0 %}
+
+그래도 추가 등록
+
+{% else %}
+
+앨범 등록
+
+{% endif %}
+
+
+</button>
+
+
+</form>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+</body>
+
+</html>

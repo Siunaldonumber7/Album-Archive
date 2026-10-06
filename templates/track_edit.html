@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수록곡 편집 · {{ album.album_title }}</title>
+<style>
+:root {
+    --accent: #fa2d48;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --muted: #98989d;
+    --border: rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: #f5f5f7;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.topbar {
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(245,245,247,.88);
+    backdrop-filter: blur(24px);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+.back {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 750;
+}
+.top-title {
+    color: #777;
+    font-size: 12px;
+    font-weight: 700;
+}
+.main {
+    max-width: 1120px;
+    margin: auto;
+    padding: 42px 28px 90px;
+}
+.header {
+    display: flex;
+    align-items: center;
+    gap: 19px;
+    margin-bottom: 28px;
+}
+.cover {
+    width: 92px;
+    height: 92px;
+    flex: 0 0 92px;
+    overflow: hidden;
+    border-radius: 13px;
+    background: #ddd;
+    box-shadow: 0 8px 22px rgba(0,0,0,.13);
+}
+.cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.no-cover {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 30px;
+}
+h1 {
+    margin: 0;
+    font-size: 31px;
+    letter-spacing: -1.1px;
+}
+.artist {
+    margin-top: 5px;
+    color: #666;
+    font-size: 15px;
+}
+.help {
+    margin-top: 7px;
+    color: #929298;
+    font-size: 12px;
+    line-height: 1.55;
+}
+.status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    margin-top: 9px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+}
+.status.manual {
+    background: rgba(52,120,246,.10);
+    color: #3478f6;
+}
+.status.apple {
+    background: rgba(250,45,72,.09);
+    color: var(--accent);
+}
+.panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 5px 22px rgba(0,0,0,.035);
+}
+.table-head,
+.track-row {
+    display: grid;
+    grid-template-columns: 70px 76px minmax(210px, 1.7fr) minmax(160px, 1fr) 95px 42px;
+    gap: 9px;
+    align-items: center;
+}
+.table-head {
+    min-height: 43px;
+    padding: 0 14px;
+    background: #f4f4f6;
+    color: #8b8b91;
+    font-size: 10px;
+    font-weight: 800;
+}
+.track-row {
+    padding: 10px 14px;
+    border-top: 1px solid rgba(0,0,0,.065);
+}
+input {
+    width: 100%;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid #dedee2;
+    border-radius: 9px;
+    background: #fafafa;
+    color: #222;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+}
+input:focus {
+    border-color: rgba(250,45,72,.38);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(250,45,72,.065);
+}
+.number-input { text-align: center; }
+.delete-row {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 9px;
+    background: #f1f1f3;
+    color: #777;
+    cursor: pointer;
+    font-size: 17px;
+}
+.delete-row:hover {
+    background: #ffecee;
+    color: var(--accent);
+}
+.panel-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 15px;
+    border-top: 1px solid var(--border);
+    background: #fafafa;
+}
+.add-row {
+    min-height: 39px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 9px;
+    background: #ececee;
+    color: #444;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+}
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+}
+.button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 19px;
+    border: 0;
+    border-radius: 10px;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+}
+.cancel {
+    background: #e8e8eb;
+    color: #444;
+}
+.save {
+    background: var(--accent);
+    color: white;
+}
+.reset {
+    margin-right: auto;
+    border: 1px solid #d8d8dc;
+    background: transparent;
+    color: #777;
+}
+.note {
+    margin-top: 14px;
+    color: #999;
+    font-size: 11px;
+    line-height: 1.6;
+}
+@media(max-width:850px) {
+    .main { padding: 28px 14px 70px; }
+    .topbar { padding: 0 16px; }
+    .table-head { display: none; }
+    .track-row {
+        grid-template-columns: 62px 62px minmax(0,1fr) 38px;
+        gap: 8px;
+        padding: 13px;
+    }
+    .track-row .title-field { grid-column: 1 / 4; grid-row: 1; }
+    .track-row .disc-field { grid-column: 1; grid-row: 2; }
+    .track-row .track-field { grid-column: 2; grid-row: 2; }
+    .track-row .artist-field { grid-column: 3; grid-row: 2; }
+    .track-row .duration-field { grid-column: 3; grid-row: 3; }
+    .track-row .delete-row { grid-column: 4; grid-row: 1 / 4; align-self: center; }
+}
+@media(max-width:560px) {
+    .header { align-items: flex-start; }
+    .cover { width: 74px; height: 74px; flex-basis: 74px; }
+    h1 { font-size: 24px; }
+    .actions { flex-direction: column; }
+    .button { width: 100%; }
+    .reset { margin-right: 0; order: 3; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <a class="back" href="{{ url_for('album_detail', album_row_id=album.id) }}">‹ 앨범으로 돌아가기</a>
+    <div class="top-title">수록곡 편집</div>
+</header>
+
+<main class="main">
+
+    <div class="header">
+        <div class="cover">
+            {% if album.cover_url %}
+            <img src="{{ album.cover_url }}" alt="{{ album.album_title }}">
+            {% else %}
+            <div class="no-cover">♫</div>
+            {% endif %}
+        </div>
+
+        <div>
+            <h1>{{ album.album_title }}</h1>
+            <div class="artist">{{ album.artist }}</div>
+            <div class="help">DISC 번호와 트랙 번호를 기준으로 자동 정렬됩니다. 재생시간은 3:45 또는 1:03:22 형식으로 입력하세요.</div>
+
+            {% if manual_track_mode %}
+            <div class="status manual">현재 직접 편집 정보 사용 중</div>
+            {% else %}
+            <div class="status apple">현재 Apple Music 정보 기준</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('save_album_tracks', album_row_id=album.id) }}" id="trackForm">
+        <div class="panel">
+            <div class="table-head">
+                <div>DISC</div>
+                <div>TRACK</div>
+                <div>곡명</div>
+                <div>아티스트</div>
+                <div>시간</div>
+                <div></div>
+            </div>
+
+            <div id="trackRows">
+                {% for track in tracks %}
+                <div class="track-row">
+                    <div class="disc-field">
+                        <input class="number-input" type="number" min="1" name="disc_number" value="{{ track.disc_number }}" aria-label="DISC 번호">
+                    </div>
+                    <div class="track-field">
+                        <input class="number-input" type="number" min="1" name="track_number" value="{{ track.track_number }}" aria-label="트랙 번호">
+                    </div>
+                    <div class="title-field">
+                        <input type="text" name="title" value="{{ track.title }}" placeholder="곡명" aria-label="곡명">
+                    </div>
+                    <div class="artist-field">
+                        <input type="text" name="track_artist" value="{{ track.artist }}" placeholder="비우면 앨범 아티스트" aria-label="아티스트">
+                    </div>
+                    <div class="duration-field">
+                        <input type="text" name="duration" value="{{ track.duration }}" placeholder="3:45" inputmode="numeric" aria-label="재생시간">
+                    </div>
+                    <button class="delete-row" type="button" onclick="removeTrackRow(this)" title="이 곡 삭제">×</button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="panel-footer">
+                <button class="add-row" type="button" onclick="addTrackRow()">＋ 곡 추가</button>
+            </div>
+        </div>
+
+        <div class="note">
+            저장하면 이 앨범은 Apple Music 수록곡 대신 직접 저장한 수록곡을 우선 사용합니다. 곡을 모두 지운 채 저장하는 것도 가능합니다.
+        </div>
+
+        <div class="actions">
+            {% if manual_track_mode %}
+            <button class="button reset" type="submit" form="resetForm" onclick="return confirm('직접 편집한 수록곡을 모두 지우고 Apple Music 정보로 되돌릴까요?')">Apple 정보로 되돌리기</button>
+            {% endif %}
+            <a class="button cancel" href="{{ url_for('album_detail', album_row_id=album.id) }}">취소</a>
+            <button class="button save" type="submit">저장</button>
+        </div>
+    </form>
+
+    {% if manual_track_mode %}
+    <form method="POST" action="{{ url_for('reset_album_tracks', album_row_id=album.id) }}" id="resetForm"></form>
+    {% endif %}
+
+</main>
+
+<template id="trackRowTemplate">
+    <div class="track-row">
+        <div class="disc-field">
+            <input class="number-input" type="number" min="1" name="disc_number" value="1" aria-label="DISC 번호">
+        </div>
+        <div class="track-field">
+            <input class="number-input" type="number" min="1" name="track_number" value="1" aria-label="트랙 번호">
+        </div>
+        <div class="title-field">
+            <input type="text" name="title" value="" placeholder="곡명" aria-label="곡명">
+        </div>
+        <div class="artist-field">
+            <input type="text" name="track_artist" value="" placeholder="비우면 앨범 아티스트" aria-label="아티스트">
+        </div>
+        <div class="duration-field">
+            <input type="text" name="duration" value="" placeholder="3:45" inputmode="numeric" aria-label="재생시간">
+        </div>
+        <button class="delete-row" type="button" onclick="removeTrackRow(this)" title="이 곡 삭제">×</button>
+    </div>
+</template>
+
+<script>
+function getSuggestedTrackNumber() {
+    const rows = [...document.querySelectorAll('#trackRows .track-row')];
+    if (!rows.length) return 1;
+
+    const last = rows[rows.length - 1];
+    const value = parseInt(last.querySelector('input[name="track_number"]').value || '0', 10);
+    return Math.max(1, value + 1);
+}
+
+function getSuggestedDiscNumber() {
+    const rows = [...document.querySelectorAll('#trackRows .track-row')];
+    if (!rows.length) return 1;
+
+    const last = rows[rows.length - 1];
+    const value = parseInt(last.querySelector('input[name="disc_number"]').value || '1', 10);
+    return Math.max(1, value);
+}
+
+function addTrackRow() {
+    const template = document.getElementById('trackRowTemplate');
+    const fragment = template.content.cloneNode(true);
+    const row = fragment.querySelector('.track-row');
+
+    row.querySelector('input[name="disc_number"]').value = getSuggestedDiscNumber();
+    row.querySelector('input[name="track_number"]').value = getSuggestedTrackNumber();
+
+    document.getElementById('trackRows').appendChild(fragment);
+
+    const rows = document.querySelectorAll('#trackRows .track-row');
+    const newest = rows[rows.length - 1];
+    newest.querySelector('input[name="title"]').focus();
+}
+
+function removeTrackRow(button) {
+    const row = button.closest('.track-row');
+    if (row) row.remove();
+}
+</script>
+
+</body>
+</html>

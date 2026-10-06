@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>앨범 추가</title>
+<style>
+:root {
+    --sidebar: 226px;
+    --accent: #fa2d48;
+    --muted: #a1a1a6;
+    --border: rgba(0,0,0,.07);
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: #f5f5f7;
+    color: #1c1c1e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.app {
+    display: grid;
+    grid-template-columns: var(--sidebar) 1fr;
+    min-height: 100vh;
+}
+.sidebar {
+    position: fixed;
+    width: var(--sidebar);
+    height: 100vh;
+    padding: 27px 17px;
+    border-right: 1px solid var(--border);
+    background: rgba(246,246,248,.92);
+    backdrop-filter: blur(30px);
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 2px 10px 28px;
+}
+.brand-icon {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    font-size: 19px;
+}
+.brand-name { font-weight: 800; }
+.nav-label {
+    margin: 18px 10px 7px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .6px;
+}
+.nav {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 0 11px;
+    margin-bottom: 2px;
+    border-radius: 10px;
+    color: #444;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 650;
+}
+.nav:hover { background: rgba(0,0,0,.05); }
+.nav.active {
+    background: rgba(250,45,72,.10);
+    color: var(--accent);
+}
+.main { grid-column: 2; }
+.content {
+    max-width: 1400px;
+    margin: auto;
+    padding: 48px 42px 80px;
+}
+h1 {
+    margin: 0;
+    font-size: 48px;
+    letter-spacing: -2px;
+}
+.sub {
+    margin-top: 9px;
+    color: #777;
+    font-size: 14px;
+}
+.panel {
+    margin-top: 28px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: white;
+}
+.panel-title {
+    margin-bottom: 6px;
+    font-size: 17px;
+    font-weight: 800;
+}
+.panel-description {
+    margin-bottom: 17px;
+    color: #888;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.search-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+}
+.link-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+}
+input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fafafa;
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+}
+input:focus {
+    background: white;
+    border-color: rgba(250,45,72,.35);
+    box-shadow: 0 0 0 3px rgba(250,45,72,.07);
+}
+.button {
+    min-width: 92px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    font-weight: 750;
+    cursor: pointer;
+}
+.link-button {
+    background: #1c1c1e;
+}
+.tip {
+    margin-top: 10px;
+    color: #9a9a9f;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.error {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fff0f1;
+    color: #b52c3b;
+    font-size: 12px;
+    font-weight: 650;
+}
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin: 24px 0 0;
+    color: #aaa;
+    font-size: 11px;
+    font-weight: 750;
+}
+.divider::before,
+.divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #e7e7e8;
+}
+.result-head {
+    margin: 38px 0 18px;
+    font-size: 24px;
+    font-weight: 800;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 33px 22px;
+}
+.result-card { min-width: 0; }
+.cover {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 13px;
+    background: #ddd;
+    box-shadow: 0 8px 22px rgba(0,0,0,.12);
+}
+.cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.no-cover {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 34px;
+}
+.store {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    background: rgba(0,0,0,.72);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+}
+.title {
+    margin-top: 11px;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 750;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.artist {
+    margin-top: 3px;
+    overflow: hidden;
+    color: #777;
+    font-size: 13px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.year {
+    min-height: 15px;
+    margin-top: 4px;
+    color: #999;
+    font-size: 11px;
+}
+.add-button {
+    width: 100%;
+    height: 35px;
+    margin-top: 9px;
+    border: 0;
+    border-radius: 9px;
+    background: rgba(250,45,72,.10);
+    color: var(--accent);
+    font-weight: 750;
+    cursor: pointer;
+}
+.manual-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+.form-field {
+    min-width: 0;
+}
+.form-field.full {
+    grid-column: 1 / -1;
+}
+.form-field label {
+    display: block;
+    margin-bottom: 7px;
+    color: #666;
+    font-size: 12px;
+    font-weight: 750;
+}
+select,
+textarea,
+.file-input {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fafafa;
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+}
+select {
+    height: 48px;
+    padding: 0 12px;
+}
+textarea {
+    min-height: 110px;
+    padding: 12px 14px;
+    resize: vertical;
+}
+.file-input {
+    height: auto;
+    min-height: 48px;
+    padding: 11px 12px;
+}
+.manual-submit {
+    width: 100%;
+    height: 48px;
+    border: 0;
+    border-radius: 10px;
+    background: #1c1c1e;
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.manual-note {
+    margin-top: 10px;
+    color: #9a9a9f;
+    font-size: 11px;
+    line-height: 1.6;
+}
+.manual-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+}
+.empty {
+    margin-top: 35px;
+    padding: 55px 20px;
+    border: 1px dashed #d7d7da;
+    border-radius: 16px;
+    color: #999;
+    text-align: center;
+    font-size: 13px;
+}
+@media(max-width:900px) {
+    .app { display: block; }
+    .sidebar { display: none; }
+    .main { display: block; }
+    .content { padding: 30px 18px 60px; }
+    .search-form,
+    .link-form,
+    .manual-form { grid-template-columns: 1fr; }
+    .form-field.full { grid-column: auto; }
+    .button { height: 46px; }
+}
+@media(max-width:600px) {
+    h1 { font-size: 38px; }
+    .grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 28px 15px; }
+    .panel { padding: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="sidebar">
+    <div class="brand">
+        <div class="brand-icon">♫</div>
+        <div class="brand-name">My Archive</div>
+    </div>
+
+    <div class="nav-label">LIBRARY</div>
+    <a href="{{ url_for('index') }}" class="nav">▦ 내 앨범</a>
+
+    <div class="nav-label">COLLECTION</div>
+    <a href="{{ url_for('add_album_page') }}" class="nav active">＋ 앨범 추가</a>
+    <a href="{{ url_for('manage_albums') }}" class="nav">⚙ 앨범 관리</a>
+</aside>
+
+<main class="main">
+<div class="content">
+
+    <h1>앨범 추가</h1>
+    <div class="sub">한국 Apple Music을 우선으로 검색해서 내 컬렉션에 추가합니다.</div>
+
+    <section class="panel">
+        <div class="panel-title">앨범 검색</div>
+        <div class="panel-description">
+            앨범명을 알고 있다면 같이 입력해 주세요. 인디 아티스트는 앨범명을 함께 입력할수록 검색 정확도가 높아집니다.
+        </div>
+
+        <form class="search-form" method="GET" action="{{ url_for('add_album_page') }}">
+            <input
+                name="artist"
+                value="{{ artist }}"
+                placeholder="아티스트 예: 김뜻돌"
+            >
+            <input
+                name="album"
+                value="{{ album }}"
+                placeholder="앨범명 예: 하나에게"
+            >
+            <button type="submit" class="button">검색</button>
+        </form>
+
+        <div class="tip">
+            검색 순서: KR 앨범명 → KR 아티스트+앨범명 → KR 아티스트 → 저장된 별칭 → MusicBrainz → 해외 Apple 보조
+        </div>
+
+        <div class="divider">또는</div>
+
+        <div class="panel-title" style="margin-top:24px;">Apple Music 앨범 링크로 추가</div>
+        <div class="panel-description">
+            검색이 어려운 인디·희귀 음반은 Apple Music에서 해당 앨범을 연 뒤 앨범 링크를 그대로 붙여 넣으면 됩니다.
+        </div>
+
+        <form class="link-form" method="POST" action="{{ url_for('add_album_from_link') }}">
+            <input
+                name="apple_url"
+                placeholder="https://music.apple.com/kr/album/..."
+                required
+            >
+            <button type="submit" class="button link-button">링크로 추가</button>
+        </form>
+
+        {% if link_error %}
+        <div class="error">{{ link_error }}</div>
+        {% endif %}
+    </section>
+
+
+
+    {% if searched %}
+        <div class="result-head">검색 결과 · {{ apple_results|length }}</div>
+
+        {% if apple_results %}
+        <div class="grid">
+            {% for item in apple_results %}
+            <article class="result-card">
+                <div class="cover">
+                    {% if item.cover %}
+                    <img src="{{ item.cover }}" alt="{{ item.title }}">
+                    {% else %}
+                    <div class="no-cover">♫</div>
+                    {% endif %}
+                    <div class="store">{{ item.store }}</div>
+                </div>
+
+                <div class="title">{{ item.title }}</div>
+                <div class="artist">{{ item.artist }}</div>
+                <div class="year">{{ item.release_year }}</div>
+
+                <form action="{{ url_for('register') }}" method="POST">
+                    <input type="hidden" name="apple_id" value="{{ item.apple_id }}">
+                    <input type="hidden" name="apple_artist_id" value="{{ item.artist_id }}">
+                    <input type="hidden" name="search_artist" value="{{ artist }}">
+                    <input type="hidden" name="artist" value="{{ item.artist }}">
+                    <input type="hidden" name="album_title" value="{{ item.title }}">
+                    <input type="hidden" name="release_year" value="{{ item.release_year }}">
+                    <input type="hidden" name="cover_url" value="{{ item.cover }}">
+                    <button type="submit" class="add-button">＋ 컬렉션에 추가</button>
+                </form>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">
+            검색 결과가 없습니다.<br><br>
+            앨범명을 같이 입력하거나 위의 Apple Music 앨범 링크 추가를 사용해 보세요.
+        </div>
+        {% endif %}
+    {% endif %}
+
+
+    <section class="panel manual-panel">
+        <div class="panel-title">Apple Music에 없는 앨범 직접 등록</div>
+        <div class="panel-description">
+            Apple Music에서 찾을 수 없는 인디·희귀·비매품·자체제작 음반은 정보를 직접 입력해서 등록할 수 있습니다.
+            커버 이미지도 내 파일에서 바로 올릴 수 있습니다.
+        </div>
+
+        <form
+            class="manual-form"
+            method="POST"
+            action="{{ url_for('add_album_manual') }}"
+            enctype="multipart/form-data"
+        >
+            <div class="form-field">
+                <label>아티스트 *</label>
+                <input
+                    name="artist"
+                    placeholder="예: 김뜻돌"
+                    required
+                >
+            </div>
+
+            <div class="form-field">
+                <label>앨범명 *</label>
+                <input
+                    name="album_title"
+                    placeholder="앨범명을 입력하세요"
+                    required
+                >
+            </div>
+
+            <div class="form-field">
+                <label>발매년도</label>
+                <input
+                    name="release_year"
+                    inputmode="numeric"
+                    maxlength="4"
+                    placeholder="예: 2024"
+                >
+            </div>
+
+            <div class="form-field">
+                <label>분류</label>
+                <select name="classification">
+                    <option value="한국" selected>한국</option>
+                    <option value="해외">해외</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>포맷</label>
+                <select name="media_format">
+                    <option value="CD" selected>CD</option>
+                    <option value="LP">LP</option>
+                    <option value="Casette">Casette</option>
+                    <option value="USB">USB</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>개봉 / 미개봉</label>
+                <select name="open_status">
+                    <option value="개봉" selected>개봉</option>
+                    <option value="미개봉">미개봉</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>사인 여부</label>
+                <select name="signed">
+                    <option value="X" selected>X</option>
+                    <option value="O">O</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>구입금액</label>
+                <input
+                    type="number"
+                    name="purchase_price"
+                    min="0"
+                    step="1"
+                    placeholder="예: 25000"
+                >
+            </div>
+
+            <div class="form-field full">
+                <label>커버 이미지</label>
+                <input
+                    class="file-input"
+                    type="file"
+                    name="cover_file"
+                    accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                >
+            </div>
+
+            <div class="form-field full">
+                <label>메모</label>
+                <textarea
+                    name="memo"
+                    placeholder="초판, 한정판, 비매품 등 메모가 있으면 입력하세요"
+                ></textarea>
+            </div>
+
+            <div class="form-field full">
+                <button
+                    type="submit"
+                    class="manual-submit"
+                >
+                    ＋ 직접 등록
+                </button>
+                <div class="manual-note">
+                    Apple Music ID 없이 저장되며, 관리번호와 앨범ID는 기존 규칙대로 자동 생성됩니다.
+                    같은 아티스트·앨범명·발매년도의 보유본이 이미 있으면 같은 앨범으로 자동 묶입니다.
+                </div>
+            </div>
+        </form>
+
+        {% if manual_error %}
+        <div class="error">{{ manual_error }}</div>
+        {% endif %}
+    </section>
+
+</div>
+</main>
+</div>
+</body>
+</html>

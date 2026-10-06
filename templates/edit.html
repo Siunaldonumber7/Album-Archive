@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+>
+
+<title>앨범 수정</title>
+
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+
+    margin: 0;
+
+    background: #f5f5f7;
+
+    color: #1c1c1e;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        Arial,
+        sans-serif;
+}
+
+
+.container {
+
+    max-width: 1050px;
+
+    margin: auto;
+
+    padding:
+        35px 25px
+        70px;
+}
+
+
+.back {
+
+    display: inline-block;
+
+    margin-bottom: 20px;
+
+    color: #fa2d48;
+
+    text-decoration: none;
+
+    font-weight: 700;
+}
+
+
+.card {
+
+    display: grid;
+
+    grid-template-columns:
+        300px 1fr;
+
+    gap: 35px;
+
+    padding: 28px;
+
+    border-radius: 20px;
+
+    background: white;
+}
+
+
+/* Cover */
+
+.cover {
+
+    aspect-ratio: 1;
+
+    overflow: hidden;
+
+    border-radius: 15px;
+
+    background: #eee;
+}
+
+
+.cover img {
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+
+.no-cover {
+
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #aaa;
+
+    font-size: 40px;
+}
+
+
+.number-box {
+
+    margin-top: 15px;
+
+    padding: 14px;
+
+    border-radius: 10px;
+
+    background: #f5f5f7;
+
+    line-height: 1.8;
+}
+
+
+.number-label {
+
+    color: #999;
+
+    font-size: 11px;
+}
+
+
+.number {
+
+    font-weight: 750;
+}
+
+
+/* Form */
+
+h1 {
+
+    margin:
+        0 0 25px;
+
+    font-size: 30px;
+}
+
+
+.grid {
+
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 16px;
+}
+
+
+.full {
+
+    grid-column:
+        1 / -1;
+}
+
+
+label {
+
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: #666;
+
+    font-size: 12px;
+
+    font-weight: 750;
+}
+
+
+input,
+select,
+textarea {
+
+    width: 100%;
+
+    padding: 11px 12px;
+
+    border:
+        1px solid #ddd;
+
+    border-radius: 9px;
+
+    background: white;
+
+    font: inherit;
+
+    font-size: 14px;
+}
+
+
+textarea {
+
+    min-height: 110px;
+
+    resize: vertical;
+}
+
+
+/* Upload */
+
+.upload {
+
+    padding: 15px;
+
+    border:
+        2px dashed #d3d3d6;
+
+    border-radius: 11px;
+
+    background: #fafafa;
+}
+
+
+.file-name {
+
+    margin-top: 8px;
+
+    color: #777;
+
+    font-size: 12px;
+}
+
+
+.remove-cover {
+
+    width: 100%;
+
+    height: 40px;
+
+    margin-top: 10px;
+
+    border:
+        1px solid #f0c4c9;
+
+    border-radius: 9px;
+
+    background: white;
+
+    color: #fa2d48;
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+
+.save {
+
+    width: 100%;
+
+    height: 50px;
+
+    margin-top: 24px;
+
+    border: 0;
+
+    border-radius: 10px;
+
+    background: #fa2d48;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 750;
+
+    cursor: pointer;
+}
+
+
+@media(max-width:760px) {
+
+    .card {
+
+        grid-template-columns:
+            1fr;
+    }
+
+    .grid {
+
+        grid-template-columns:
+            1fr;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+<a
+    href="{{ url_for(
+        'manage_albums'
+    ) }}"
+    class="back"
+>
+
+‹ 앨범 관리로 돌아가기
+
+</a>
+
+
+
+<div class="card">
+
+
+<div>
+
+
+<div class="cover">
+
+
+{% if album.cover_url %}
+
+
+<img
+    id="preview"
+    src="{{ album.cover_url }}"
+>
+
+
+<div
+    id="noCover"
+    class="no-cover"
+    style="display:none;"
+>
+
+♫
+
+</div>
+
+
+{% else %}
+
+
+<img
+    id="preview"
+    src=""
+    style="display:none;"
+>
+
+
+<div
+    id="noCover"
+    class="no-cover"
+>
+
+♫
+
+</div>
+
+
+{% endif %}
+
+
+</div>
+
+
+
+<div class="number-box">
+
+
+<div class="number-label">
+관리번호
+</div>
+
+<div class="number">
+
+{{ album.management_no }}
+
+</div>
+
+
+<div class="number-label">
+앨범ID
+</div>
+
+<div class="number">
+
+{{ album.album_id }}
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+<div>
+
+
+<h1>
+
+앨범 수정
+
+</h1>
+
+
+<form
+    method="POST"
+    enctype="multipart/form-data"
+    action="{{ url_for(
+        'update_album',
+        album_row_id=album.id
+    ) }}"
+>
+
+
+<input
+    type="hidden"
+    id="removeCoverValue"
+    name="remove_cover"
+    value="0"
+>
+
+
+<div class="grid">
+
+
+<div class="full">
+
+
+<label>
+
+커버 이미지
+
+</label>
+
+
+<div class="upload">
+
+
+<input
+    id="coverFile"
+    type="file"
+    name="cover_file"
+    accept=".jpg,.jpeg,.png,.webp,.gif"
+    onchange="previewFile();"
+>
+
+
+<div
+    id="fileName"
+    class="file-name"
+>
+
+새 파일 선택 안 함
+
+</div>
+
+
+<button
+    type="button"
+    class="remove-cover"
+    onclick="removeCover();"
+>
+
+현재 커버 제거
+
+</button>
+
+
+</div>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+분류
+</label>
+
+
+<select name="classification">
+
+
+<option
+    value="한국"
+    {% if album.classification == '한국' %}
+    selected
+    {% endif %}
+>
+
+한국
+
+</option>
+
+
+<option
+    value="해외"
+    {% if album.classification == '해외' %}
+    selected
+    {% endif %}
+>
+
+해외
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+포맷
+</label>
+
+
+<select name="media_format">
+
+
+{% for fmt in ['CD','LP','Casette','USB','기타'] %}
+
+
+<option
+    value="{{ fmt }}"
+    {% if album.media_format == fmt %}
+    selected
+    {% endif %}
+>
+
+{{ fmt }}
+
+</option>
+
+
+{% endfor %}
+
+
+</select>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+아티스트
+</label>
+
+
+<input
+    name="artist"
+    value="{{ album.artist }}"
+>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+앨범명
+</label>
+
+
+<input
+    name="album_title"
+    value="{{ album.album_title }}"
+>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+발매년도
+</label>
+
+
+<input
+    name="release_year"
+    value="{{ album.release_year or '' }}"
+>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+개봉 / 미개봉
+</label>
+
+
+<select name="open_status">
+
+
+<option
+    value="개봉"
+    {% if album.open_status == '개봉' %}
+    selected
+    {% endif %}
+>
+
+개봉
+
+</option>
+
+
+<option
+    value="미개봉"
+    {% if album.open_status == '미개봉' %}
+    selected
+    {% endif %}
+>
+
+미개봉
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+사인 여부
+</label>
+
+
+<select name="signed">
+
+
+<option
+    value="X"
+    {% if album.signed == 'X' %}
+    selected
+    {% endif %}
+>
+
+X
+
+</option>
+
+
+<option
+    value="O"
+    {% if album.signed == 'O' %}
+    selected
+    {% endif %}
+>
+
+O
+
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+구입금액
+</label>
+
+
+<input
+    type="number"
+    name="purchase_price"
+    value="{{ album.purchase_price or '' }}"
+>
+
+
+</div>
+
+
+
+<div class="full">
+
+
+<label>
+메모
+</label>
+
+
+<textarea
+    name="memo"
+>{{ album.memo or '' }}</textarea>
+
+
+</div>
+
+
+</div>
+
+
+
+<button
+    type="submit"
+    class="save"
+>
+
+변경사항 저장
+
+</button>
+
+
+</form>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+<script>
+
+
+function previewFile() {
+
+    const file =
+        document
+        .getElementById(
+            "coverFile"
+        )
+        .files[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    document
+        .getElementById(
+            "removeCoverValue"
+        )
+        .value = "0";
+
+
+    document
+        .getElementById(
+            "fileName"
+        )
+        .textContent =
+            file.name;
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload =
+        function(e) {
+
+
+            const preview =
+                document
+                .getElementById(
+                    "preview"
+                );
+
+
+            preview.src =
+                e.target.result;
+
+
+            preview.style.display =
+                "block";
+
+
+            document
+                .getElementById(
+                    "noCover"
+                )
+                .style.display =
+                    "none";
+
+        };
+
+
+    reader.readAsDataURL(
+        file
+    );
+}
+
+
+
+function removeCover() {
+
+
+    document
+        .getElementById(
+            "removeCoverValue"
+        )
+        .value = "1";
+
+
+    document
+        .getElementById(
+            "coverFile"
+        )
+        .value = "";
+
+
+    document
+        .getElementById(
+            "preview"
+        )
+        .style.display =
+            "none";
+
+
+    document
+        .getElementById(
+            "noCover"
+        )
+        .style.display =
+            "flex";
+
+
+    document
+        .getElementById(
+            "fileName"
+        )
+        .textContent =
+            "커버 제거 예정";
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
