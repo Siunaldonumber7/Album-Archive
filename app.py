@@ -1774,7 +1774,7 @@ def lookup_artist_albums(
                     reverse=True
                 )
 
-            results = store_results[:60]
+            results = store_results[:40]
 
             if store == 'KR' and prefer_korean:
                 results = localize_kr_results(
@@ -1965,12 +1965,12 @@ def discover_by_album(search_artist, album):
                 reverse=True
             )
 
-            results = store_results[:80]
+            results = store_results[:40]
 
             if store == 'KR' and prefer_korean:
                 results = localize_kr_results(
                     results,
-                    max_items=30
+                    max_items=8
                 )
 
             return results
@@ -2112,7 +2112,7 @@ def search_kr_album_query(
             reverse=True
         )
 
-        return results
+        return results[:30]
 
     except Exception as e:
         print('APPLE KR DIRECT ALBUM SEARCH ERROR:', e)
