@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local secrets
+.env
+.env.*
+
+# Local album database
+albums.db
+*.sqlite
+*.sqlite3
+
+# NAS persistent data
+data/*
+!data/.gitkeep
+
+# Local uploaded cover images
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Logs / temp
+*.log
+*.tmp
