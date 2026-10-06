@@ -4,11 +4,10 @@ services:
     container_name: album-archive
     restart: unless-stopped
     ports:
-      - "5001:5001"
+      - "5050:5001"
     environment:
       ALBUM_DB_PATH: /data/albums.db
       PYTHONUNBUFFERED: "1"
       TZ: Asia/Seoul
     volumes:
       - ./data:/data
-      - ./data/uploads:/app/static/uploads
