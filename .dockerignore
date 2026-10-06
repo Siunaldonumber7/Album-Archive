@@ -1,0 +1,10 @@
+.git
+.gitignore
+.DS_Store
+__pycache__
+*.pyc
+.venv
+venv
+albums.db
+data
+static/uploads
