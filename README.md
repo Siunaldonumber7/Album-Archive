@@ -26,7 +26,7 @@ python app.py
 접속:
 
 ```text
-http://127.0.0.1:5001
+http://xxx.xxx.xxx.xxx:xxxx
 ```
 
 ## Synology Container Manager
@@ -54,13 +54,13 @@ Container Manager에서 프로젝트를 만들 때 저장소 폴더를 프로젝
 기본 접속 포트:
 
 ```text
-5001
+xxxx
 ```
 
 예:
 
 ```text
-http://NAS-IP:5001
+http://NAS-IP:xxxx
 ```
 
 ## Git에 포함하지 않는 데이터
