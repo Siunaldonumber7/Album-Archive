@@ -590,6 +590,7 @@ NO IMAGE
     action="{{ url_for('save_album') }}"
     method="POST"
 >
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
 
 <!-- Apple 내부 정보 -->
