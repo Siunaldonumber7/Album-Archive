@@ -1,28 +1,109 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session, abort
 import base64
 import html as html_lib
 import json
 import os
 import re
 import sqlite3
+import secrets
+import hmac
 import time
 import threading
+from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 import requests
+from PIL import Image, UnidentifiedImageError
 app = Flask(__name__)
 DB_NAME = os.environ.get('ALBUM_DB_PATH', 'albums.db')
+DATA_DIR = os.path.dirname(os.path.abspath(DB_NAME))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+class BoundedCache(dict):
+    """작은 개인 서버에서 캐시가 무한정 커지지 않도록 개수를 제한한다."""
+
+    def __init__(self, max_items):
+        super().__init__()
+        self.max_items = max_items
+        self._lock = threading.RLock()
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            if key in self:
+                super().__delitem__(key)
+            super().__setitem__(key, value)
+            while len(self) > self.max_items:
+                oldest_key = next(iter(self))
+                super().__delitem__(oldest_key)
+
+    def get(self, key, default=None):
+        with self._lock:
+            return super().get(key, default)
+
+    def clear(self):
+        with self._lock:
+            return super().clear()
+
+
+def load_or_create_private_value(env_name, filename, generator):
+    env_value = str(os.environ.get(env_name, '') or '').strip()
+    if env_value:
+        return env_value
+
+    path = os.path.join(DATA_DIR, filename)
+
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as handle:
+                value = handle.read().strip()
+                if value:
+                    return value
+
+        value = generator()
+        with open(path, 'w', encoding='utf-8') as handle:
+            handle.write(value + '\n')
+        try:
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
+        return value
+    except Exception as exc:
+        print('PRIVATE VALUE FILE ERROR:', filename, exc)
+        return generator()
+
+
+APP_SECRET = load_or_create_private_value(
+    'APP_SECRET_KEY',
+    'flask_secret.key',
+    lambda: secrets.token_urlsafe(48)
+)
+ADMIN_PIN = load_or_create_private_value(
+    'ADMIN_PIN',
+    'admin_pin.txt',
+    lambda: f'{secrets.randbelow(100_000_000):08d}'
+)
+
+app.secret_key = APP_SECRET
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30)
+)
+
 APPLE_SESSION = requests.Session()
 APPLE_WEB_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36', 'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.6', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}
-SEARCH_CACHE = {}
-CACHE_SECONDS = 300
-TRACK_CACHE = {}
+
+SEARCH_CACHE = BoundedCache(300)
+CACHE_SECONDS = 1800
+TRACK_CACHE = BoundedCache(500)
 TRACK_CACHE_SECONDS = 3600
-APPLE_PAGE_CACHE = {}
+APPLE_PAGE_CACHE = BoundedCache(300)
 APPLE_PAGE_CACHE_SECONDS = 3600
-KR_TITLE_CACHE = {}
+KR_TITLE_CACHE = BoundedCache(1000)
 
 # =========================================================
 # MusicBrainz - 인디/한글 아티스트 공식명·별칭 보조 검색
@@ -33,7 +114,7 @@ MUSICBRAINZ_SESSION.headers.update({
     'User-Agent': 'MyAlbumArchive/1.0 (personal music archive)',
     'Accept': 'application/json'
 })
-MUSICBRAINZ_CACHE = {}
+MUSICBRAINZ_CACHE = BoundedCache(300)
 MUSICBRAINZ_CACHE_SECONDS = 86400
 MUSICBRAINZ_RATE_LOCK = threading.Lock()
 MUSICBRAINZ_LAST_REQUEST = 0.0
@@ -41,7 +122,84 @@ UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+Image.MAX_IMAGE_PIXELS = 40_000_000
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+ADMIN_ENDPOINTS = {
+    'admin_dashboard',
+    'manage_albums',
+    'add_album_page',
+    'add_album_from_link',
+    'add_album_manual',
+    'register',
+    'save_album',
+    'edit_album',
+    'update_album',
+    'delete_album',
+    'edit_album_tracks',
+    'save_album_tracks',
+    'reset_album_tracks',
+    'admin_logout',
+}
+
+
+def get_csrf_token():
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+
+app.jinja_env.globals['csrf_token'] = get_csrf_token
+
+
+@app.before_request
+def protect_admin_routes():
+    endpoint = request.endpoint or ''
+
+    if endpoint == 'admin_login':
+        if request.method == 'POST':
+            expected = session.get('_csrf_token', '')
+            received = request.form.get('_csrf_token', '')
+            if not expected or not received or not hmac.compare_digest(expected, received):
+                abort(400)
+        return None
+
+    if endpoint not in ADMIN_ENDPOINTS:
+        return None
+
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_login'))
+
+    if request.method == 'POST':
+        expected = session.get('_csrf_token', '')
+        received = request.form.get('_csrf_token', '')
+        if not expected or not received or not hmac.compare_digest(expected, received):
+            abort(400)
+
+    return None
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self' https: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+    )
+
+    forwarded_proto = request.headers.get('X-Forwarded-Proto', '').lower()
+    if request.is_secure or forwarded_proto == 'https':
+        response.headers.setdefault(
+            'Strict-Transport-Security',
+            'max-age=31536000; includeSubDomains'
+        )
+
+    return response
 
 def get_db():
     conn = sqlite3.connect(DB_NAME)
@@ -61,6 +219,14 @@ def init_db():
     conn.execute('CREATE TABLE IF NOT EXISTS artist_aliases ( id INTEGER PRIMARY KEY AUTOINCREMENT, alias_key TEXT UNIQUE NOT NULL, alias_text TEXT, canonical_name TEXT, apple_artist_id TEXT )')
     conn.execute('CREATE TABLE IF NOT EXISTS album_tracks ( id INTEGER PRIMARY KEY AUTOINCREMENT, album_id TEXT NOT NULL, disc_number INTEGER NOT NULL DEFAULT 1, track_number INTEGER NOT NULL DEFAULT 1, title TEXT NOT NULL, artist TEXT, duration TEXT )')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_album_tracks_album_id ON album_tracks (album_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_album_id ON albums (album_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_classification ON albums (classification)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_media_format ON albums (media_format)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_album_type ON albums (album_type)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_genre ON albums (genre)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums (artist)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_release_year ON albums (release_year)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_apple_collection_id ON albums (apple_collection_id)')
     conn.execute('CREATE TABLE IF NOT EXISTS album_track_settings ( album_id TEXT PRIMARY KEY, manual_override INTEGER NOT NULL DEFAULT 0, updated_at TEXT DEFAULT CURRENT_TIMESTAMP )')
     conn.commit()
     conn.close()
@@ -287,6 +453,17 @@ def save_uploaded_cover(file):
     if not file or not file.filename:
         return None
     if not allowed_image_file(file.filename):
+        return None
+
+    try:
+        file.stream.seek(0)
+        with Image.open(file.stream) as image:
+            width, height = image.size
+            if width < 1 or height < 1 or width * height > 40_000_000:
+                return None
+            image.verify()
+        file.stream.seek(0)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
         return None
 
     # 원본 파일명(한글/공백 포함)을 최대한 유지하되 경로 문자는 제거한다.
@@ -607,6 +784,15 @@ def apple_high_res(url):
     if not url:
         return ''
     return url.replace('100x100bb', '1000x1000bb').replace('100x100-75', '1000x1000-75')
+
+
+def apple_artwork_size(url, size=400):
+    url = str(url or '').strip()
+    if not url:
+        return ''
+    url = re.sub(r'\d+x\d+bb', f'{size}x{size}bb', url)
+    url = re.sub(r'\d+x\d+-75', f'{size}x{size}-75', url)
+    return url
 
 def get_explicit_label(item):
     value = item.get('collectionExplicitness', '')
@@ -1470,7 +1656,7 @@ def lookup_artist_albums(
                 params={
                     'id': store_artist_id,
                     'entity': 'album',
-                    'limit': 200,
+                    'limit': 100,
                     'country': store,
                     'explicit': 'Yes'
                 },
@@ -1545,6 +1731,13 @@ def lookup_artist_albums(
                             ''
                         )
                     ),
+                    'thumb': apple_artwork_size(
+                        item.get(
+                            'artworkUrl100',
+                            ''
+                        ),
+                        400
+                    ),
                     'album_type': normalize_apple_album_type(item, title),
                     'genre': extract_apple_genre(item),
                     'store': store,
@@ -1580,12 +1773,12 @@ def lookup_artist_albums(
                     reverse=True
                 )
 
-            results = store_results[:100]
+            results = store_results[:60]
 
             if store == 'KR' and prefer_korean:
                 results = localize_kr_results(
                     results,
-                    max_items=30
+                    max_items=8
                 )
 
             return results
@@ -1660,7 +1853,7 @@ def discover_by_album(search_artist, album):
                     'media': 'music',
                     'entity': 'album',
                     'attribute': 'albumTerm',
-                    'limit': 200,
+                    'limit': 80,
                     'explicit': 'Yes'
                 },
                 timeout=12
@@ -1738,6 +1931,13 @@ def discover_by_album(search_artist, album):
                             ''
                         )
                     ),
+                    'thumb': apple_artwork_size(
+                        item.get(
+                            'artworkUrl100',
+                            ''
+                        ),
+                        400
+                    ),
                     'album_type': normalize_apple_album_type(item, title),
                     'genre': extract_apple_genre(item),
                     'store': store,
@@ -1792,6 +1992,7 @@ def album_item_to_result(item, store='KR'):
         'title': str(item.get('collectionName') or '').strip(),
         'release_year': release_date[:4] if release_date else '',
         'cover': apple_high_res(item.get('artworkUrl100', '') or ''),
+        'thumb': apple_artwork_size(item.get('artworkUrl100', '') or '', 400),
         'album_type': normalize_apple_album_type(item),
         'genre': extract_apple_genre(item),
         'store': store,
@@ -1845,7 +2046,7 @@ def search_kr_album_query(
     search_artist='',
     search_album='',
     use_album_attribute=False,
-    limit=100
+    limit=50
 ):
     """Apple KR에서 앨범 자체를 직접 검색한다."""
 
@@ -1895,7 +2096,7 @@ def search_kr_album_query(
         ):
             results = localize_kr_results(
                 results,
-                max_items=30
+                max_items=6
             )
 
         for item in results:
@@ -2263,6 +2464,7 @@ def search_apple(artist, album):
 
     results = []
     learned_name = ''
+    learned = None
     musicbrainz_names = []
 
     # =====================================================
@@ -2306,11 +2508,36 @@ def search_apple(artist, album):
             results = combined_results
 
     # =====================================================
-    # 3순위: Apple KR 아티스트검색
+    # 3순위: 이미 학습한 Apple Artist ID가 있으면 검색 없이 즉시 lookup
+    # =====================================================
+    if not results and artist:
+        learned = find_learned_artist(artist)
+
+        if learned and learned.get('artist_id'):
+            learned_name = learned.get('artist_name', '') or ''
+            print(
+                'SEARCH STEP 3: LEARNED APPLE ID →',
+                artist,
+                '→',
+                learned['artist_id']
+            )
+            results = lookup_artist_albums(
+                learned['artist_id'],
+                album,
+                '',
+                prefer_korean=(
+                    contains_hangul(artist)
+                    or contains_hangul(album)
+                ),
+                stores=['KR']
+            )
+
+    # =====================================================
+    # 4순위: Apple KR 아티스트검색
     # =====================================================
     if not results and artist:
         print(
-            'SEARCH STEP 3: APPLE KR ARTIST →',
+            'SEARCH STEP 4: APPLE KR ARTIST →',
             artist
         )
 
@@ -2328,7 +2555,8 @@ def search_apple(artist, album):
     # 4순위: 우리 alias DB
     # =====================================================
     if not results and artist:
-        learned = find_learned_artist(artist)
+        if learned is None:
+            learned = find_learned_artist(artist)
 
         if (
             learned
@@ -2810,6 +3038,34 @@ def reset_album_tracks(album_row_id):
     )
 
 
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if session.get('admin_authenticated'):
+        return redirect(url_for('admin_dashboard'))
+
+    error = ''
+
+    if request.method == 'POST':
+        submitted_pin = str(request.form.get('pin', '') or '').strip()
+
+        if submitted_pin and hmac.compare_digest(submitted_pin, ADMIN_PIN):
+            session.clear()
+            session['admin_authenticated'] = True
+            session.permanent = True
+            session['_csrf_token'] = secrets.token_urlsafe(32)
+            return redirect(url_for('admin_dashboard'))
+
+        error = 'PIN이 올바르지 않습니다.'
+
+    return render_template('admin_login.html', error=error)
+
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+
 @app.route('/admin')
 def admin_dashboard():
     conn = get_db()
@@ -3166,8 +3422,20 @@ def save_album():
     memo = request.form.get('memo', '').strip()
     if not artist or not album_title:
         return redirect(url_for('add_album_page'))
+
+    if classification not in {'한국', '해외'}:
+        classification = '한국'
+    if media_format not in {'CD', 'LP', 'Casette', 'USB', '기타'}:
+        media_format = 'CD'
+    if open_status not in {'개봉', '미개봉'}:
+        open_status = '개봉'
+    if signed not in {'O', 'X'}:
+        signed = 'X'
+
     try:
         purchase_price = int(purchase_price_text)
+        if purchase_price < 0:
+            purchase_price = None
     except Exception:
         purchase_price = None
     conn = get_db()
@@ -3230,8 +3498,17 @@ def update_album(album_row_id):
     conn.execute('UPDATE albums SET classification = ?, media_format = ?, album_type = ?, genre = ?, artist = ?, album_title = ?, release_year = ?, open_status = ?, signed = ?, purchase_price = ?, memo = ?, cover_url = ? WHERE id = ?', (classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, new_cover_url, album_row_id))
     conn.commit()
     management_no = current['management_no']
-    conn.close()
+
+    old_cover_still_used = 0
     if old_cover_url and old_cover_url != new_cover_url:
+        old_cover_still_used = conn.execute(
+            'SELECT COUNT(*) AS count FROM albums WHERE cover_url = ?',
+            (old_cover_url,)
+        ).fetchone()['count']
+
+    conn.close()
+
+    if old_cover_url and old_cover_url != new_cover_url and old_cover_still_used == 0:
         delete_local_cover(old_cover_url)
     TRACK_CACHE.clear()
     APPLE_PAGE_CACHE.clear()
@@ -3255,9 +3532,18 @@ def delete_album(album_row_id):
     if remaining == 0:
         conn.execute('DELETE FROM album_tracks WHERE album_id = ?', (album_id,))
         conn.execute('DELETE FROM album_track_settings WHERE album_id = ?', (album_id,))
+    cover_still_used = 0
+    if cover_url:
+        cover_still_used = conn.execute(
+            'SELECT COUNT(*) AS count FROM albums WHERE cover_url = ?',
+            (cover_url,)
+        ).fetchone()['count']
+
     conn.commit()
     conn.close()
-    delete_local_cover(cover_url)
+
+    if cover_url and cover_still_used == 0:
+        delete_local_cover(cover_url)
     TRACK_CACHE.clear()
     APPLE_PAGE_CACHE.clear()
     return redirect(url_for('manage_albums', deleted=management_no))
