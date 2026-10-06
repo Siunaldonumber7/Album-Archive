@@ -87,11 +87,11 @@ def normalize_genre_name(value):
         'r&b': 'R&B',
         'soul': '소울',
 
-        'pop': '팝',
-        'k-pop': '케이팝',
-        'kpop': '케이팝',
-        'j-pop': '제이팝',
-        'jpop': '제이팝',
+        'pop': 'Pop',
+        'k-pop': 'K-Pop',
+        'kpop': 'K-Pop',
+        'j-pop': 'J-Pop',
+        'jpop': 'J-Pop',
         'mandopop': '만도팝',
         'cantopop': '칸토팝',
         'french pop': '프렌치 팝',
@@ -2834,6 +2834,8 @@ def manage_albums():
     format_filter = request.args.get('media_format', '').strip()
     status_filter = request.args.get('open_status', '').strip()
     signed_filter = request.args.get('signed', '').strip()
+    sort_by = request.args.get('sort_by', 'id').strip()
+    sort_order = request.args.get('sort_order', 'desc').strip().lower()
     updated = request.args.get('updated', '')
     deleted = request.args.get('deleted', '')
     conn = get_db()
@@ -2858,14 +2860,27 @@ def manage_albums():
     if signed_filter:
         conditions.append('signed = ?')
         params.append(signed_filter)
+    sort_columns = {
+        'id': 'id',
+        'management_no': 'management_no COLLATE NOCASE',
+        'artist': 'artist COLLATE NOCASE',
+        'album_title': 'album_title COLLATE NOCASE',
+        'release_year': 'release_year',
+        'purchase_price': 'purchase_price'
+    }
+    if sort_by not in sort_columns:
+        sort_by = 'id'
+    if sort_order not in {'asc', 'desc'}:
+        sort_order = 'desc'
+
     query = 'SELECT * FROM albums'
     if conditions:
         query += ' WHERE ' + ' AND '.join(conditions)
-    query += ' ORDER BY id DESC'
+    query += f" ORDER BY {sort_columns[sort_by]} {sort_order.upper()}, id DESC"
     albums = conn.execute(query, params).fetchall()
     total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
     conn.close()
-    return render_template('manage.html', albums=albums, total_album_count=total_album_count, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, status_filter=status_filter, signed_filter=signed_filter, updated=updated, deleted=deleted)
+    return render_template('manage.html', albums=albums, total_album_count=total_album_count, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, status_filter=status_filter, signed_filter=signed_filter, sort_by=sort_by, sort_order=sort_order, updated=updated, deleted=deleted)
 
 @app.route('/add')
 def add_album_page():
