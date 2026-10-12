@@ -2877,6 +2877,7 @@ def index():
     album_type_filter = request.args.get('album_type', '').strip()
     genre_filter = request.args.get('genre', '').strip()
     saved = request.args.get('saved', '')
+    bulk_saved = request.args.get('bulk_saved', '')
     conn = get_db()
     conditions = []
     params = []
@@ -2907,7 +2908,7 @@ def index():
     total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
     genre_options = [row['genre'] for row in conn.execute("SELECT DISTINCT genre FROM albums WHERE genre IS NOT NULL AND TRIM(genre) != '' ORDER BY genre COLLATE NOCASE").fetchall()]
     conn.close()
-    return render_template('index.html', albums=albums, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, album_type_filter=album_type_filter, genre_filter=genre_filter, genre_options=genre_options, total_album_count=total_album_count, saved=saved)
+    return render_template('index.html', albums=albums, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, album_type_filter=album_type_filter, genre_filter=genre_filter, genre_options=genre_options, total_album_count=total_album_count, saved=saved, bulk_saved=bulk_saved)
 
 @app.route('/album/<int:album_row_id>')
 def album_detail(album_row_id):
