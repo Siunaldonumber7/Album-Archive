@@ -1806,6 +1806,137 @@ def lookup_artist_albums(
     return []
 
 
+def discover_artist_albums_from_album_search(
+    artist_name,
+    stores=None
+):
+    """
+    musicArtist 검색이 실패하는 아티스트를 위해 실제 앨범 검색 결과에서
+    artistId를 역으로 찾아 전체 디스코그래피를 가져온다.
+    """
+    artist_name = str(artist_name or '').strip()
+
+    if not artist_name:
+        return []
+
+    if stores is None:
+        stores = ['KR', 'US']
+
+    target = normalize_text(artist_name)
+
+    for store in stores:
+        try:
+            response = APPLE_SESSION.get(
+                'https://itunes.apple.com/search',
+                params={
+                    'term': artist_name,
+                    'country': store,
+                    'media': 'music',
+                    'entity': 'album',
+                    'limit': 100,
+                    'explicit': 'Yes'
+                },
+                timeout=12
+            )
+            response.raise_for_status()
+            rows = response.json().get('results', [])
+
+        except Exception as e:
+            print(
+                f'ARTIST ALBUM FALLBACK SEARCH ERROR [{store}]:',
+                e
+            )
+            continue
+
+        candidates = {}
+
+        for item in rows:
+            artist_id = str(item.get('artistId') or '').strip()
+            result_artist = str(item.get('artistName') or '').strip()
+
+            if not artist_id or not result_artist:
+                continue
+
+            normalized_artist = normalize_text(result_artist)
+            artist_similarity = similarity(
+                artist_name,
+                result_artist
+            )
+
+            exact = normalized_artist == target
+
+            if not exact and artist_similarity < 0.72:
+                continue
+
+            candidate = candidates.setdefault(
+                artist_id,
+                {
+                    'artist_id': artist_id,
+                    'artist_name': result_artist,
+                    'count': 0,
+                    'best_score': 0
+                }
+            )
+
+            candidate['count'] += 1
+
+            score = int(artist_similarity * 1000)
+
+            if exact:
+                score += 3000
+
+            if target and (
+                target in normalized_artist
+                or normalized_artist in target
+            ):
+                score += 700
+
+            candidate['best_score'] = max(
+                candidate['best_score'],
+                score
+            )
+
+        if not candidates:
+            continue
+
+        ranked = sorted(
+            candidates.values(),
+            key=lambda item: (
+                item['best_score'],
+                item['count']
+            ),
+            reverse=True
+        )
+
+        best = ranked[0]
+
+        print(
+            'ARTIST RESOLVED FROM ALBUM SEARCH:',
+            artist_name,
+            '→',
+            store,
+            '→',
+            best['artist_name'],
+            best['artist_id']
+        )
+
+        results = lookup_artist_albums(
+            best['artist_id'],
+            '',
+            '',
+            prefer_korean=(
+                store == 'KR'
+                and contains_hangul(artist_name)
+            ),
+            stores=[store]
+        )
+
+        if results:
+            return results
+
+    return []
+
+
 def search_artist_albums_in_stores(
     artist_name,
     album,
@@ -2662,6 +2793,21 @@ def search_apple(artist, album):
                 contains_hangul(artist)
                 or contains_hangul(album)
             )
+        )
+
+    # =====================================================
+    # 4.5순위: musicArtist 검색이 실패하면 실제 앨범 검색에서
+    # artistId를 역추적한다. wave to earth 같은 케이스 대응.
+    # =====================================================
+    if not results and artist:
+        print(
+            'SEARCH STEP 4.5: ALBUM SEARCH → ARTIST ID →',
+            artist
+        )
+
+        results = discover_artist_albums_from_album_search(
+            artist,
+            stores=['KR', 'US']
         )
 
     # =====================================================
