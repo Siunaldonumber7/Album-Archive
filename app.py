@@ -1204,6 +1204,29 @@ def get_kr_localized_album_title(collection_id, view_url='', fallback_title=''):
 
     parser = page['parser']
 
+    # Apple Music 페이지의 JSON-LD / serialized data에는 화면에 쓰는
+    # 한국어 앨범명이 들어오는 경우가 있다. 영문 메타 <title>보다 우선한다.
+    page_metadata = find_album_metadata_in_page_data(
+        page,
+        collection_id
+    )
+    structured_title = str(
+        page_metadata.get('title') or ''
+    ).strip()
+
+    if (
+        structured_title
+        and contains_hangul(structured_title)
+    ):
+        KR_TITLE_CACHE[cache_key] = structured_title
+        print(
+            'KR STRUCTURED TITLE:',
+            fallback_title,
+            '→',
+            structured_title
+        )
+        return structured_title
+
     # <title>이 대체로 가장 깔끔하다.
     # og:title은 'Apple Music에서 감상하는 ...' 마케팅 문구가 붙는 경우가 있다.
     title_candidates = [
@@ -2016,9 +2039,15 @@ def lookup_artist_albums(
         results = results[:40]
 
         if store == 'KR' and prefer_korean:
+            localize_limit = (
+                min(len(results), 40)
+                if not search_album
+                else min(len(results), 10)
+            )
+
             results = localize_kr_results(
                 results,
-                max_items=8
+                max_items=localize_limit
             )
 
         return results
