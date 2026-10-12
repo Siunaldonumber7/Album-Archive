@@ -489,6 +489,71 @@ td {
 }
 
 
+
+.pagination-wrap {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.pagination-info {
+    color: #8e8e93;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.page-link,
+.page-current,
+.page-disabled,
+.page-gap {
+    min-width: 35px;
+    height: 35px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.page-link {
+    background: white;
+    border: 1px solid rgba(0,0,0,.08);
+    color: #444;
+    text-decoration: none;
+}
+
+.page-link:hover {
+    background: #ededee;
+}
+
+.page-current {
+    background: #1c1c1e;
+    color: white;
+}
+
+.page-disabled {
+    background: #f0f0f2;
+    color: #b8b8bd;
+}
+
+.page-gap {
+    min-width: 22px;
+    padding: 0 2px;
+    color: #999;
+}
+
 @media(max-width:700px) {
 
     .container {
@@ -1179,6 +1244,68 @@ X
 
 
 </div>
+
+{% if total_pages > 1 %}
+<div class="pagination-wrap">
+    <div class="pagination-info">
+        {{ filtered_album_count }}장 · {{ page }} / {{ total_pages }} 페이지
+    </div>
+
+    <nav class="pagination" aria-label="앨범 관리 페이지">
+        {% if page > 1 %}
+        <a class="page-link" href="{{ url_for(
+            'manage_albums',
+            page=page-1,
+            library_q=library_q,
+            classification=classification_filter,
+            media_format=format_filter,
+            open_status=status_filter,
+            signed=signed_filter,
+            sort_by=sort_by,
+            sort_order=sort_order
+        ) }}">‹ 이전</a>
+        {% else %}
+        <span class="page-disabled">‹ 이전</span>
+        {% endif %}
+
+        {% for page_number in pagination_pages %}
+            {% if page_number is none %}
+            <span class="page-gap">…</span>
+            {% elif page_number == page %}
+            <span class="page-current">{{ page_number }}</span>
+            {% else %}
+            <a class="page-link" href="{{ url_for(
+                'manage_albums',
+                page=page_number,
+                library_q=library_q,
+                classification=classification_filter,
+                media_format=format_filter,
+                open_status=status_filter,
+                signed=signed_filter,
+                sort_by=sort_by,
+                sort_order=sort_order
+            ) }}">{{ page_number }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a class="page-link" href="{{ url_for(
+            'manage_albums',
+            page=page+1,
+            library_q=library_q,
+            classification=classification_filter,
+            media_format=format_filter,
+            open_status=status_filter,
+            signed=signed_filter,
+            sort_by=sort_by,
+            sort_order=sort_order
+        ) }}">다음 ›</a>
+        {% else %}
+        <span class="page-disabled">다음 ›</span>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}
 
 
 </div>
