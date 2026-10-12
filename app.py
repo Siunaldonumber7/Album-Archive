@@ -1074,11 +1074,11 @@ def normalize_apple_music_kr_urls(collection_id, view_url=''):
                 else:
                     remainder = '/'.join(path_parts)
                 if remainder.startswith('album/'):
-                    urls.append('https://music.apple.com/kr/' + remainder)
+                    urls.append('https://music.apple.com/kr/' + remainder + '?l=ko')
         except Exception:
             pass
     if collection_id:
-        urls.append(f'https://music.apple.com/kr/album/x/{collection_id}')
+        urls.append(f'https://music.apple.com/kr/album/x/{collection_id}?l=ko')
     seen = set()
     result = []
     for url in urls:
@@ -1214,13 +1214,10 @@ def get_kr_localized_album_title(collection_id, view_url='', fallback_title=''):
         page_metadata.get('title') or ''
     ).strip()
 
-    if (
-        structured_title
-        and contains_hangul(structured_title)
-    ):
+    if structured_title:
         KR_TITLE_CACHE[cache_key] = structured_title
         print(
-            'KR STRUCTURED TITLE:',
+            'KR APPLE DISPLAY TITLE:',
             fallback_title,
             '→',
             structured_title
@@ -2038,7 +2035,7 @@ def lookup_artist_albums(
 
         results = results[:40]
 
-        if store == 'KR' and prefer_korean:
+        if store == 'KR':
             localize_limit = (
                 min(len(results), 40)
                 if not search_album
@@ -2524,12 +2521,7 @@ def localize_top_kr_candidates(
     if not results:
         return results
 
-    if not (
-        contains_hangul(search_artist)
-        or contains_hangul(search_album)
-    ):
-        return results
-
+    # 검색어 언어와 관계없이 한국 Apple Music 표시명을 최종 기준으로 쓴다.
     # 먼저 네트워크 호출 없이 1차 점수를 계산한다.
     for item in results:
         score_album_search_result(
@@ -2648,10 +2640,7 @@ def search_kr_album_query(
 
         # 1차 점수를 먼저 계산하고, 유력 후보만 Apple Music KR
         # 웹페이지에서 한글 제목을 확인한 뒤 최종 점수를 다시 계산한다.
-        if results and (
-            contains_hangul(search_artist)
-            or contains_hangul(search_album)
-        ):
+        if results:
             results = localize_top_kr_candidates(
                 results,
                 search_artist,
