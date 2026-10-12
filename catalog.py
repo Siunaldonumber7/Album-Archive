@@ -151,6 +151,45 @@ def split_artists(value):
     ]
 
 
+HANGUL_INITIALS = (
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ',
+    'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ',
+    'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+)
+
+
+def artist_group_key(value):
+    name = str(value or '').strip()
+
+    if not name:
+        return '#'
+
+    first = name[0]
+    code = ord(first)
+
+    if 0xAC00 <= code <= 0xD7A3:
+        initial_index = (code - 0xAC00) // 588
+        return HANGUL_INITIALS[initial_index]
+
+    upper = first.upper()
+    if 'A' <= upper <= 'Z':
+        return upper
+
+    return '#'
+
+
+def artist_group_sort_key(group):
+    group = str(group or '#')
+
+    if len(group) == 1 and 'A' <= group <= 'Z':
+        return (0, ord(group))
+
+    if group in HANGUL_INITIALS:
+        return (1, HANGUL_INITIALS.index(group))
+
+    return (2, 0)
+
+
 def split_genres(value):
     values = []
     seen = set()
