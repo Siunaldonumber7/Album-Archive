@@ -185,12 +185,10 @@ def index():
     format_filter = request.args.get('media_format', '').strip()
     album_type_filter = request.args.get('album_type', '').strip()
     genre_filter = request.args.get('genre', '').strip()
-    sort_order = request.args.get('sort', 'recent').strip()
+    sort_order = request.args.get('sort', 'release_desc').strip()
     page = parse_page_number(request.args.get('page', '1'))
 
     sort_sql_map = {
-        'recent': 'id DESC',
-        'oldest': 'id ASC',
         'release_desc': (
             "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
             "THEN 0 ELSE 1 END ASC, "
@@ -203,6 +201,14 @@ def index():
             "CAST(release_year AS INTEGER) ASC, "
             "album_title COLLATE NOCASE ASC, id ASC"
         ),
+        'price_desc': (
+            "CASE WHEN purchase_price IS NULL THEN 1 ELSE 0 END ASC, "
+            "purchase_price DESC, album_title COLLATE NOCASE ASC, id DESC"
+        ),
+        'price_asc': (
+            "CASE WHEN purchase_price IS NULL THEN 1 ELSE 0 END ASC, "
+            "purchase_price ASC, album_title COLLATE NOCASE ASC, id DESC"
+        ),
         'artist': (
             'artist COLLATE NOCASE ASC, '
             'album_title COLLATE NOCASE ASC, id DESC'
@@ -211,7 +217,7 @@ def index():
     }
 
     if sort_order not in sort_sql_map:
-        sort_order = 'recent'
+        sort_order = 'release_desc'
     saved = request.args.get('saved', '')
     bulk_saved = request.args.get('bulk_saved', '')
 
@@ -424,8 +430,8 @@ def artist_page(artist_name):
     allowed_sorts = {
         'release_desc',
         'release_asc',
-        'recent',
-        'oldest',
+        'price_desc',
+        'price_asc',
         'title',
     }
 
@@ -527,22 +533,40 @@ def artist_page(artist_name):
         value = str(album['release_year'] or '').strip()
         return int(value) if value.isdigit() else None
 
-    if sort_order == 'recent':
-        matched_albums.sort(
-            key=lambda album: int(album['id'] or 0),
-            reverse=True
-        )
-    elif sort_order == 'oldest':
-        matched_albums.sort(
-            key=lambda album: int(album['id'] or 0)
-        )
-    elif sort_order == 'release_asc':
+    def purchase_price_number(album):
+        value = album['purchase_price']
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    if sort_order == 'release_asc':
         matched_albums.sort(
             key=lambda album: (
                 release_year_number(album) is None,
                 release_year_number(album) or 0,
                 str(album['album_title'] or '').casefold(),
                 int(album['id'] or 0),
+            )
+        )
+    elif sort_order == 'price_desc':
+        matched_albums.sort(
+            key=lambda album: (
+                purchase_price_number(album) is None,
+                -(purchase_price_number(album) or 0),
+                str(album['album_title'] or '').casefold(),
+                -(int(album['id'] or 0)),
+            )
+        )
+    elif sort_order == 'price_asc':
+        matched_albums.sort(
+            key=lambda album: (
+                purchase_price_number(album) is None,
+                purchase_price_number(album) or 0,
+                str(album['album_title'] or '').casefold(),
+                -(int(album['id'] or 0)),
             )
         )
     elif sort_order == 'title':
