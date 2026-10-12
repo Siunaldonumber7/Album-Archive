@@ -431,13 +431,13 @@ body {
 {% if grouped_artists %}
 <nav class="index-strip" aria-label="아티스트 인덱스">
     {% for group in grouped_artists %}
-    <a class="index-link" href="#{{ group.anchor }}">{{ group.key }}</a>
+    <a class="index-link" href="#{{ group.anchor }}">{{ '#' if group.key == '0-9' else group.key }}</a>
     {% endfor %}
 </nav>
 
 {% for group in grouped_artists %}
 <section class="group" id="{{ group.anchor }}">
-    <div class="group-key">{{ group.key }}</div>
+    <div class="group-key">{{ '#' if group.key == '0-9' else group.key }}</div>
 
     <div class="artist-grid">
         {% for artist in group.artists %}
