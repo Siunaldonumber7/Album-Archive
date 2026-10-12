@@ -228,6 +228,27 @@ input:focus {
     font-size: 10px;
     font-weight: 700;
 }
+.explicit-badge {
+    position: absolute;
+    top: 9px;
+    left: 9px;
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 8px;
+    background: rgba(214, 28, 54, .92);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: -.2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.16);
+}
+.clean-badge {
+    background: rgba(35,35,38,.80);
+}
 .title {
     margin-top: 11px;
     overflow: hidden;
@@ -435,6 +456,11 @@ textarea {
                     <img src="{{ item.thumb or item.cover }}" alt="{{ item.title }}" loading="lazy" decoding="async">
                     {% else %}
                     <div class="no-cover">♫</div>
+                    {% endif %}
+                    {% if item.explicit == 'Explicit' %}
+                    <div class="explicit-badge" title="Explicit">19</div>
+                    {% elif item.explicit == 'Clean' %}
+                    <div class="explicit-badge clean-badge" title="Clean version">C</div>
                     {% endif %}
                     <div class="store">{{ item.store }}</div>
                 </div>
