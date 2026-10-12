@@ -370,21 +370,29 @@ body {
             총 <strong style="margin-left:4px;">{{ owned_count }}</strong>장
         </span>
 
+        {% if format_counts.get('CD', 0) %}
         <span class="summary-pill">
             CD <strong style="margin-left:4px;">{{ format_counts.get('CD', 0) }}</strong>장
         </span>
+        {% endif %}
 
+        {% if format_counts.get('LP', 0) %}
         <span class="summary-pill">
             LP <strong style="margin-left:4px;">{{ format_counts.get('LP', 0) }}</strong>장
         </span>
+        {% endif %}
 
+        {% if format_counts.get('CASETTE', 0) %}
         <span class="summary-pill">
             CASETTE <strong style="margin-left:4px;">{{ format_counts.get('CASETTE', 0) }}</strong>장
         </span>
+        {% endif %}
 
+        {% if format_counts.get('ETC', 0) %}
         <span class="summary-pill">
             ETC <strong style="margin-left:4px;">{{ format_counts.get('ETC', 0) }}</strong>장
         </span>
+        {% endif %}
 
         {% if album_type_names %}
         <span class="summary-pill">
