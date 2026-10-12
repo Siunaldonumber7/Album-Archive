@@ -158,6 +158,40 @@ HANGUL_INITIALS = (
 )
 
 
+def name_sort_key(value):
+    """
+    사용자 컬렉션용 이름 정렬 기준:
+    숫자 → 한글 → 영어 → 기타.
+    숫자로 시작하면 선행 숫자를 실제 숫자값으로 비교한다.
+    """
+    name = str(value or '').strip()
+
+    if not name:
+        return (4, '', '')
+
+    first = name[0]
+    code = ord(first)
+
+    if first.isdigit():
+        match = re.match(r'^(\d+)', name)
+        number = int(match.group(1)) if match else 0
+        rest = name[match.end():].casefold() if match else name.casefold()
+        return (0, number, rest)
+
+    if (
+        0xAC00 <= code <= 0xD7A3
+        or 0x3131 <= code <= 0x318E
+        or 0x1100 <= code <= 0x11FF
+    ):
+        return (1, name, '')
+
+    upper = first.upper()
+    if 'A' <= upper <= 'Z':
+        return (2, name.casefold(), '')
+
+    return (3, name.casefold(), '')
+
+
 def artist_group_key(value):
     name = str(value or '').strip()
 
@@ -167,9 +201,15 @@ def artist_group_key(value):
     first = name[0]
     code = ord(first)
 
+    if first.isdigit():
+        return '0-9'
+
     if 0xAC00 <= code <= 0xD7A3:
         initial_index = (code - 0xAC00) // 588
         return HANGUL_INITIALS[initial_index]
+
+    if 0x3131 <= code <= 0x318E:
+        return first
 
     upper = first.upper()
     if 'A' <= upper <= 'Z':
@@ -181,14 +221,17 @@ def artist_group_key(value):
 def artist_group_sort_key(group):
     group = str(group or '#')
 
-    # 한국 사용자 기준: 가나다(초성) → A-Z → 기타 순서.
+    # 숫자 → 가나다(초성) → A-Z → 기타.
+    if group == '0-9':
+        return (0, 0)
+
     if group in HANGUL_INITIALS:
-        return (0, HANGUL_INITIALS.index(group))
+        return (1, HANGUL_INITIALS.index(group))
 
     if len(group) == 1 and 'A' <= group <= 'Z':
-        return (1, ord(group))
+        return (2, ord(group))
 
-    return (2, 0)
+    return (3, 0)
 
 
 def split_genres(value):
