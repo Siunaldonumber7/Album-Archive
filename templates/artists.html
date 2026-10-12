@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>아티스트 · My Album Archive</title>
+<title>아티스트 · Archive my</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 
@@ -55,6 +55,13 @@ body {
 }
 
 .brand {
+    font-family:
+        "Avenir Next",
+        "SF Pro Display",
+        -apple-system,
+        BlinkMacSystemFont,
+        sans-serif;
+    letter-spacing: -.2px;
     color: #77777d;
     font-size: 12px;
     font-weight: 760;
@@ -393,7 +400,7 @@ body {
 
 <header class="topbar">
     <a class="back" href="{{ url_for('index') }}">‹ 전체 컬렉션</a>
-    <div class="brand">My Album Archive</div>
+    <div class="brand">Archive my</div>
 </header>
 
 <main class="container">
