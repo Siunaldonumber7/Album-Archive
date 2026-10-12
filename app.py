@@ -367,14 +367,26 @@ def artist_page(artist_name):
         '싱글',
         '믹스테잎',
     ]
-    found_types = {
-        str(album['album_type'] or '앨범').strip() or '앨범'
-        for album in matched_albums
-    }
-    album_type_names = [
-        type_name
+    album_type_counts = {
+        type_name: 0
         for type_name in type_order
-        if type_name in found_types
+    }
+
+    for album in matched_albums:
+        album_type = (
+            str(album['album_type'] or '앨범').strip()
+            or '앨범'
+        )
+        if album_type in album_type_counts:
+            album_type_counts[album_type] += 1
+
+    album_type_summary = [
+        {
+            'name': type_name,
+            'count': album_type_counts[type_name]
+        }
+        for type_name in type_order
+        if album_type_counts[type_name] > 0
     ]
 
     total_pages = max(
@@ -397,7 +409,7 @@ def artist_page(artist_name):
         albums=albums,
         owned_count=owned_count,
         format_counts=format_counts,
-        album_type_names=album_type_names,
+        album_type_summary=album_type_summary,
         page=page,
         total_pages=total_pages,
         pagination_pages=build_pagination_pages(
