@@ -122,11 +122,13 @@ MUSICBRAINZ_CACHE_SECONDS = 86400
 MUSICBRAINZ_RATE_LOCK = threading.Lock()
 MUSICBRAINZ_LAST_REQUEST = 0.0
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+THUMBNAIL_FOLDER = os.path.join(UPLOAD_FOLDER, '.thumbs')
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 Image.MAX_IMAGE_PIXELS = 40_000_000
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(THUMBNAIL_FOLDER, exist_ok=True)
 
 
 ADMIN_ENDPOINTS = {
@@ -587,6 +589,16 @@ def delete_local_cover(cover_url):
     try:
         if os.path.isfile(file_path):
             os.remove(file_path)
+
+        stem = os.path.splitext(os.path.basename(filename))[0].strip(' .') or 'cover'
+        if os.path.isdir(THUMBNAIL_FOLDER):
+            prefix_name = f'{stem}__thumb_'
+            for thumb_name in os.listdir(THUMBNAIL_FOLDER):
+                if thumb_name.startswith(prefix_name):
+                    thumb_path = os.path.join(THUMBNAIL_FOLDER, thumb_name)
+                    if os.path.isfile(thumb_path):
+                        os.remove(thumb_path)
+
     except Exception as e:
         print('LOCAL COVER DELETE ERROR:', e)
 
@@ -872,6 +884,89 @@ def apple_artwork_size(url, size=400):
     url = re.sub(r'\d+x\d+bb', f'{size}x{size}bb', url)
     url = re.sub(r'\d+x\d+-75', f'{size}x{size}-75', url)
     return url
+
+def local_cover_thumbnail_path(filename, size=400):
+    safe_name = os.path.basename(str(filename or '').replace('\\', '/'))
+    stem = os.path.splitext(safe_name)[0].strip(' .') or 'cover'
+    return os.path.join(
+        THUMBNAIL_FOLDER,
+        f'{stem}__thumb_{int(size)}.webp'
+    )
+
+
+def cover_thumbnail_url(cover_url, size=400):
+    """
+    목록 화면용 경량 커버 URL을 반환한다.
+    Apple 이미지는 CDN 크기만 줄이고, 직접 업로드한 이미지는
+    최초 1회만 WEBP 썸네일을 생성해 재사용한다.
+    """
+    cover_url = str(cover_url or '').strip()
+    if not cover_url:
+        return ''
+
+    size = max(120, min(int(size or 400), 800))
+
+    if cover_url.startswith('http://') or cover_url.startswith('https://'):
+        return apple_artwork_size(cover_url, size)
+
+    prefix = '/static/uploads/'
+    if not cover_url.startswith(prefix):
+        return cover_url
+
+    filename = os.path.basename(cover_url[len(prefix):].replace('\\', '/'))
+    if not filename:
+        return cover_url
+
+    source_path = os.path.abspath(
+        os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    )
+    upload_root = os.path.abspath(app.config['UPLOAD_FOLDER'])
+
+    if not source_path.startswith(upload_root + os.sep):
+        return cover_url
+    if not os.path.isfile(source_path):
+        return cover_url
+
+    thumb_path = local_cover_thumbnail_path(filename, size)
+
+    try:
+        if not os.path.isfile(thumb_path):
+            os.makedirs(THUMBNAIL_FOLDER, exist_ok=True)
+
+            with Image.open(source_path) as image:
+                try:
+                    image.seek(0)
+                except Exception:
+                    pass
+
+                image.thumbnail(
+                    (size, size),
+                    Image.Resampling.LANCZOS
+                )
+
+                if image.mode not in {'RGB', 'RGBA'}:
+                    image = image.convert('RGBA' if 'transparency' in image.info else 'RGB')
+
+                image.save(
+                    thumb_path,
+                    'WEBP',
+                    quality=82,
+                    method=4
+                )
+
+        thumb_name = os.path.basename(thumb_path)
+        return url_for(
+            'static',
+            filename=f'uploads/.thumbs/{thumb_name}'
+        )
+
+    except Exception as e:
+        print('COVER THUMBNAIL ERROR:', e)
+        return cover_url
+
+
+app.jinja_env.globals['cover_thumbnail_url'] = cover_thumbnail_url
+
 
 def get_explicit_label(item):
     value = item.get('collectionExplicitness', '')
