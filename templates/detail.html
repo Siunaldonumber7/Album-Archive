@@ -424,9 +424,12 @@ a {
         <h1 class="album-title">{{ album.album_title }}</h1>
 
         <div class="artist">
-            <a href="{{ url_for('artist_page', artist_name=album.artist) }}">
-                {{ album.artist }}
-            </a>
+            {% for credit in artist_credit_parts(album.artist) %}
+                {% if credit.separator %}{{ credit.separator }}{% endif %}
+                <a href="{{ url_for('artist_page', artist_name=credit.name) }}">
+                    {{ credit.name }}
+                </a>
+            {% endfor %}
         </div>
 
     </div>
