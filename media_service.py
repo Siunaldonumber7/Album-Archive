@@ -196,5 +196,3 @@ def cover_thumbnail_url(cover_url, size=400):
         return cover_url
 
 
-app.jinja_env.globals['cover_thumbnail_url'] = cover_thumbnail_url
-
