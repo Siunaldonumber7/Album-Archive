@@ -153,6 +153,52 @@ ADMIN_ENDPOINTS = {
 }
 
 
+ALBUMS_PER_PAGE = 60
+
+
+def parse_page_number(value):
+    try:
+        return max(1, int(value))
+    except Exception:
+        return 1
+
+
+def build_pagination_pages(current_page, total_pages, radius=2):
+    total_pages = max(1, int(total_pages or 1))
+    current_page = min(
+        max(1, int(current_page or 1)),
+        total_pages
+    )
+
+    if total_pages <= 7:
+        return list(range(1, total_pages + 1))
+
+    wanted = {1, total_pages}
+
+    for page_number in range(
+        current_page - radius,
+        current_page + radius + 1
+    ):
+        if 1 <= page_number <= total_pages:
+            wanted.add(page_number)
+
+    ordered = sorted(wanted)
+    result = []
+    previous = None
+
+    for page_number in ordered:
+        if (
+            previous is not None
+            and page_number - previous > 1
+        ):
+            result.append(None)
+
+        result.append(page_number)
+        previous = page_number
+
+    return result
+
+
 def get_csrf_token():
     token = session.get('_csrf_token')
     if not token:
@@ -3531,38 +3577,80 @@ def index():
     format_filter = request.args.get('media_format', '').strip()
     album_type_filter = request.args.get('album_type', '').strip()
     genre_filter = request.args.get('genre', '').strip()
+    page = parse_page_number(request.args.get('page', '1'))
     saved = request.args.get('saved', '')
     bulk_saved = request.args.get('bulk_saved', '')
+
     conn = get_db()
     conditions = []
     params = []
+
     if library_q:
         value = f'%{library_q}%'
-        conditions.append('( artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? )')
+        conditions.append(
+            '( artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? )'
+        )
         params.extend([value, value, value])
+
     if classification_filter:
         conditions.append('classification = ?')
         params.append(classification_filter)
+
     if format_filter == 'CD':
         conditions.append("media_format = 'CD'")
     elif format_filter == 'LP':
         conditions.append("media_format = 'LP'")
     elif format_filter == 'ETC':
-        conditions.append("media_format IN ( 'Casette', 'USB', '기타' )")
+        conditions.append(
+            "media_format IN ( 'Casette', 'USB', '기타' )"
+        )
+
     if album_type_filter in ALBUM_TYPES:
         conditions.append('album_type = ?')
         params.append(album_type_filter)
+
     if genre_filter:
         conditions.append(
             "(',' || REPLACE(COALESCE(genre, ''), ', ', ',') || ',') LIKE ?"
         )
         params.append(f'%,{genre_filter},%')
-    query = 'SELECT * FROM albums'
-    if conditions:
-        query += ' WHERE ' + ' AND '.join(conditions)
-    query += ' ORDER BY id DESC'
-    albums = conn.execute(query, params).fetchall()
-    total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
+
+    where_sql = (
+        ' WHERE ' + ' AND '.join(conditions)
+        if conditions
+        else ''
+    )
+
+    filtered_album_count = conn.execute(
+        'SELECT COUNT(*) AS count FROM albums' + where_sql,
+        params
+    ).fetchone()['count']
+
+    total_pages = max(
+        1,
+        (
+            filtered_album_count
+            + ALBUMS_PER_PAGE
+            - 1
+        ) // ALBUMS_PER_PAGE
+    )
+    page = min(page, total_pages)
+    offset = (page - 1) * ALBUMS_PER_PAGE
+
+    query = (
+        'SELECT * FROM albums'
+        + where_sql
+        + ' ORDER BY id DESC LIMIT ? OFFSET ?'
+    )
+    albums = conn.execute(
+        query,
+        params + [ALBUMS_PER_PAGE, offset]
+    ).fetchall()
+
+    total_album_count = conn.execute(
+        'SELECT COUNT(*) AS count FROM albums'
+    ).fetchone()['count']
+
     genre_rows = conn.execute(
         "SELECT genre FROM albums WHERE genre IS NOT NULL AND TRIM(genre) != ''"
     ).fetchall()
@@ -3574,8 +3662,30 @@ def index():
         },
         key=str.casefold
     )
+
     conn.close()
-    return render_template('index.html', albums=albums, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, album_type_filter=album_type_filter, genre_filter=genre_filter, genre_options=genre_options, total_album_count=total_album_count, saved=saved, bulk_saved=bulk_saved)
+
+    return render_template(
+        'index.html',
+        albums=albums,
+        library_q=library_q,
+        classification_filter=classification_filter,
+        format_filter=format_filter,
+        album_type_filter=album_type_filter,
+        genre_filter=genre_filter,
+        genre_options=genre_options,
+        total_album_count=total_album_count,
+        filtered_album_count=filtered_album_count,
+        page=page,
+        total_pages=total_pages,
+        pagination_pages=build_pagination_pages(
+            page,
+            total_pages
+        ),
+        saved=saved,
+        bulk_saved=bulk_saved
+    )
+
 
 @app.route('/album/<int:album_row_id>')
 def album_detail(album_row_id):
@@ -3963,31 +4073,48 @@ def manage_albums():
     status_filter = request.args.get('open_status', '').strip()
     signed_filter = request.args.get('signed', '').strip()
     sort_by = request.args.get('sort_by', 'id').strip()
-    sort_order = request.args.get('sort_order', 'desc').strip().lower()
+    sort_order = request.args.get(
+        'sort_order',
+        'desc'
+    ).strip().lower()
+    page = parse_page_number(request.args.get('page', '1'))
     updated = request.args.get('updated', '')
     deleted = request.args.get('deleted', '')
+
     conn = get_db()
     conditions = []
     params = []
+
     if library_q:
         value = f'%{library_q}%'
-        conditions.append('( management_no LIKE ? OR album_id LIKE ? OR artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? OR memo LIKE ? )')
-        params.extend([value, value, value, value, value, value])
+        conditions.append(
+            '( management_no LIKE ? OR album_id LIKE ? OR artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? OR memo LIKE ? )'
+        )
+        params.extend(
+            [value, value, value, value, value, value]
+        )
+
     if classification_filter:
         conditions.append('classification = ?')
         params.append(classification_filter)
+
     if format_filter == 'CD':
         conditions.append("media_format = 'CD'")
     elif format_filter == 'LP':
         conditions.append("media_format = 'LP'")
     elif format_filter == 'ETC':
-        conditions.append("media_format IN ( 'Casette', 'USB', '기타' )")
+        conditions.append(
+            "media_format IN ( 'Casette', 'USB', '기타' )"
+        )
+
     if status_filter:
         conditions.append('open_status = ?')
         params.append(status_filter)
+
     if signed_filter:
         conditions.append('signed = ?')
         params.append(signed_filter)
+
     sort_columns = {
         'id': 'id',
         'management_no': 'management_no COLLATE NOCASE',
@@ -3996,19 +4123,74 @@ def manage_albums():
         'release_year': 'release_year',
         'purchase_price': 'purchase_price'
     }
+
     if sort_by not in sort_columns:
         sort_by = 'id'
+
     if sort_order not in {'asc', 'desc'}:
         sort_order = 'desc'
 
-    query = 'SELECT * FROM albums'
-    if conditions:
-        query += ' WHERE ' + ' AND '.join(conditions)
-    query += f" ORDER BY {sort_columns[sort_by]} {sort_order.upper()}, id DESC"
-    albums = conn.execute(query, params).fetchall()
-    total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
+    where_sql = (
+        ' WHERE ' + ' AND '.join(conditions)
+        if conditions
+        else ''
+    )
+
+    filtered_album_count = conn.execute(
+        'SELECT COUNT(*) AS count FROM albums' + where_sql,
+        params
+    ).fetchone()['count']
+
+    total_pages = max(
+        1,
+        (
+            filtered_album_count
+            + ALBUMS_PER_PAGE
+            - 1
+        ) // ALBUMS_PER_PAGE
+    )
+    page = min(page, total_pages)
+    offset = (page - 1) * ALBUMS_PER_PAGE
+
+    query = (
+        'SELECT * FROM albums'
+        + where_sql
+        + f" ORDER BY {sort_columns[sort_by]} {sort_order.upper()}, id DESC"
+        + ' LIMIT ? OFFSET ?'
+    )
+    albums = conn.execute(
+        query,
+        params + [ALBUMS_PER_PAGE, offset]
+    ).fetchall()
+
+    total_album_count = conn.execute(
+        'SELECT COUNT(*) AS count FROM albums'
+    ).fetchone()['count']
+
     conn.close()
-    return render_template('manage.html', albums=albums, total_album_count=total_album_count, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, status_filter=status_filter, signed_filter=signed_filter, sort_by=sort_by, sort_order=sort_order, updated=updated, deleted=deleted)
+
+    return render_template(
+        'manage.html',
+        albums=albums,
+        total_album_count=total_album_count,
+        filtered_album_count=filtered_album_count,
+        library_q=library_q,
+        classification_filter=classification_filter,
+        format_filter=format_filter,
+        status_filter=status_filter,
+        signed_filter=signed_filter,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        total_pages=total_pages,
+        pagination_pages=build_pagination_pages(
+            page,
+            total_pages
+        ),
+        updated=updated,
+        deleted=deleted
+    )
+
 
 @app.route('/add')
 def add_album_page():
