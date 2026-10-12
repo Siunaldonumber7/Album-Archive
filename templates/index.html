@@ -1077,15 +1077,21 @@ My Album Archive
 <div class="content">
 
 
-{% if saved %}
+{% if bulk_saved %}
 
+<div class="notice">
+
+✓ 앨범 {{ bulk_saved }}장이 일괄 등록되었습니다.
+
+</div>
+
+{% elif saved %}
 
 <div class="notice">
 
 ✓ 새 앨범이 추가되었습니다.
 
 </div>
-
 
 {% endif %}
 
