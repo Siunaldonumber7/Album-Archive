@@ -37,6 +37,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
 .field{min-width:0}
 .field label{display:block;margin:0 0 5px;color:#888;font-size:10px;font-weight:800}
 .field select,.field input{width:100%}
+.genre-multi{height:92px!important;padding:5px!important}
 .field.memo{grid-column:span 6}
 .savebar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:22px;padding:18px 20px;border-radius:18px;background:#171719;color:#fff}
 .savebar strong{font-size:14px}
@@ -141,8 +142,13 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           </div>
 
           <div class="field">
-            <label>장르</label>
-            <input name="album_{{ i }}_genre" value="{{ album.genre or '' }}">
+            <label>장르 · 복수</label>
+            {% set selected_genres = split_genres(album.genre or '') %}
+            <select class="genre-multi" name="album_{{ i }}_genre" multiple>
+              {% for genre_name in genre_choices(album.genre or '') %}
+              <option value="{{ genre_name }}" {% if genre_name in selected_genres %}selected{% endif %}>{{ genre_name }}</option>
+              {% endfor %}
+            </select>
           </div>
 
           <div class="field">
