@@ -181,11 +181,12 @@ def artist_group_key(value):
 def artist_group_sort_key(group):
     group = str(group or '#')
 
-    if len(group) == 1 and 'A' <= group <= 'Z':
-        return (0, ord(group))
-
+    # 한국 사용자 기준: 가나다(초성) → A-Z → 기타 순서.
     if group in HANGUL_INITIALS:
-        return (1, HANGUL_INITIALS.index(group))
+        return (0, HANGUL_INITIALS.index(group))
+
+    if len(group) == 1 and 'A' <= group <= 'Z':
+        return (1, ord(group))
 
     return (2, 0)
 
