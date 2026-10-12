@@ -62,72 +62,146 @@ body {
 .container {
     max-width: 1540px;
     margin: 0 auto;
-    padding: 62px 34px 86px;
+    padding: 44px 34px 86px;
 }
 
 .hero {
-    margin-bottom: 48px;
-    padding: 42px 44px;
-    overflow: hidden;
+    min-height: 270px;
+    margin-bottom: 52px;
+    padding: 38px 44px 34px;
     position: relative;
-    border: 1px solid rgba(0,0,0,.055);
-    border-radius: 28px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: center;
+    gap: 38px;
+    overflow: hidden;
+    border-radius: 30px;
     background:
         radial-gradient(
-            circle at 88% 18%,
-            rgba(250,45,72,.16),
-            transparent 36%
+            circle at 88% 20%,
+            rgba(250,45,72,.11),
+            transparent 34%
         ),
         linear-gradient(
-            145deg,
-            rgba(255,255,255,.96),
-            rgba(239,239,243,.94)
+            135deg,
+            rgba(255,255,255,.98),
+            rgba(242,242,245,.92)
         );
-    box-shadow: 0 18px 50px rgba(0,0,0,.07);
+    box-shadow:
+        0 1px 0 rgba(255,255,255,.85) inset,
+        0 18px 48px rgba(0,0,0,.055);
+}
+
+.hero-copy {
+    min-width: 0;
+    position: relative;
+    z-index: 2;
 }
 
 .eyebrow {
-    margin-bottom: 10px;
+    margin-bottom: 14px;
     color: var(--accent);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 850;
-    letter-spacing: .7px;
+    letter-spacing: 1.25px;
     text-transform: uppercase;
 }
 
 .artist-name {
     margin: 0;
-    max-width: 1000px;
-    font-size: clamp(44px, 6vw, 86px);
+    max-width: 920px;
+    font-size: clamp(46px, 5vw, 74px);
     line-height: .98;
-    letter-spacing: -4px;
-    font-weight: 890;
+    letter-spacing: -3.4px;
+    font-weight: 880;
     text-wrap: balance;
 }
 
 .summary {
-    margin-top: 25px;
+    margin-top: 27px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
 }
 
-.summary-pill {
-    min-height: 32px;
-    display: inline-flex;
+.summary-line {
+    display: flex;
     align-items: center;
-    padding: 0 12px;
-    border: 1px solid rgba(0,0,0,.07);
-    border-radius: 999px;
-    background: rgba(255,255,255,.78);
-    color: #56565c;
-    font-size: 12px;
-    font-weight: 760;
+    flex-wrap: wrap;
+    gap: 0;
+    color: #5f5f65;
+    font-size: 13px;
+    font-weight: 660;
 }
 
-.summary-pill strong {
-    margin-right: 4px;
-    color: #242428;
+.summary-line.secondary {
+    color: #85858b;
+    font-size: 12px;
+    font-weight: 620;
+}
+
+.summary-item {
+    display: inline-flex;
+    align-items: baseline;
+    white-space: nowrap;
+}
+
+.summary-item strong {
+    color: #1d1d20;
+    font-weight: 790;
+}
+
+.summary-sep {
+    margin: 0 9px;
+    color: #c1c1c6;
+}
+
+.hero-art {
+    height: 205px;
+    position: relative;
+}
+
+.hero-cover {
+    width: 176px;
+    aspect-ratio: 1;
+    position: absolute;
+    top: 50%;
+    right: 42px;
+    overflow: hidden;
+    border-radius: 18px;
+    background: #dedee2;
+    box-shadow: 0 20px 42px rgba(0,0,0,.22);
+    transform-origin: center;
+}
+
+.hero-cover img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.hero-cover.art-1 {
+    z-index: 3;
+    transform: translateY(-50%) rotate(4deg);
+}
+
+.hero-cover.art-2 {
+    z-index: 2;
+    right: 122px;
+    transform: translateY(-50%) rotate(-7deg) scale(.92);
+    opacity: .96;
+}
+
+.hero-cover.art-3 {
+    z-index: 1;
+    right: 198px;
+    transform: translateY(-50%) rotate(-13deg) scale(.84);
+    opacity: .78;
+}
+
+.hero-cover:hover {
+    z-index: 5;
 }
 
 .section-head {
@@ -296,12 +370,32 @@ body {
 
 @media(max-width:900px) {
     .container {
-        padding: 36px 20px 70px;
+        padding: 32px 20px 70px;
     }
 
     .hero {
-        padding: 32px 28px;
-        border-radius: 23px;
+        min-height: 230px;
+        padding: 32px 30px;
+        grid-template-columns: minmax(0, 1fr) 250px;
+        gap: 22px;
+        border-radius: 24px;
+    }
+
+    .hero-art {
+        height: 170px;
+    }
+
+    .hero-cover {
+        width: 142px;
+        right: 24px;
+    }
+
+    .hero-cover.art-2 {
+        right: 84px;
+    }
+
+    .hero-cover.art-3 {
+        right: 140px;
     }
 
     .album-grid {
@@ -325,13 +419,36 @@ body {
     }
 
     .hero {
+        min-height: 0;
         margin-bottom: 34px;
-        padding: 27px 22px;
+        padding: 28px 22px 26px;
+        display: block;
+        border-radius: 22px;
+    }
+
+    .hero-art {
+        display: none;
     }
 
     .artist-name {
-        font-size: 44px;
-        letter-spacing: -2.5px;
+        font-size: 43px;
+        letter-spacing: -2.4px;
+    }
+
+    .summary {
+        margin-top: 22px;
+    }
+
+    .summary-line {
+        font-size: 12px;
+    }
+
+    .summary-line.secondary {
+        font-size: 11px;
+    }
+
+    .summary-sep {
+        margin: 0 7px;
     }
 
     .album-grid {
@@ -362,46 +479,84 @@ body {
 <main class="container">
 
 <section class="hero">
-    <div class="eyebrow">Artist Collection</div>
-    <h1 class="artist-name">{{ artist_name }}</h1>
 
-    <div class="summary">
-        <span class="summary-pill">
-            총 <strong style="margin-left:4px;">{{ owned_count }}</strong>장
-        </span>
+    <div class="hero-copy">
+        <div class="eyebrow">Artist Collection</div>
+        <h1 class="artist-name">{{ artist_name }}</h1>
 
-        {% if format_counts.get('CD', 0) %}
-        <span class="summary-pill">
-            CD <strong style="margin-left:4px;">{{ format_counts.get('CD', 0) }}</strong>장
-        </span>
-        {% endif %}
+        <div class="summary">
 
-        {% if format_counts.get('LP', 0) %}
-        <span class="summary-pill">
-            LP <strong style="margin-left:4px;">{{ format_counts.get('LP', 0) }}</strong>장
-        </span>
-        {% endif %}
+            <div class="summary-line">
+                <span class="summary-item">
+                    총&nbsp;<strong>{{ owned_count }}장</strong>
+                </span>
 
-        {% if format_counts.get('CASETTE', 0) %}
-        <span class="summary-pill">
-            CASETTE <strong style="margin-left:4px;">{{ format_counts.get('CASETTE', 0) }}</strong>장
-        </span>
-        {% endif %}
+                {% if format_counts.get('CD', 0) %}
+                <span class="summary-sep">·</span>
+                <span class="summary-item">
+                    CD&nbsp;<strong>{{ format_counts.get('CD', 0) }}장</strong>
+                </span>
+                {% endif %}
 
-        {% if format_counts.get('ETC', 0) %}
-        <span class="summary-pill">
-            ETC <strong style="margin-left:4px;">{{ format_counts.get('ETC', 0) }}</strong>장
-        </span>
-        {% endif %}
+                {% if format_counts.get('LP', 0) %}
+                <span class="summary-sep">·</span>
+                <span class="summary-item">
+                    LP&nbsp;<strong>{{ format_counts.get('LP', 0) }}장</strong>
+                </span>
+                {% endif %}
 
-        {% if album_type_summary %}
-        <span class="summary-pill">
-            {%- for item in album_type_summary -%}
-                {{ item.name }} {{ item.count }}장{% if not loop.last %} · {% endif %}
-            {%- endfor -%}
-        </span>
-        {% endif %}
+                {% if format_counts.get('CASETTE', 0) %}
+                <span class="summary-sep">·</span>
+                <span class="summary-item">
+                    CASETTE&nbsp;<strong>{{ format_counts.get('CASETTE', 0) }}장</strong>
+                </span>
+                {% endif %}
+
+                {% if format_counts.get('ETC', 0) %}
+                <span class="summary-sep">·</span>
+                <span class="summary-item">
+                    ETC&nbsp;<strong>{{ format_counts.get('ETC', 0) }}장</strong>
+                </span>
+                {% endif %}
+            </div>
+
+            {% if album_type_summary %}
+            <div class="summary-line secondary">
+                {% for item in album_type_summary %}
+                    {% if not loop.first %}
+                    <span class="summary-sep">·</span>
+                    {% endif %}
+                    <span class="summary-item">
+                        {{ item.name }}&nbsp;<strong>{{ item.count }}장</strong>
+                    </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+        </div>
     </div>
+
+    {% if albums %}
+    <div class="hero-art" aria-hidden="true">
+        {% for album in albums[:3] %}
+            {% if album.cover_url %}
+            <a
+                class="hero-cover art-{{ loop.index }}"
+                href="{{ url_for('album_detail', album_row_id=album.id) }}"
+                tabindex="-1"
+            >
+                <img
+                    src="{{ cover_thumbnail_url(album.cover_url, 400) }}"
+                    alt=""
+                    loading="eager"
+                    decoding="async"
+                >
+            </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
 </section>
 
 <div class="section-head">
