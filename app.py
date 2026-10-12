@@ -17,6 +17,8 @@ from catalog import (
     genre_choices,
     artist_credit_parts,
     split_artists,
+    artist_group_key,
+    artist_group_sort_key,
 )
 
 from cache_utils import BoundedCache
@@ -290,6 +292,92 @@ def index():
         ),
         saved=saved,
         bulk_saved=bulk_saved
+    )
+
+
+@app.route('/artists')
+def artists_page():
+    query = request.args.get('q', '').strip()
+
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT artist, cover_url
+        FROM albums
+        WHERE artist IS NOT NULL
+          AND TRIM(artist) != ''
+        ORDER BY id DESC
+        '''
+    ).fetchall()
+    conn.close()
+
+    artist_map = {}
+
+    for row in rows:
+        for artist_name in split_artists(row['artist']):
+            name = str(artist_name or '').strip()
+            if not name:
+                continue
+
+            key = name.casefold()
+            item = artist_map.get(key)
+
+            if item is None:
+                item = {
+                    'name': name,
+                    'count': 0,
+                    'cover_url': '',
+                }
+                artist_map[key] = item
+
+            item['count'] += 1
+
+            if not item['cover_url'] and row['cover_url']:
+                item['cover_url'] = row['cover_url']
+
+    total_artist_count = len(artist_map)
+    artists = list(artist_map.values())
+
+    if query:
+        query_key = query.casefold()
+        artists = [
+            item
+            for item in artists
+            if query_key in item['name'].casefold()
+        ]
+
+    artists.sort(
+        key=lambda item: (
+            artist_group_sort_key(
+                artist_group_key(item['name'])
+            ),
+            item['name'].casefold()
+        )
+    )
+
+    grouped = {}
+
+    for item in artists:
+        group = artist_group_key(item['name'])
+        grouped.setdefault(group, []).append(item)
+
+    grouped_artists = [
+        {
+            'key': group,
+            'artists': grouped[group],
+        }
+        for group in sorted(
+            grouped,
+            key=artist_group_sort_key
+        )
+    ]
+
+    return render_template(
+        'artists.html',
+        grouped_artists=grouped_artists,
+        total_artist_count=total_artist_count,
+        filtered_artist_count=len(artists),
+        query=query
     )
 
 
