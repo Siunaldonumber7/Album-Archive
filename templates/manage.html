@@ -1072,9 +1072,13 @@ X
 <td>
 
 
-{% if album.purchase_price %}
+{% if album.purchase_price is not none %}
 
 ₩ {{ "{:,}".format(album.purchase_price) }}
+
+{% else %}
+
+-
 
 {% endif %}
 
