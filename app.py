@@ -2564,6 +2564,102 @@ def confident_album_search(results, minimum_score=650):
     return results[0].get('score', 0) >= minimum_score
 
 
+def get_cached_artist_search_results(
+    artist_name,
+    search_album='',
+    learned=None
+):
+    artist_name = str(artist_name or '').strip()
+
+    if not artist_name:
+        return []
+
+    now = time.time()
+    normalized_artist = normalize_text(artist_name)
+    candidates = []
+    seen = set()
+
+    # 먼저 현재 프로세스에서 해결해 둔 아티스트 ID를 본다.
+    for store in ['KR', 'US']:
+        cached_artist = APPLE_ARTIST_CACHE.get(
+            f'{store}|{normalized_artist}'
+        )
+
+        if (
+            cached_artist
+            and now - cached_artist['time'] < APPLE_ARTIST_CACHE_SECONDS
+            and cached_artist.get('data')
+        ):
+            data = cached_artist['data']
+            artist_id = str(
+                data.get('artist_id') or ''
+            ).strip()
+
+            key = (store, artist_id)
+
+            if artist_id and key not in seen:
+                seen.add(key)
+                candidates.append(key)
+
+    # 등록 과정에서 학습한 artistId도 캐시 키 후보로 사용한다.
+    if learned and learned.get('artist_id'):
+        learned_id = str(
+            learned.get('artist_id') or ''
+        ).strip()
+
+        for store in ['KR', 'US']:
+            key = (store, learned_id)
+
+            if learned_id and key not in seen:
+                seen.add(key)
+                candidates.append(key)
+
+    for store, artist_id in candidates:
+        discography = ARTIST_ALBUM_CACHE.get(
+            f'{store}|{artist_id}'
+        )
+
+        if not (
+            discography
+            and now - discography['time'] < ARTIST_ALBUM_CACHE_SECONDS
+        ):
+            continue
+
+        results = lookup_artist_albums(
+            artist_id,
+            search_album,
+            '',
+            prefer_korean=(
+                store == 'KR'
+                and (
+                    contains_hangul(artist_name)
+                    or contains_hangul(search_album)
+                )
+            ),
+            stores=[store]
+        )
+
+        if not results:
+            continue
+
+        if search_album and not confident_album_search(
+            results,
+            650
+        ):
+            continue
+
+        print(
+            'SEARCH FAST CACHE:',
+            artist_name,
+            '→',
+            store,
+            artist_id
+        )
+        return results
+
+    return []
+
+
 def extract_apple_music_album_id(apple_url):
     """music.apple.com 앨범 링크의 path에서 앨범 collectionId를 추출한다."""
 
@@ -2952,13 +3048,30 @@ def search_apple(artist, album):
 
     results = []
     learned_name = ''
-    learned = None
+    learned = find_learned_artist(artist) if artist else None
     musicbrainz_names = []
+
+    # =====================================================
+    # 0순위: 이미 받아둔 아티스트 디스코그래피가 있으면
+    # 네트워크 요청 전에 메모리 캐시에서 먼저 찾는다.
+    # =====================================================
+    if artist:
+        results = get_cached_artist_search_results(
+            artist,
+            album,
+            learned
+        )
+
+        if learned:
+            learned_name = learned.get(
+                'artist_name',
+                ''
+            ) or ''
 
     # =====================================================
     # 1순위: Apple KR 앨범명 직접검색
     # =====================================================
-    if album:
+    if not results and album:
         print(
             'SEARCH STEP 1: KR ALBUM DIRECT →',
             album
@@ -2999,8 +3112,6 @@ def search_apple(artist, album):
     # 3순위: 이미 학습한 Apple Artist ID가 있으면 검색 없이 즉시 lookup
     # =====================================================
     if not results and artist:
-        learned = find_learned_artist(artist)
-
         if learned and learned.get('artist_id'):
             learned_name = learned.get('artist_name', '') or ''
             print(
