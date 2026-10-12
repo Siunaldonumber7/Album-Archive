@@ -367,8 +367,26 @@ body {
 
     <div class="summary">
         <span class="summary-pill">
-            <strong>{{ owned_count }}</strong>장
+            총 <strong style="margin-left:4px;">{{ owned_count }}</strong>장
         </span>
+
+        <span class="summary-pill">
+            CD <strong style="margin-left:4px;">{{ format_counts.get('CD', 0) }}</strong>장
+        </span>
+
+        <span class="summary-pill">
+            LP <strong style="margin-left:4px;">{{ format_counts.get('LP', 0) }}</strong>장
+        </span>
+
+        <span class="summary-pill">
+            카세트 <strong style="margin-left:4px;">{{ format_counts.get('Casette', 0) }}</strong>장
+        </span>
+
+        {% if album_type_names %}
+        <span class="summary-pill">
+            앨범 종류&nbsp;({{ album_type_names|join(' · ') }})
+        </span>
+        {% endif %}
     </div>
 </section>
 
