@@ -748,7 +748,10 @@ O
 <input
     type="number"
     name="purchase_price"
-    value="{{ album.purchase_price or '' }}"
+    min="0"
+    step="1"
+    value="{{ album.purchase_price if album.purchase_price is not none else '' }}"
+    placeholder="무료로 구했다면 0"
 >
 
 
