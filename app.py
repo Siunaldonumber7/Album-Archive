@@ -4330,6 +4330,28 @@ def register_bulk():
             for store, apple_id in selections
         ]
 
+    # 병렬 요청에서 순간적으로 실패한 항목만 한 번 순차 재시도한다.
+    # 성공한 항목은 그대로 재사용해서 불필요한 Apple 호출을 늘리지 않는다.
+    failed_indexes = [
+        index
+        for index, item in enumerate(metadata_results)
+        if not item
+    ]
+
+    if failed_indexes:
+        print(
+            'BULK PREVIEW RETRY:',
+            len(failed_indexes),
+            'albums'
+        )
+
+        for index in failed_indexes:
+            store, apple_id = selections[index]
+            metadata_results[index] = lookup_album_metadata_store(
+                apple_id,
+                store
+            )
+
     albums = []
     conn = get_db()
 
