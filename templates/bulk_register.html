@@ -85,6 +85,8 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
 
   <form method="POST" action="{{ url_for('save_bulk_albums') }}" id="bulkSaveForm">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="search_artist" value="{{ search_artist or '' }}">
+    <input type="hidden" name="search_album" value="{{ search_album or '' }}">
 
     <div class="cards">
       {% for album in albums %}
