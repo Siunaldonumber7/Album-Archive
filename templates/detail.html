@@ -416,35 +416,15 @@ a {
             {% if album.genre %}
             <span class="pill">{{ album.genre }}</span>
             {% endif %}
+
+            {% if album.release_year %}
+            <span class="pill">{{ album.release_year }}</span>
+            {% endif %}
         </div>
 
         <h1 class="album-title">{{ album.album_title }}</h1>
 
         <div class="artist">{{ album.artist }}</div>
-
-        <div class="meta-line">
-            {% if album.release_year %}
-            <span>{{ album.release_year }}</span>
-            {% endif %}
-
-            {% if tracks %}
-                {% if album.release_year %}
-                <span class="dot">·</span>
-                {% endif %}
-                <span>{{ tracks|length }}곡</span>
-            {% endif %}
-
-            {% if total_discs and total_discs > 1 %}
-            <span class="dot">·</span>
-            <span>{{ total_discs }} DISC</span>
-            {% endif %}
-        </div>
-
-        {% if tracks %}
-        <div class="track-summary">
-            앨범 수록곡 {{ tracks|length }}곡
-        </div>
-        {% endif %}
 
     </div>
 
