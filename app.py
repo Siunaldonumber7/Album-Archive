@@ -239,6 +239,21 @@ def init_db():
 
 ALBUM_TYPES = ('앨범', 'EP(미니)', '싱글', '믹스테잎')
 
+GENRE_OPTIONS = (
+    '힙합', 'R&B', '소울', 'Pop', 'K-Pop', 'J-Pop',
+    '록', '인디 록', '얼터너티브', '얼터너티브/인디', '인디',
+    '펑크', '펑크 록', '메탈', '하드 록', '프로그레시브 록', '사이키델릭',
+    '일렉트로닉', '일렉트로니카', '댄스', '하우스', '테크노', '트랜스',
+    '앰비언트', '다운템포', '재즈', '블루스', '포크', '컨트리',
+    '레게', '스카', '펑크(Funk)', '디스코', '싱어송라이터', '보컬',
+    '이지 리스닝', '어덜트 컨템포러리', '클래식', '오페라', '뉴에이지',
+    '사운드트랙', '영화음악', '뮤지컬', '라틴', '브라질', '아프리카',
+    '월드뮤직', 'CCM', '가스펠', 'CCM/가스펠', '어린이 음악',
+    '홀리데이', '크리스마스', '코미디', '스포큰 워드', '피트니스',
+    '디즈니', '만도팝', '칸토팝', '프렌치 팝', '저먼 팝',
+    '인도 음악', '볼리우드', '한국 음악', '일본 음악'
+)
+
 
 def normalize_genre_name(value):
     value = str(value or '').strip()
@@ -341,6 +356,62 @@ def normalize_genre_name(value):
     return genre_map.get(value.lower(), value)
 
 
+def split_genres(value):
+    values = []
+    seen = set()
+
+    for raw in str(value or '').split(','):
+        genre = normalize_genre_name(raw.strip())
+        key = genre.casefold()
+
+        if genre and key not in seen:
+            seen.add(key)
+            values.append(genre)
+
+    return values
+
+
+def normalize_genres(values):
+    if values is None:
+        return ''
+
+    if isinstance(values, str):
+        values = [values]
+
+    flattened = []
+
+    for value in values:
+        flattened.extend(str(value or '').split(','))
+
+    normalized = []
+    seen = set()
+
+    for raw in flattened:
+        genre = normalize_genre_name(raw.strip())
+        key = genre.casefold()
+
+        if genre and key not in seen:
+            seen.add(key)
+            normalized.append(genre)
+
+    return ', '.join(normalized)
+
+
+def genre_choices(current=''):
+    choices = list(GENRE_OPTIONS)
+
+    for genre in split_genres(current):
+        if genre not in choices:
+            choices.append(genre)
+
+    return choices
+
+
+app.jinja_env.globals['genre_options_all'] = GENRE_OPTIONS
+app.jinja_env.globals['split_genres'] = split_genres
+app.jinja_env.globals['genre_choices'] = genre_choices
+
+
 def extract_apple_genre(item):
     if not isinstance(item, dict):
         return ''
@@ -349,12 +420,15 @@ def extract_apple_genre(item):
     genre_names = attrs.get('genreNames') or item.get('genreNames')
 
     if isinstance(genre_names, list):
-        cleaned = [str(v or '').strip() for v in genre_names if str(v or '').strip()]
-        for value in cleaned:
-            if value.lower() not in {'music', '음악'}:
-                return normalize_genre_name(value)
+        cleaned = [
+            str(v or '').strip()
+            for v in genre_names
+            if str(v or '').strip()
+            and str(v or '').strip().lower() not in {'music', '음악'}
+        ]
+
         if cleaned:
-            return normalize_genre_name(cleaned[0])
+            return normalize_genres(cleaned)
 
     raw = (
         item.get('primaryGenreName')
@@ -365,9 +439,9 @@ def extract_apple_genre(item):
     )
 
     if isinstance(raw, list):
-        raw = next((str(v or '').strip() for v in raw if str(v or '').strip()), '')
+        return normalize_genres(raw)
 
-    return normalize_genre_name(raw)
+    return normalize_genres(raw)
 
 
 def normalize_apple_album_type(item, title=''):
@@ -3044,15 +3118,27 @@ def index():
         conditions.append('album_type = ?')
         params.append(album_type_filter)
     if genre_filter:
-        conditions.append('genre = ?')
-        params.append(genre_filter)
+        conditions.append(
+            "(',' || REPLACE(COALESCE(genre, ''), ', ', ',') || ',') LIKE ?"
+        )
+        params.append(f'%,{genre_filter},%')
     query = 'SELECT * FROM albums'
     if conditions:
         query += ' WHERE ' + ' AND '.join(conditions)
     query += ' ORDER BY id DESC'
     albums = conn.execute(query, params).fetchall()
     total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
-    genre_options = [row['genre'] for row in conn.execute("SELECT DISTINCT genre FROM albums WHERE genre IS NOT NULL AND TRIM(genre) != '' ORDER BY genre COLLATE NOCASE").fetchall()]
+    genre_rows = conn.execute(
+        "SELECT genre FROM albums WHERE genre IS NOT NULL AND TRIM(genre) != ''"
+    ).fetchall()
+    genre_options = sorted(
+        {
+            genre
+            for row in genre_rows
+            for genre in split_genres(row['genre'])
+        },
+        key=str.casefold
+    )
     conn.close()
     return render_template('index.html', albums=albums, library_q=library_q, classification_filter=classification_filter, format_filter=format_filter, album_type_filter=album_type_filter, genre_filter=genre_filter, genre_options=genre_options, total_album_count=total_album_count, saved=saved, bulk_saved=bulk_saved)
 
@@ -3607,7 +3693,7 @@ def add_album_manual():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genre_name(request.form.get('genre', '').strip())
+    genre = normalize_genres(request.form.getlist('genre'))
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
     purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
@@ -3858,8 +3944,8 @@ def save_bulk_albums():
             classification = request.form.get(prefix + 'classification', '').strip()
             media_format = request.form.get(prefix + 'media_format', '').strip()
             album_type = request.form.get(prefix + 'album_type', '').strip()
-            genre = normalize_genre_name(
-                request.form.get(prefix + 'genre', '').strip()
+            genre = normalize_genres(
+                request.form.getlist(prefix + 'genre')
             )
             open_status = request.form.get(prefix + 'open_status', '').strip()
             signed = request.form.get(prefix + 'signed', '').strip()
@@ -4017,7 +4103,7 @@ def save_album():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genre_name(request.form.get('genre', '').strip())
+    genre = normalize_genres(request.form.getlist('genre'))
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -4077,7 +4163,7 @@ def update_album(album_row_id):
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genre_name(request.form.get('genre', '').strip())
+    genre = normalize_genres(request.form.getlist('genre'))
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
