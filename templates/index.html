@@ -786,6 +786,17 @@ h1 {
 }
 
 
+.artist a {
+    color: inherit;
+    text-decoration: none;
+}
+
+
+.artist a:hover {
+    color: var(--accent);
+}
+
+
 .meta {
 
     margin-top: 5px;
@@ -1308,7 +1319,14 @@ My Album Archive
 
 <div class="artist">
 
+<a
+    href="{{ url_for(
+        'artist_page',
+        artist_name=album.artist
+    ) }}"
+>
 {{ album.artist }}
+</a>
 
 </div>
 
