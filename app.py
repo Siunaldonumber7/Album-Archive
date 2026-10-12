@@ -4,7 +4,6 @@ import html as html_lib
 import json
 import os
 import re
-import sqlite3
 import secrets
 import hmac
 import time
@@ -16,10 +15,25 @@ from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 import requests
 from PIL import Image, UnidentifiedImageError
+
+from album_database import DB_NAME, DATA_DIR, get_db, init_db
+from pagination import (
+    ALBUMS_PER_PAGE,
+    parse_page_number,
+    build_pagination_pages,
+)
+from catalog import (
+    ALBUM_TYPES,
+    GENRE_OPTIONS,
+    normalize_genre_name,
+    split_genres,
+    normalize_genres,
+    genre_choices,
+    extract_apple_genre,
+    normalize_apple_album_type,
+)
+
 app = Flask(__name__)
-DB_NAME = os.environ.get('ALBUM_DB_PATH', 'albums.db')
-DATA_DIR = os.path.dirname(os.path.abspath(DB_NAME))
-os.makedirs(DATA_DIR, exist_ok=True)
 
 
 class BoundedCache(dict):
@@ -153,52 +167,6 @@ ADMIN_ENDPOINTS = {
 }
 
 
-ALBUMS_PER_PAGE = 60
-
-
-def parse_page_number(value):
-    try:
-        return max(1, int(value))
-    except Exception:
-        return 1
-
-
-def build_pagination_pages(current_page, total_pages, radius=2):
-    total_pages = max(1, int(total_pages or 1))
-    current_page = min(
-        max(1, int(current_page or 1)),
-        total_pages
-    )
-
-    if total_pages <= 7:
-        return list(range(1, total_pages + 1))
-
-    wanted = {1, total_pages}
-
-    for page_number in range(
-        current_page - radius,
-        current_page + radius + 1
-    ):
-        if 1 <= page_number <= total_pages:
-            wanted.add(page_number)
-
-    ordered = sorted(wanted)
-    result = []
-    previous = None
-
-    for page_number in ordered:
-        if (
-            previous is not None
-            and page_number - previous > 1
-        ):
-            result.append(None)
-
-        result.append(page_number)
-        previous = page_number
-
-    return result
-
-
 def get_csrf_token():
     token = session.get('_csrf_token')
     if not token:
@@ -256,263 +224,10 @@ def add_security_headers(response):
 
     return response
 
-def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_db()
-    conn.execute('CREATE TABLE IF NOT EXISTS albums ( id INTEGER PRIMARY KEY AUTOINCREMENT, management_no TEXT UNIQUE NOT NULL, album_id TEXT NOT NULL, classification TEXT, media_format TEXT, album_type TEXT, genre TEXT, artist TEXT NOT NULL, album_title TEXT NOT NULL, release_year TEXT, open_status TEXT, signed TEXT, purchase_price INTEGER, memo TEXT, apple_collection_id TEXT, cover_url TEXT )')
-    existing_columns = {row['name'] for row in conn.execute('PRAGMA table_info(albums)').fetchall()}
-    if 'album_type' not in existing_columns:
-        conn.execute('ALTER TABLE albums ADD COLUMN album_type TEXT')
-    if 'genre' not in existing_columns:
-        conn.execute('ALTER TABLE albums ADD COLUMN genre TEXT')
-    conn.execute('CREATE TABLE IF NOT EXISTS album_master ( id INTEGER PRIMARY KEY AUTOINCREMENT, album_id TEXT UNIQUE, album_key TEXT UNIQUE, apple_collection_id TEXT, artist TEXT, album_title TEXT, release_year TEXT, cover_url TEXT )')
-    conn.execute('CREATE TABLE IF NOT EXISTS number_counters ( counter_type TEXT PRIMARY KEY, last_number INTEGER NOT NULL DEFAULT 0 )')
-    conn.execute('CREATE TABLE IF NOT EXISTS artist_aliases ( id INTEGER PRIMARY KEY AUTOINCREMENT, alias_key TEXT UNIQUE NOT NULL, alias_text TEXT, canonical_name TEXT, apple_artist_id TEXT )')
-    conn.execute('CREATE TABLE IF NOT EXISTS album_tracks ( id INTEGER PRIMARY KEY AUTOINCREMENT, album_id TEXT NOT NULL, disc_number INTEGER NOT NULL DEFAULT 1, track_number INTEGER NOT NULL DEFAULT 1, title TEXT NOT NULL, artist TEXT, duration TEXT )')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_album_tracks_album_id ON album_tracks (album_id)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_album_id ON albums (album_id)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_classification ON albums (classification)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_media_format ON albums (media_format)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_album_type ON albums (album_type)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_genre ON albums (genre)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums (artist)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_release_year ON albums (release_year)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_albums_apple_collection_id ON albums (apple_collection_id)')
-    conn.execute('CREATE TABLE IF NOT EXISTS album_track_settings ( album_id TEXT PRIMARY KEY, manual_override INTEGER NOT NULL DEFAULT 0, updated_at TEXT DEFAULT CURRENT_TIMESTAMP )')
-    conn.commit()
-    conn.close()
-
-
-ALBUM_TYPES = ('앨범', 'EP(미니)', '싱글', '믹스테잎')
-
-GENRE_OPTIONS = (
-    '힙합', 'R&B', '소울', 'Pop', 'K-Pop', 'J-Pop',
-    '록', '인디 록', '얼터너티브', '얼터너티브/인디', '인디',
-    '펑크', '펑크 록', '메탈', '하드 록', '프로그레시브 록', '사이키델릭',
-    '일렉트로닉', '일렉트로니카', '댄스', '하우스', '테크노', '트랜스',
-    '앰비언트', '다운템포', '재즈', '블루스', '포크', '컨트리',
-    '레게', '스카', '펑크(Funk)', '디스코', '싱어송라이터', '보컬',
-    '이지 리스닝', '어덜트 컨템포러리', '클래식', '오페라', '뉴에이지',
-    '사운드트랙', '영화음악', '뮤지컬', '라틴', '브라질', '아프리카',
-    '월드뮤직', 'CCM', '가스펠', 'CCM/가스펠', '어린이 음악',
-    '홀리데이', '크리스마스', '코미디', '스포큰 워드', '피트니스',
-    '디즈니', '만도팝', '칸토팝', '프렌치 팝', '저먼 팝',
-    '인도 음악', '볼리우드', '한국 음악', '일본 음악'
-)
-
-
-def normalize_genre_name(value):
-    value = str(value or '').strip()
-    if not value:
-        return ''
-
-    # Apple Music / iTunes의 영문 장르명을 컬렉션에서 보기 편한
-    # 한글 표기로 최대한 통일한다. 널리 쓰이는 약어(R&B 등)는 유지한다.
-    genre_map = {
-        'hip-hop/rap': '힙합',
-        'hip hop/rap': '힙합',
-        'hip-hop': '힙합',
-        'hip hop': '힙합',
-        'rap': '힙합',
-
-        'r&b/soul': 'R&B',
-        'r&b': 'R&B',
-        'soul': '소울',
-
-        'pop': 'Pop',
-        'k-pop': 'K-Pop',
-        'kpop': 'K-Pop',
-        'j-pop': 'J-Pop',
-        'jpop': 'J-Pop',
-        'mandopop': '만도팝',
-        'cantopop': '칸토팝',
-        'french pop': '프렌치 팝',
-        'german pop': '저먼 팝',
-
-        'rock': '록',
-        'indie rock': '인디 록',
-        'alternative': '얼터너티브',
-        'alternative & indie': '얼터너티브/인디',
-        'alternative/indie': '얼터너티브/인디',
-        'indie': '인디',
-        'punk': '펑크',
-        'punk rock': '펑크 록',
-        'metal': '메탈',
-        'hard rock': '하드 록',
-        'progressive rock': '프로그레시브 록',
-        'psychedelic': '사이키델릭',
-
-        'electronic': '일렉트로닉',
-        'electronica': '일렉트로니카',
-        'dance': '댄스',
-        'house': '하우스',
-        'techno': '테크노',
-        'trance': '트랜스',
-        'ambient': '앰비언트',
-        'downtempo': '다운템포',
-
-        'jazz': '재즈',
-        'blues': '블루스',
-        'folk': '포크',
-        'country': '컨트리',
-        'reggae': '레게',
-        'ska': '스카',
-        'funk': '펑크(Funk)',
-        'disco': '디스코',
-
-        'singer/songwriter': '싱어송라이터',
-        'singer-songwriter': '싱어송라이터',
-        'vocal': '보컬',
-        'easy listening': '이지 리스닝',
-        'adult contemporary': '어덜트 컨템포러리',
-
-        'classical': '클래식',
-        'opera': '오페라',
-        'new age': '뉴에이지',
-        'soundtrack': '사운드트랙',
-        'original score': '영화음악',
-        'musicals': '뮤지컬',
-
-        'latin': '라틴',
-        'brazilian': '브라질',
-        'african': '아프리카',
-        'world': '월드뮤직',
-        'worldwide': '월드뮤직',
-        'international': '월드뮤직',
-
-        'christian & gospel': 'CCM/가스펠',
-        'christian': 'CCM',
-        'gospel': '가스펠',
-
-        "children's music": '어린이 음악',
-        'children': '어린이 음악',
-        'holiday': '홀리데이',
-        'christmas': '크리스마스',
-        'comedy': '코미디',
-        'spoken word': '스포큰 워드',
-        'fitness & workout': '피트니스',
-        'disney': '디즈니',
-
-        'indian': '인도 음악',
-        'bollywood': '볼리우드',
-        'korean': '한국 음악',
-        'japanese': '일본 음악',
-    }
-
-    return genre_map.get(value.lower(), value)
-
-
-def split_genres(value):
-    values = []
-    seen = set()
-
-    for raw in str(value or '').split(','):
-        genre = normalize_genre_name(raw.strip())
-        key = genre.casefold()
-
-        if genre and key not in seen:
-            seen.add(key)
-            values.append(genre)
-
-    return values
-
-
-def normalize_genres(values):
-    if values is None:
-        return ''
-
-    if isinstance(values, str):
-        values = [values]
-
-    flattened = []
-
-    for value in values:
-        flattened.extend(str(value or '').split(','))
-
-    normalized = []
-    seen = set()
-
-    for raw in flattened:
-        genre = normalize_genre_name(raw.strip())
-        key = genre.casefold()
-
-        if genre and key not in seen:
-            seen.add(key)
-            normalized.append(genre)
-
-    return ', '.join(normalized)
-
-
-def genre_choices(current=''):
-    choices = list(GENRE_OPTIONS)
-
-    for genre in split_genres(current):
-        if genre not in choices:
-            choices.append(genre)
-
-    return choices
-
-
 app.jinja_env.globals['genre_options_all'] = GENRE_OPTIONS
 app.jinja_env.globals['split_genres'] = split_genres
 app.jinja_env.globals['genre_choices'] = genre_choices
 
-
-def extract_apple_genre(item):
-    if not isinstance(item, dict):
-        return ''
-
-    attrs = item.get('attributes') if isinstance(item.get('attributes'), dict) else {}
-    genre_names = attrs.get('genreNames') or item.get('genreNames')
-
-    if isinstance(genre_names, list):
-        cleaned = [
-            str(v or '').strip()
-            for v in genre_names
-            if str(v or '').strip()
-            and str(v or '').strip().lower() not in {'music', '음악'}
-        ]
-
-        if cleaned:
-            return normalize_genres(cleaned)
-
-    raw = (
-        item.get('primaryGenreName')
-        or attrs.get('primaryGenreName')
-        or item.get('genre')
-        or attrs.get('genre')
-        or ''
-    )
-
-    if isinstance(raw, list):
-        return normalize_genres(raw)
-
-    return normalize_genres(raw)
-
-
-def normalize_apple_album_type(item, title=''):
-    item = item if isinstance(item, dict) else {}
-    attrs = item.get('attributes') if isinstance(item.get('attributes'), dict) else {}
-    title = str(title or item.get('collectionName') or item.get('name') or attrs.get('name') or '').strip()
-    raw = ' '.join(str(v or '') for v in [
-        item.get('collectionType'), item.get('kind'), item.get('albumType'),
-        attrs.get('collectionType'), attrs.get('kind'), attrs.get('albumType')
-    ]).lower()
-    title_lower = title.lower()
-    if 'mixtape' in raw or 'mix tape' in raw or re.search(r'\bmixtape\b', title_lower):
-        return '믹스테잎'
-    if raw.strip() == 'ep' or 'extended play' in raw or re.search(r'[-–—]\s*ep\s*$', title_lower) or re.search(r'\(ep\)\s*$', title_lower):
-        return 'EP(미니)'
-    is_single = item.get('isSingle')
-    if is_single is None:
-        is_single = attrs.get('isSingle')
-    if is_single is True or 'single' in raw or re.search(r'[-–—]\s*single\s*$', title_lower):
-        return '싱글'
-    return '앨범'
 
 def has_manual_track_override(conn, album_id):
     if not album_id:
