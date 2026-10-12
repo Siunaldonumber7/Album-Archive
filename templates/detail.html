@@ -414,7 +414,9 @@ a {
             {% endif %}
 
             {% if album.genre %}
-            <span class="pill">{{ album.genre }}</span>
+                {% for genre_name in split_genres(album.genre) %}
+                <span class="pill">{{ genre_name }}</span>
+                {% endfor %}
             {% endif %}
 
             {% if album.release_year %}
