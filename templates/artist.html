@@ -619,8 +619,8 @@ body {
             >
                 <option value="release_desc" {% if sort_order == 'release_desc' %}selected{% endif %}>발매년도 최신순</option>
                 <option value="release_asc" {% if sort_order == 'release_asc' %}selected{% endif %}>발매년도 오래된순</option>
-                <option value="recent" {% if sort_order == 'recent' %}selected{% endif %}>최근 등록순</option>
-                <option value="oldest" {% if sort_order == 'oldest' %}selected{% endif %}>오래된 등록순</option>
+                <option value="price_desc" {% if sort_order == 'price_desc' %}selected{% endif %}>가격 높은순</option>
+                <option value="price_asc" {% if sort_order == 'price_asc' %}selected{% endif %}>가격 낮은순</option>
                 <option value="title" {% if sort_order == 'title' %}selected{% endif %}>앨범명순</option>
             </select>
         </form>
