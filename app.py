@@ -4038,12 +4038,13 @@ def save_album():
 
 @app.route('/edit/<int:album_row_id>')
 def edit_album(album_row_id):
+    updated = request.args.get('updated', '').strip()
     conn = get_db()
     album = conn.execute('SELECT * FROM albums WHERE id = ?', (album_row_id,)).fetchone()
     conn.close()
     if album is None:
         return redirect(url_for('manage_albums'))
-    return render_template('edit.html', album=album)
+    return render_template('edit.html', album=album, updated=updated)
 
 @app.route('/update/<int:album_row_id>', methods=['POST'])
 def update_album(album_row_id):
@@ -4096,7 +4097,13 @@ def update_album(album_row_id):
         delete_local_cover(old_cover_url)
     TRACK_CACHE.clear()
     APPLE_PAGE_CACHE.clear()
-    return redirect(url_for('manage_albums', updated=management_no))
+    return redirect(
+        url_for(
+            'edit_album',
+            album_row_id=album_row_id,
+            updated=management_no
+        )
+    )
 
 @app.route('/delete/<int:album_row_id>', methods=['POST'])
 def delete_album(album_row_id):
