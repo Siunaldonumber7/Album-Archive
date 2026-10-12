@@ -973,7 +973,9 @@ X
 {% if album.cover_url %}
 
 <img
-    src="{{ album.cover_url }}"
+    src="{{ cover_thumbnail_url(album.cover_url, 180) }}"
+    loading="lazy"
+    decoding="async"
 >
 
 {% endif %}
