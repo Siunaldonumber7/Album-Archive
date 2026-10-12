@@ -114,32 +114,114 @@ a {
 }
 
 
-.brand-icon {
+.brand-disc {
 
-    width: 35px;
-    height: 35px;
+    width: 42px;
+    height: 42px;
 
-    display: flex;
+    position: relative;
 
-    align-items: center;
-    justify-content: center;
+    flex: 0 0 42px;
 
-    border-radius: 10px;
+    border-radius: 50%;
 
     background:
-        linear-gradient(
-            145deg,
-            #ff375f,
-            #fa233b
+        radial-gradient(
+            circle at center,
+            rgba(255,255,255,.96) 0 8%,
+            rgba(112,112,118,.72) 8.5% 11%,
+            rgba(235,235,239,.94) 11.5% 18%,
+            transparent 18.5%
+        ),
+        conic-gradient(
+            from 14deg,
+            rgba(255,80,125,.58),
+            rgba(255,206,86,.55),
+            rgba(112,232,201,.52),
+            rgba(96,178,255,.58),
+            rgba(174,122,255,.55),
+            rgba(255,80,125,.58)
+        ),
+        radial-gradient(
+            circle at 34% 28%,
+            #ffffff 0,
+            #ececf0 27%,
+            #cfcfd5 58%,
+            #f8f8fa 76%,
+            #bfc0c6 100%
         );
 
-    color: white;
-
-    font-size: 19px;
+    border: 1px solid rgba(0,0,0,.12);
 
     box-shadow:
-        0 7px 19px
-        rgba(250,45,72,.25);
+        0 7px 17px rgba(0,0,0,.13),
+        0 1px 0 rgba(255,255,255,.9) inset;
+
+    animation:
+        brand-disc-spin 7s
+        linear infinite;
+}
+
+.brand-disc::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 4px;
+
+    border-radius: 50%;
+
+    border:
+        1px solid
+        rgba(255,255,255,.55);
+
+    box-shadow:
+        0 0 0 1px
+        rgba(0,0,0,.035) inset;
+}
+
+.brand-disc::after {
+
+    content: "";
+
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #f5f5f7;
+
+    border:
+        1px solid
+        rgba(0,0,0,.28);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(255,255,255,.42);
+
+    transform:
+        translate(-50%, -50%);
+}
+
+@keyframes brand-disc-spin {
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .brand-disc {
+        animation: none;
+    }
 }
 
 
@@ -1020,7 +1102,7 @@ h1 {
 <aside class="sidebar">
 
 <a class="brand" href="{{ url_for('index') }}" title="메인으로">
-    <div class="brand-icon">♫</div>
+    <div class="brand-disc" aria-hidden="true"></div>
     <div class="brand-name">My Archive</div>
 </a>
 
