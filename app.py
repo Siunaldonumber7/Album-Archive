@@ -3489,6 +3489,9 @@ def add_album_page():
     album = request.args.get('album', '').strip()
     link_error = request.args.get('link_error', '').strip()
     manual_error = request.args.get('manual_error', '').strip()
+    saved = request.args.get('saved', '').strip()
+    manual_saved = request.args.get('manual_saved', '').strip()
+    bulk_saved = request.args.get('bulk_saved', '').strip()
     searched = False
     apple_results = []
 
@@ -3508,7 +3511,10 @@ def add_album_page():
         apple_results=apple_results,
         total_album_count=total_album_count,
         link_error=link_error,
-        manual_error=manual_error
+        manual_error=manual_error,
+        saved=saved,
+        manual_saved=manual_saved,
+        bulk_saved=bulk_saved
     )
 
 
@@ -3567,6 +3573,7 @@ def add_album_from_link():
         'apple_id': apple_id,
         'apple_artist_id': apple_artist_id,
         'search_artist': artist,
+        'search_album': album_title,
         'artist': artist,
         'album_title': album_title,
         'release_year': release_year,
@@ -3716,8 +3723,8 @@ def add_album_manual():
 
     return redirect(
         url_for(
-            'index',
-            saved=management_no
+            'add_album_page',
+            manual_saved=management_no
         )
     )
 
@@ -3725,6 +3732,8 @@ def add_album_manual():
 @app.route('/register-bulk', methods=['POST'])
 def register_bulk():
     raw_selections = request.form.getlist('bulk_selection')
+    search_artist = request.form.get('search_artist', '').strip()
+    search_album = request.form.get('search_album', '').strip()
 
     selections = []
     seen = set()
@@ -3796,13 +3805,17 @@ def register_bulk():
 
     return render_template(
         'bulk_register.html',
-        albums=albums
+        albums=albums,
+        search_artist=search_artist,
+        search_album=search_album
     )
 
 
 @app.route('/save-bulk', methods=['POST'])
 def save_bulk_albums():
     selected_indexes = request.form.getlist('selected_index')
+    search_artist = request.form.get('search_artist', '').strip()
+    search_album = request.form.get('search_album', '').strip()
 
     if not selected_indexes:
         return redirect(url_for('add_album_page'))
@@ -3955,7 +3968,9 @@ def save_bulk_albums():
 
     return redirect(
         url_for(
-            'index',
+            'add_album_page',
+            artist=search_artist,
+            album=search_album,
             bulk_saved=len(saved_management_numbers)
         )
     )
@@ -3966,6 +3981,7 @@ def register():
     apple_id = request.form.get('apple_id', '').strip()
     apple_artist_id = request.form.get('apple_artist_id', '').strip()
     search_artist = request.form.get('search_artist', '').strip()
+    search_album = request.form.get('search_album', '').strip()
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -3984,7 +4000,7 @@ def register():
     else:
         preview_album_id = '신규 자동 생성'
     conn.close()
-    selected = {'apple_id': apple_id, 'apple_artist_id': apple_artist_id, 'search_artist': search_artist, 'artist': artist, 'album_title': album_title, 'release_year': release_year, 'cover_url': cover_url, 'album_type': album_type, 'genre': genre, 'preview_album_id': preview_album_id}
+    selected = {'apple_id': apple_id, 'apple_artist_id': apple_artist_id, 'search_artist': search_artist, 'search_album': search_album, 'artist': artist, 'album_title': album_title, 'release_year': release_year, 'cover_url': cover_url, 'album_type': album_type, 'genre': genre, 'preview_album_id': preview_album_id}
     return render_template('register.html', album=selected, duplicate_count=duplicate_count, duplicate_items=duplicate_items)
 
 @app.route('/save', methods=['POST'])
@@ -3992,6 +4008,7 @@ def save_album():
     apple_id = request.form.get('apple_id', '').strip()
     apple_artist_id = request.form.get('apple_artist_id', '').strip()
     search_artist = request.form.get('search_artist', '').strip()
+    search_album = request.form.get('search_album', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
@@ -4034,7 +4051,14 @@ def save_album():
     SEARCH_CACHE.clear()
     TRACK_CACHE.clear()
     APPLE_PAGE_CACHE.clear()
-    return redirect(url_for('index', saved=management_no))
+    return redirect(
+        url_for(
+            'add_album_page',
+            artist=search_artist,
+            album=search_album,
+            saved=management_no
+        )
+    )
 
 @app.route('/edit/<int:album_row_id>')
 def edit_album(album_row_id):
