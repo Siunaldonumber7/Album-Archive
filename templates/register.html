@@ -540,7 +540,7 @@ NO IMAGE
 
 <td>
 
-{% if item.purchase_price %}
+{% if item.purchase_price is not none %}
 
 {{ "{:,}".format(item.purchase_price) }}원
 
@@ -933,7 +933,9 @@ O
 <input
     type="number"
     name="purchase_price"
-    placeholder="예: 25000"
+    min="0"
+    step="1"
+    placeholder="예: 25000 · 무료면 0"
 >
 
 
