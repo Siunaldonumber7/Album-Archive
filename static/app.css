@@ -1,0 +1,64 @@
+/* =========================================================
+   My Album Archive - shared UI foundation
+   Page-specific layout and colors stay in each template.
+========================================================= */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        "Segoe UI",
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+/* Multi-genre selector shared by add / register / edit */
+.genre-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.genre-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    padding: 7px 9px;
+    border-radius: 999px;
+    background: #fff;
+    color: #555;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.genre-choice input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--accent, #fa2d48);
+}
