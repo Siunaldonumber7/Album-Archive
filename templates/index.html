@@ -91,6 +91,8 @@ a {
         saturate(180%);
 
     z-index: 50;
+
+    overflow-y: auto;
 }
 
 
@@ -289,11 +291,13 @@ a {
     color: var(--accent);
 }
 
-.side-genre-form {
+.side-genre-form,
+.side-sort-form {
     width: 100%;
 }
 
-.side-genre-select {
+.side-genre-select,
+.side-sort-select {
     width: 100%;
     height: 31px;
     padding: 0 28px 0 9px;
@@ -513,7 +517,7 @@ h1 {
 
 .filters {
 
-    display: block;
+    display: none;
 
     margin-bottom: 32px;
 
@@ -955,6 +959,10 @@ h1 {
             60px;
     }
 
+    .filters {
+        display: block;
+    }
+
     .album-grid {
         grid-template-columns:
             repeat(
@@ -1028,6 +1036,88 @@ h1 {
     <span class="nav-icon">♬</span>
     아티스트
 </a>
+
+<div class="side-filter-panel">
+
+<div class="side-filter-heading">FILTER</div>
+
+<div class="side-filter-group">
+    <span class="side-filter-name">분류</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, media_format=format_filter, album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if not classification_filter %}active{% endif %}">전체</a>
+        <a href="{{ url_for('index', library_q=library_q, classification='한국', media_format=format_filter, album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if classification_filter == '한국' %}active{% endif %}">한국</a>
+        <a href="{{ url_for('index', library_q=library_q, classification='해외', media_format=format_filter, album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if classification_filter == '해외' %}active{% endif %}">해외</a>
+    </div>
+</div>
+
+<div class="side-filter-group">
+    <span class="side-filter-name">포맷</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if not format_filter %}active{% endif %}">전체</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='CD', album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if format_filter == 'CD' %}active{% endif %}">CD</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='LP', album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if format_filter == 'LP' %}active{% endif %}">LP</a>
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format='ETC', album_type=album_type_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if format_filter == 'ETC' %}active{% endif %}">ETC</a>
+    </div>
+</div>
+
+<div class="side-filter-group">
+    <span class="side-filter-name">종류</span>
+    <div class="side-filter-options">
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if not album_type_filter %}active{% endif %}">전체</a>
+        {% for type_name in ['앨범', 'EP(미니)', '싱글', '믹스테잎'] %}
+        <a href="{{ url_for('index', library_q=library_q, classification=classification_filter, media_format=format_filter, album_type=type_name, genre=genre_filter, sort=sort_order) }}"
+           class="side-chip {% if album_type_filter == type_name %}active{% endif %}">{{ type_name }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="side-filter-group">
+    <span class="side-filter-name">장르</span>
+    <form class="side-genre-form" method="GET" action="{{ url_for('index') }}">
+        {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+        {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+        {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+        {% if album_type_filter %}<input type="hidden" name="album_type" value="{{ album_type_filter }}">{% endif %}
+        {% if sort_order %}<input type="hidden" name="sort" value="{{ sort_order }}">{% endif %}
+        <select class="side-genre-select" name="genre" onchange="this.form.submit()">
+            <option value="">전체 장르</option>
+            {% for genre_name in genre_options %}
+            <option value="{{ genre_name }}" {% if genre_filter == genre_name %}selected{% endif %}>{{ genre_name }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<div class="side-filter-group">
+    <span class="side-filter-name">정렬</span>
+    <form class="side-sort-form" method="GET" action="{{ url_for('index') }}">
+        {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+        {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+        {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+        {% if album_type_filter %}<input type="hidden" name="album_type" value="{{ album_type_filter }}">{% endif %}
+        {% if genre_filter %}<input type="hidden" name="genre" value="{{ genre_filter }}">{% endif %}
+        <select class="side-sort-select" name="sort" onchange="this.form.submit()">
+            <option value="release_desc" {% if sort_order == 'release_desc' %}selected{% endif %}>발매년도 최신순</option>
+            <option value="release_asc" {% if sort_order == 'release_asc' %}selected{% endif %}>발매년도 오래된순</option>
+            <option value="price_desc" {% if sort_order == 'price_desc' %}selected{% endif %}>가격 높은순</option>
+            <option value="price_asc" {% if sort_order == 'price_asc' %}selected{% endif %}>가격 낮은순</option>
+            <option value="artist" {% if sort_order == 'artist' %}selected{% endif %}>아티스트순</option>
+            <option value="title" {% if sort_order == 'title' %}selected{% endif %}>앨범명순</option>
+        </select>
+    </form>
+</div>
+
+<a class="side-filter-reset" href="{{ url_for('index') }}">필터 초기화</a>
+
+</div>
 
 </aside>
 
@@ -1231,10 +1321,10 @@ My Album Archive
     {% if album_type_filter %}<input type="hidden" name="album_type" value="{{ album_type_filter }}">{% endif %}
     {% if genre_filter %}<input type="hidden" name="genre" value="{{ genre_filter }}">{% endif %}
     <select class="sort-select" name="sort" onchange="this.form.submit()">
-        <option value="recent" {% if sort_order == 'recent' %}selected{% endif %}>최근 등록순</option>
-        <option value="oldest" {% if sort_order == 'oldest' %}selected{% endif %}>오래된 등록순</option>
         <option value="release_desc" {% if sort_order == 'release_desc' %}selected{% endif %}>발매년도 최신순</option>
         <option value="release_asc" {% if sort_order == 'release_asc' %}selected{% endif %}>발매년도 오래된순</option>
+        <option value="price_desc" {% if sort_order == 'price_desc' %}selected{% endif %}>가격 높은순</option>
+        <option value="price_asc" {% if sort_order == 'price_asc' %}selected{% endif %}>가격 낮은순</option>
         <option value="artist" {% if sort_order == 'artist' %}selected{% endif %}>아티스트순</option>
         <option value="title" {% if sort_order == 'title' %}selected{% endif %}>앨범명순</option>
     </select>
