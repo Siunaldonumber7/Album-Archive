@@ -3,6 +3,8 @@ import os
 from flask import current_app, url_for
 from PIL import Image, UnidentifiedImageError
 
+from search_engine import apple_artwork_size
+
 
 UPLOAD_FOLDER = ''
 THUMBNAIL_FOLDER = ''
