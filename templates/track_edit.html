@@ -255,14 +255,35 @@ input:focus {
     .button { width: 100%; }
     .reset { margin-right: 0; order: 3; }
 }
+.save-notice {
+    max-width: 1100px;
+    margin: 14px auto 0;
+    padding: 11px 14px;
+    border-radius: 10px;
+    background: #edf9f0;
+    color: #23833d;
+    font-size: 12px;
+    font-weight: 800;
+}
+.reset-notice {
+    background: #f3f3f5;
+    color: #555;
+}
+
 </style>
 </head>
 <body>
 
 <header class="topbar">
-    <a class="back" href="{{ url_for('album_detail', album_row_id=album.id) }}">‹ 앨범으로 돌아가기</a>
+    <a class="back" href="{{ url_for('edit_album', album_row_id=album.id) }}">‹ 앨범 수정으로 돌아가기</a>
     <div class="top-title">수록곡 편집</div>
 </header>
+
+{% if track_saved %}
+<div class="save-notice">✓ 트랙리스트가 저장되었습니다. 계속 수정할 수 있습니다.</div>
+{% elif track_reset %}
+<div class="save-notice reset-notice">✓ 직접 편집 정보가 초기화되어 Apple Music 기준으로 돌아왔습니다.</div>
+{% endif %}
 
 <main class="main">
 
