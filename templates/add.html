@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>앨범 추가</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+
 <style>
 :root {
     --sidebar: 226px;
@@ -11,13 +13,9 @@
     --muted: #a1a1a6;
     --border: rgba(0,0,0,.07);
 }
-* { box-sizing: border-box; }
 body {
-    margin: 0;
     background: #f5f5f7;
     color: #1c1c1e;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
 }
 .app {
     display: grid;
@@ -443,35 +441,6 @@ textarea {
     h1 { font-size: 38px; }
     .grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 28px 15px; }
     .panel { padding: 18px; }
-}
-.genre-checks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    background: #fafafa;
-}
-.genre-choice {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin: 0;
-    padding: 7px 9px;
-    border-radius: 999px;
-    background: #fff;
-    color: #555;
-    font-size: 11px;
-    font-weight: 750;
-    cursor: pointer;
-}
-.genre-choice input {
-    width: 14px;
-    height: 14px;
-    margin: 0;
-    padding: 0;
-    accent-color: var(--accent);
 }
 .genre-help {
     margin-top: 6px;
