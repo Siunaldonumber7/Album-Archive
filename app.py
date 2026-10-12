@@ -2463,6 +2463,35 @@ def score_album_search_result(item, search_artist='', search_album=''):
     return score
 
 
+def has_confident_explicit_result(
+    results,
+    search_artist='',
+    search_album='',
+    minimum_score=700
+):
+    if not results:
+        return False
+
+    best_explicit_score = -1
+
+    for item in results:
+        if item.get('explicit') != 'Explicit':
+            continue
+
+        score = score_album_search_result(
+            item,
+            search_artist,
+            search_album
+        )
+
+        best_explicit_score = max(
+            best_explicit_score,
+            score
+        )
+
+    return best_explicit_score >= minimum_score
+
+
 def merge_album_search_results(
     groups,
     search_artist='',
@@ -3384,50 +3413,65 @@ def search_apple(artist, album):
 
     # =====================================================
     # Explicit 보강
-    # iTunes Search API가 Explicit 앨범을 누락하는 경우가 있어,
-    # 앨범명을 함께 검색했을 때는 아티스트 전체 앨범 lookup 결과를
-    # 반드시 합쳐 Clean / Explicit 버전을 모두 살린다.
+    # 이미 충분히 정확한 Explicit 결과가 있으면 전체 디스코그래피를
+    # 다시 조회하지 않는다. Explicit가 없거나 애매할 때만 KR → US 순서로
+    # 보강해서 Clean / Explicit 버전을 최대한 함께 살린다.
     # =====================================================
     if artist and album:
         result_groups = [results]
 
-        canonical_artist = (
-            learned_name
-            or (
-                results[0].get('artist', '')
-                if results
-                else ''
-            )
-            or artist
-        )
-
-        kr_discography = search_artist_albums_in_stores(
-            canonical_artist,
-            album,
-            ['KR'],
-            prefer_korean=False
-        )
-        result_groups.append(kr_discography)
-
-        combined_now = merge_album_search_results(
-            result_groups,
+        if has_confident_explicit_result(
+            results,
             artist,
             album,
-            limit=40
-        )
-
-        # KR lookup에도 Explicit 버전이 없을 때만 US 카탈로그를 한 번 더 본다.
-        if not any(
-            item.get('explicit') == 'Explicit'
-            for item in combined_now
+            minimum_score=700
         ):
-            us_discography = search_artist_albums_in_stores(
+            print(
+                'EXPLICIT SUPPLEMENT SKIP:',
+                artist,
+                '/',
+                album
+            )
+        else:
+            canonical_artist = (
+                learned_name
+                or (
+                    results[0].get('artist', '')
+                    if results
+                    else ''
+                )
+                or artist
+            )
+
+            kr_discography = search_artist_albums_in_stores(
                 canonical_artist,
                 album,
-                ['US'],
+                ['KR'],
                 prefer_korean=False
             )
-            result_groups.append(us_discography)
+            result_groups.append(kr_discography)
+
+            combined_now = merge_album_search_results(
+                result_groups,
+                artist,
+                album,
+                limit=40
+            )
+
+            # KR lookup에도 Explicit 버전이 없을 때만 US 카탈로그를 한 번 더 본다.
+            if not has_confident_explicit_result(
+                combined_now,
+                artist,
+                album,
+                minimum_score=700
+            ):
+                us_discography = search_artist_albums_in_stores(
+                    canonical_artist,
+                    album,
+                    ['US'],
+                    prefer_korean=False
+                )
+                result_groups.append(us_discography)
 
         results = merge_album_search_results(
             result_groups,
