@@ -106,6 +106,8 @@ APPLE_PAGE_CACHE_SECONDS = 3600
 KR_TITLE_CACHE = BoundedCache(1000)
 APPLE_ARTIST_CACHE = BoundedCache(500)
 APPLE_ARTIST_CACHE_SECONDS = 86400
+ARTIST_ALBUM_CACHE = BoundedCache(150)
+ARTIST_ALBUM_CACHE_SECONDS = 21600
 LOGIN_ATTEMPTS = BoundedCache(500)
 
 # =========================================================
@@ -1830,147 +1832,196 @@ def lookup_artist_albums(
         stores = ['KR', 'US', 'JP', 'GB']
 
     for store in stores:
-        store_results = []
+        store_artist_id = str(artist_id or '').strip()
 
-        try:
-            store_artist_id = artist_id
-
-            if artist_name:
-                local_artist = find_apple_artist_in_store(
-                    artist_name,
-                    store
-                )
-
-                if local_artist:
-                    store_artist_id = local_artist['artist_id']
-
-            response = APPLE_SESSION.get(
-                'https://itunes.apple.com/lookup',
-                params={
-                    'id': store_artist_id,
-                    'entity': 'album',
-                    'limit': 100,
-                    'country': store,
-                    'explicit': 'Yes'
-                },
-                timeout=12
+        if artist_name:
+            local_artist = find_apple_artist_in_store(
+                artist_name,
+                store
             )
 
-            response.raise_for_status()
-            data = response.json()
+            if local_artist:
+                store_artist_id = local_artist['artist_id']
 
-            seen_meta = set()
+        if not store_artist_id:
+            continue
 
-            for item in data.get('results', []):
-                collection_id = item.get('collectionId')
+        cache_key = f'{store}|{store_artist_id}'
+        cached = ARTIST_ALBUM_CACHE.get(cache_key)
+        base_results = None
 
-                if not collection_id:
-                    continue
+        if (
+            cached
+            and time.time() - cached['time'] < ARTIST_ALBUM_CACHE_SECONDS
+        ):
+            base_results = cached['results']
+            print(
+                'ARTIST ALBUM CACHE HIT:',
+                store,
+                store_artist_id,
+                'COUNT:',
+                len(base_results)
+            )
 
-                title = item.get('collectionName', '')
+        if base_results is None:
+            store_results = []
 
-                if not title:
-                    continue
+            try:
+                response = APPLE_SESSION.get(
+                    'https://itunes.apple.com/lookup',
+                    params={
+                        'id': store_artist_id,
+                        'entity': 'album',
+                        'limit': 100,
+                        'country': store,
+                        'explicit': 'Yes'
+                    },
+                    timeout=12
+                )
 
-                result_artist = item.get('artistName', '')
-                release_date = item.get('releaseDate', '')[:10]
-                release_year = release_date[:4] if release_date else ''
+                response.raise_for_status()
+                data = response.json()
 
-                meta_key = str(collection_id)
+                seen_ids = set()
 
-                if meta_key in seen_meta:
-                    continue
+                for item in data.get('results', []):
+                    collection_id = item.get('collectionId')
 
-                seen_meta.add(meta_key)
+                    if not collection_id:
+                        continue
 
-                score = 0
+                    collection_id = str(collection_id)
 
-                if search_album:
-                    target = normalize_text(search_album)
-                    result_title = normalize_text(title)
+                    if collection_id in seen_ids:
+                        continue
 
-                    if result_title == target:
-                        score += 1000
-                    elif target in result_title:
-                        score += 600
-                    elif result_title in target:
-                        score += 400
+                    title = item.get('collectionName', '')
 
-                    score += int(
-                        similarity(
-                            search_album,
-                            title
-                        ) * 200
+                    if not title:
+                        continue
+
+                    seen_ids.add(collection_id)
+
+                    result_artist = item.get('artistName', '')
+                    release_date = item.get('releaseDate', '')[:10]
+                    release_year = (
+                        release_date[:4]
+                        if release_date
+                        else ''
                     )
 
-                store_results.append({
-                    'apple_id': str(collection_id),
-                    'artist_id': str(
-                        item.get(
-                            'artistId',
-                            store_artist_id
-                        )
-                    ),
-                    'artist': result_artist,
-                    'title': title,
-                    'release_year': release_year,
-                    'cover': apple_high_res(
-                        item.get(
-                            'artworkUrl100',
-                            ''
-                        )
-                    ),
-                    'thumb': apple_artwork_size(
-                        item.get(
-                            'artworkUrl100',
+                    store_results.append({
+                        'apple_id': collection_id,
+                        'artist_id': str(
+                            item.get(
+                                'artistId',
+                                store_artist_id
+                            )
+                        ),
+                        'artist': result_artist,
+                        'title': title,
+                        'release_year': release_year,
+                        'cover': apple_high_res(
+                            item.get(
+                                'artworkUrl100',
+                                ''
+                            )
+                        ),
+                        'thumb': apple_artwork_size(
+                            item.get(
+                                'artworkUrl100',
+                                ''
+                            ),
+                            400
+                        ),
+                        'album_type': normalize_apple_album_type(
+                            item,
+                            title
+                        ),
+                        'genre': extract_apple_genre(item),
+                        'store': store,
+                        'explicit': get_explicit_label(item),
+                        'collection_url': item.get(
+                            'collectionViewUrl',
                             ''
                         ),
-                        400
-                    ),
-                    'album_type': normalize_apple_album_type(item, title),
-                    'genre': extract_apple_genre(item),
-                    'store': store,
-                    'explicit': get_explicit_label(item),
-                    'collection_url': item.get(
-                        'collectionViewUrl',
-                        ''
-                    ),
-                    'score': score
-                })
+                        'score': 0
+                    })
 
-        except Exception as e:
-            print(
-                f'ALBUM LOOKUP ERROR [{store}]:',
-                e
+            except Exception as e:
+                print(
+                    f'ALBUM LOOKUP ERROR [{store}]:',
+                    e
+                )
+                continue
+
+            if not store_results:
+                continue
+
+            ARTIST_ALBUM_CACHE[cache_key] = {
+                'time': time.time(),
+                'results': store_results
+            }
+            base_results = store_results
+
+        # 캐시 원본은 수정하지 않는다. 검색어마다 점수/한글 제목이 달라질 수 있어
+        # 얕은 복사본에만 점수와 표시 제목을 적용한다.
+        results = [
+            dict(item)
+            for item in base_results
+        ]
+
+        if search_album:
+            target = normalize_text(search_album)
+
+            for item in results:
+                result_title = normalize_text(
+                    item.get('title', '')
+                )
+                score = 0
+
+                if result_title == target:
+                    score += 1000
+                elif target and target in result_title:
+                    score += 600
+                elif result_title and result_title in target:
+                    score += 400
+
+                score += int(
+                    similarity(
+                        search_album,
+                        item.get('title', '')
+                    ) * 200
+                )
+
+                item['score'] = score
+
+            results.sort(
+                key=lambda item: item.get(
+                    'score',
+                    0
+                ),
+                reverse=True
             )
 
-        if store_results:
-            if search_album:
-                store_results.sort(
-                    key=lambda item: item.get(
-                        'score',
-                        0
-                    ),
-                    reverse=True
-                )
-            else:
-                store_results.sort(
-                    key=lambda item: item.get(
-                        'release_year',
-                        ''
-                    ),
-                    reverse=True
-                )
+        else:
+            results.sort(
+                key=lambda item: item.get(
+                    'release_year',
+                    ''
+                ),
+                reverse=True
+            )
 
-            results = store_results[:40]
+        results = results[:40]
 
-            if store == 'KR' and prefer_korean:
-                results = localize_kr_results(
-                    results,
-                    max_items=8
-                )
+        if store == 'KR' and prefer_korean:
+            results = localize_kr_results(
+                results,
+                max_items=8
+            )
 
-            return results
+        return results
 
     return []
 
@@ -2088,6 +2139,30 @@ def discover_artist_albums_from_album_search(
             best['artist_name'],
             best['artist_id']
         )
+
+        resolved_artist = {
+            'artist_id': best['artist_id'],
+            'artist_name': best['artist_name'],
+            'store': store
+        }
+
+        # musicArtist API에서 못 찾았던 이름도 한 번 앨범 검색으로 해결되면
+        # 이후 24시간은 바로 이 artistId를 재사용한다.
+        APPLE_ARTIST_CACHE[f'{store}|{target}'] = {
+            'time': time.time(),
+            'data': resolved_artist
+        }
+
+        canonical_key = normalize_text(
+            best['artist_name']
+        )
+        if canonical_key:
+            APPLE_ARTIST_CACHE[
+                f'{store}|{canonical_key}'
+            ] = {
+                'time': time.time(),
+                'data': resolved_artist
+            }
 
         results = lookup_artist_albums(
             best['artist_id'],
