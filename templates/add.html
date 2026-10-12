@@ -158,6 +158,16 @@ input:focus {
     font-size: 11px;
     line-height: 1.5;
 }
+.success {
+    margin: 14px 0 18px;
+    padding: 13px 15px;
+    border-radius: 11px;
+    background: #edf9f0;
+    color: #23833d;
+    border: 1px solid rgba(35,131,61,.12);
+    font-size: 12px;
+    font-weight: 800;
+}
 .error {
     margin-top: 14px;
     padding: 12px 14px;
@@ -460,6 +470,14 @@ textarea {
     <h1>앨범 추가</h1>
     <div class="sub">한국 Apple Music을 우선으로 검색해서 내 컬렉션에 추가합니다.</div>
 
+    {% if bulk_saved %}
+    <div class="success">✓ 앨범 {{ bulk_saved }}장이 등록되었습니다. 계속해서 다음 앨범을 추가할 수 있습니다.</div>
+    {% elif saved %}
+    <div class="success">✓ {{ saved }} 등록 완료. 계속해서 다음 앨범을 추가할 수 있습니다.</div>
+    {% elif manual_saved %}
+    <div class="success">✓ {{ manual_saved }} 등록 완료. 계속해서 다음 앨범을 추가할 수 있습니다.</div>
+    {% endif %}
+
     <section class="panel">
         <div class="panel-title">앨범 검색</div>
         <div class="panel-description">
@@ -514,6 +532,8 @@ textarea {
         {% if apple_results %}
         <form id="bulkForm" method="POST" action="{{ url_for('register_bulk') }}">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="search_artist" value="{{ artist }}">
+            <input type="hidden" name="search_album" value="{{ album }}">
         </form>
 
         <div class="bulk-toolbar">
@@ -566,6 +586,7 @@ textarea {
                     <input type="hidden" name="apple_id" value="{{ item.apple_id }}">
                     <input type="hidden" name="apple_artist_id" value="{{ item.artist_id }}">
                     <input type="hidden" name="search_artist" value="{{ artist }}">
+                    <input type="hidden" name="search_album" value="{{ album }}">
                     <input type="hidden" name="artist" value="{{ item.artist }}">
                     <input type="hidden" name="album_title" value="{{ item.title }}">
                     <input type="hidden" name="release_year" value="{{ item.release_year }}">
