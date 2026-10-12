@@ -11,7 +11,7 @@
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Archive my</title>
+<title>Album Archive</title>
 
 
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
@@ -123,43 +123,47 @@ a {
 
     flex: 0 0 42px;
 
+    overflow: hidden;
+
     border-radius: 50%;
 
     background:
         radial-gradient(
             circle at center,
-            #f7f7f8 0 8%,
-            #8d8e93 8.5% 10.5%,
-            #e4e4e7 11% 17%,
-            transparent 17.5%
+            #0f1012 0 8%,
+            #3d3e42 8.5% 12%,
+            #8b8c90 12.5% 16%,
+            #d9dade 16.5% 21%,
+            transparent 21.5%
         ),
         repeating-radial-gradient(
             circle at center,
-            rgba(255,255,255,.24) 0 1px,
-            rgba(0,0,0,.025) 1px 2px,
-            transparent 2px 4px
+            rgba(255,255,255,.18) 0 1px,
+            rgba(0,0,0,.018) 1px 2px,
+            transparent 2px 3.6px
         ),
         conic-gradient(
-            from 10deg,
-            #d6d7da,
-            #f5f5f6 11%,
-            #b8b9bd 22%,
-            #eeeeef 34%,
-            #c4c5c9 47%,
-            #fafafa 59%,
-            #b5b6ba 72%,
-            #e5e5e7 85%,
-            #d6d7da
+            from 18deg,
+            #c3c4c7 0deg,
+            #f8f8f8 34deg,
+            #bfc0c3 72deg,
+            #ececee 108deg,
+            #aeb0b4 148deg,
+            #fafafa 184deg,
+            #c2c3c6 220deg,
+            #f2f2f3 258deg,
+            #b6b7bb 302deg,
+            #e6e7e9 338deg,
+            #c3c4c7 360deg
         );
 
     border:
         1px solid
-        rgba(0,0,0,.15);
+        rgba(70,70,74,.36);
 
     box-shadow:
-        0 7px 17px rgba(0,0,0,.15),
-        0 1px 1px rgba(255,255,255,.9) inset,
-        0 0 0 1px rgba(255,255,255,.35) inset;
+        0 6px 16px rgba(0,0,0,.17),
+        0 0 0 1px rgba(255,255,255,.78) inset;
 
     animation:
         brand-disc-spin 8s
@@ -172,16 +176,29 @@ a {
 
     position: absolute;
 
-    inset: 3px;
+    inset: 0;
 
     border-radius: 50%;
 
-    border:
-        1px solid
-        rgba(255,255,255,.48);
+    background:
+        linear-gradient(
+            26deg,
+            transparent 31%,
+            rgba(255,62,90,0) 35%,
+            rgba(255,62,90,.42) 39%,
+            rgba(255,176,55,.43) 43%,
+            rgba(243,229,75,.38) 46%,
+            rgba(73,211,138,.40) 49%,
+            rgba(67,167,255,.42) 53%,
+            rgba(111,103,255,.37) 57%,
+            rgba(183,93,255,.30) 60%,
+            rgba(183,93,255,0) 65%,
+            transparent 69%
+        );
 
-    box-shadow:
-        0 0 0 1px rgba(0,0,0,.025) inset;
+    opacity: .72;
+
+    mix-blend-mode: color;
 }
 
 .brand-disc::after {
@@ -193,19 +210,20 @@ a {
     top: 50%;
     left: 50%;
 
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
 
     border-radius: 50%;
 
-    background: #f4f4f6;
+    background: #07080a;
 
     border:
-        1px solid
-        rgba(0,0,0,.32);
+        2px solid
+        #55565a;
 
     box-shadow:
-        0 0 0 3px rgba(255,255,255,.46);
+        0 0 0 3px rgba(158,159,164,.78),
+        0 0 0 4px rgba(255,255,255,.38);
 
     transform:
         translate(-50%, -50%);
@@ -1123,7 +1141,7 @@ h1 {
 
 <a class="brand" href="{{ url_for('index') }}" title="메인으로">
     <div class="brand-disc" aria-hidden="true"></div>
-    <div class="brand-name">Archive my</div>
+    <div class="brand-name">Album Archive</div>
 </a>
 
 <div class="nav-label">LIBRARY</div>
@@ -1237,7 +1255,7 @@ h1 {
 
 <div class="top-title">
 
-Archive my
+Album Archive
 
 </div>
 
