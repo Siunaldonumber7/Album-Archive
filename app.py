@@ -325,31 +325,54 @@ def artist_page(artist_name):
         (canonical_artist,)
     ).fetchone()['count']
 
-    unique_album_count = conn.execute(
-        '''
-        SELECT COUNT(DISTINCT album_id) AS count
-        FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        ''',
-        (canonical_artist,)
-    ).fetchone()['count']
-
-    type_rows = conn.execute(
+    format_rows = conn.execute(
         '''
         SELECT
-            COALESCE(NULLIF(TRIM(album_type), ''), '앨범') AS album_type,
-            COUNT(DISTINCT album_id) AS count
+            COALESCE(NULLIF(TRIM(media_format), ''), '기타') AS media_format,
+            COUNT(*) AS count
         FROM albums
         WHERE artist = ? COLLATE NOCASE
-        GROUP BY COALESCE(NULLIF(TRIM(album_type), ''), '앨범')
+        GROUP BY COALESCE(NULLIF(TRIM(media_format), ''), '기타')
         ''',
         (canonical_artist,)
     ).fetchall()
 
-    type_counts = {
-        row['album_type']: row['count']
+    format_counts = {
+        row['media_format']: row['count']
+        for row in format_rows
+    }
+
+    type_rows = conn.execute(
+        '''
+        SELECT DISTINCT
+            COALESCE(NULLIF(TRIM(album_type), ''), '앨범') AS album_type
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        ''',
+        (canonical_artist,)
+    ).fetchall()
+
+    type_label_map = {
+        '앨범': 'ALBUM',
+        'EP(미니)': 'EP',
+        '싱글': 'SINGLE',
+        '믹스테잎': 'MIXTAPE',
+    }
+    type_order = [
+        '앨범',
+        'EP(미니)',
+        '싱글',
+        '믹스테잎',
+    ]
+    found_types = {
+        row['album_type']
         for row in type_rows
     }
+    album_type_names = [
+        type_label_map[type_name]
+        for type_name in type_order
+        if type_name in found_types
+    ]
 
     total_pages = max(
         1,
@@ -391,8 +414,8 @@ def artist_page(artist_name):
         artist_name=canonical_artist,
         albums=albums,
         owned_count=owned_count,
-        unique_album_count=unique_album_count,
-        type_counts=type_counts,
+        format_counts=format_counts,
+        album_type_names=album_type_names,
         page=page,
         total_pages=total_pages,
         pagination_pages=build_pagination_pages(
