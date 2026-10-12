@@ -108,6 +108,49 @@ def normalize_genre_name(value):
     return genre_map.get(value.lower(), value)
 
 
+def artist_credit_parts(value):
+    """
+    공동 아티스트 표기를 링크 가능한 개별 아티스트로 나눈다.
+    원래 구분자(&, 쉼표)는 화면에서 그대로 다시 표시할 수 있게 보존한다.
+    """
+    text = str(value or '').strip()
+
+    if not text:
+        return []
+
+    tokens = re.split(r'(\s+&\s+|,\s*)', text)
+    parts = []
+    separator = ''
+
+    for token in tokens:
+        if token is None or token == '':
+            continue
+
+        if re.fullmatch(r'\s+&\s+|,\s*', token):
+            separator = token
+            continue
+
+        name = token.strip()
+        if not name:
+            continue
+
+        parts.append({
+            'name': name,
+            'separator': separator if parts else ''
+        })
+        separator = ''
+
+    return parts
+
+
+def split_artists(value):
+    return [
+        part['name']
+        for part in artist_credit_parts(value)
+        if part.get('name')
+    ]
+
+
 def split_genres(value):
     values = []
     seen = set()
