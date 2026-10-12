@@ -2481,6 +2481,95 @@ def merge_album_search_results(
     return merged[:limit]
 
 
+def localize_top_kr_candidates(
+    results,
+    search_artist='',
+    search_album='',
+    score_limit=3,
+    api_limit=2
+):
+    """
+    iTunes 결과 전체를 Apple Music 웹페이지로 보정하지 않고,
+    1차 점수 상위 후보 + Apple API 원래 상위 후보만 한글 제목을 확인한다.
+    """
+    if not results:
+        return results
+
+    if not (
+        contains_hangul(search_artist)
+        or contains_hangul(search_album)
+    ):
+        return results
+
+    # 먼저 네트워크 호출 없이 1차 점수를 계산한다.
+    for item in results:
+        score_album_search_result(
+            item,
+            search_artist,
+            search_album
+        )
+
+    ranked_indexes = sorted(
+        range(len(results)),
+        key=lambda index: results[index].get('score', 0),
+        reverse=True
+    )
+
+    candidate_indexes = []
+    seen = set()
+
+    # 검색 점수 상위 후보.
+    for index in ranked_indexes[:score_limit]:
+        if index not in seen:
+            seen.add(index)
+            candidate_indexes.append(index)
+
+    # iTunes API 자체 랭킹 상위 후보도 보존한다.
+    # 한글 검색어인데 제목이 영어로 내려와 1차 점수가 낮은 경우를 방지한다.
+    for index in range(min(api_limit, len(results))):
+        if index not in seen:
+            seen.add(index)
+            candidate_indexes.append(index)
+
+    localized_candidates = [
+        dict(results[index])
+        for index in candidate_indexes
+    ]
+
+    localized_candidates = localize_kr_results(
+        localized_candidates,
+        max_items=len(localized_candidates)
+    )
+
+    for index, localized in zip(
+        candidate_indexes,
+        localized_candidates
+    ):
+        localized_title = str(
+            localized.get('title') or ''
+        ).strip()
+
+        if localized_title:
+            results[index]['title'] = localized_title
+
+    # 한글 보정 뒤 전체 결과를 다시 점수 계산한다.
+    for item in results:
+        score_album_search_result(
+            item,
+            search_artist,
+            search_album
+        )
+
+    print(
+        'KR LOCALIZE SHORTLIST:',
+        len(candidate_indexes),
+        '/',
+        len(results)
+    )
+
+    return results
+
+
 def search_kr_album_query(
     term,
     search_artist='',
@@ -2528,23 +2617,26 @@ def search_kr_album_query(
             seen.add(dedupe_key)
             results.append(item)
 
-        # 공개 iTunes API가 KR에서도 영어 제목을 주는 경우가 있으므로
-        # 실제 한국 Apple Music 페이지 제목으로 보정한다.
+        # 1차 점수를 먼저 계산하고, 유력 후보만 Apple Music KR
+        # 웹페이지에서 한글 제목을 확인한 뒤 최종 점수를 다시 계산한다.
         if results and (
             contains_hangul(search_artist)
             or contains_hangul(search_album)
         ):
-            results = localize_kr_results(
+            results = localize_top_kr_candidates(
                 results,
-                max_items=6
-            )
-
-        for item in results:
-            score_album_search_result(
-                item,
                 search_artist,
-                search_album
+                search_album,
+                score_limit=3,
+                api_limit=2
             )
+        else:
+            for item in results:
+                score_album_search_result(
+                    item,
+                    search_artist,
+                    search_album
+                )
 
         results.sort(
             key=lambda item: item.get('score', 0),
