@@ -136,7 +136,9 @@ ADMIN_ENDPOINTS = {
     'add_album_from_link',
     'add_album_manual',
     'register',
+    'register_bulk',
     'save_album',
+    'save_bulk_albums',
     'edit_album',
     'update_album',
     'delete_album',
@@ -2378,6 +2380,54 @@ def find_album_metadata_in_page_data(page, collection_id=''):
     return {}
 
 
+def lookup_album_metadata_store(collection_id, store='KR'):
+    collection_id = str(collection_id or '').strip()
+    store = str(store or 'KR').strip().upper()
+
+    if not collection_id or not collection_id.isdigit():
+        return {}
+
+    if store not in {'KR', 'US', 'JP', 'GB'}:
+        store = 'KR'
+
+    try:
+        response = APPLE_SESSION.get(
+            'https://itunes.apple.com/lookup',
+            params={
+                'id': collection_id,
+                'country': store,
+                'entity': 'album',
+                'explicit': 'Yes'
+            },
+            timeout=12
+        )
+        response.raise_for_status()
+
+        for raw_item in response.json().get('results', []):
+            raw_id = str(
+                raw_item.get('collectionId')
+                or raw_item.get('trackId')
+                or ''
+            )
+
+            if raw_item.get('collectionName') and raw_id == collection_id:
+                item = album_item_to_result(raw_item, store)
+
+                if item and store == 'KR':
+                    item['title'] = get_kr_localized_album_title(
+                        item['apple_id'],
+                        item.get('collection_url', ''),
+                        item['title']
+                    )
+
+                return item or {}
+
+    except Exception as e:
+        print(f'APPLE BULK LOOKUP ERROR [{store}]:', e)
+
+    return {}
+
+
 def lookup_album_metadata_kr(collection_id):
     collection_id = str(collection_id or '').strip()
     if not collection_id:
@@ -3521,6 +3571,245 @@ def add_album_manual():
         url_for(
             'index',
             saved=management_no
+        )
+    )
+
+
+@app.route('/register-bulk', methods=['POST'])
+def register_bulk():
+    raw_selections = request.form.getlist('bulk_selection')
+
+    selections = []
+    seen = set()
+
+    for raw in raw_selections[:30]:
+        raw = str(raw or '').strip()
+
+        if '|' not in raw:
+            continue
+
+        store, apple_id = raw.split('|', 1)
+        store = store.strip().upper()
+        apple_id = apple_id.strip()
+
+        if store not in {'KR', 'US', 'JP', 'GB'}:
+            continue
+        if not apple_id.isdigit():
+            continue
+
+        key = f'{store}|{apple_id}'
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        selections.append((store, apple_id))
+
+    if not selections:
+        return redirect(url_for('add_album_page'))
+
+    albums = []
+    conn = get_db()
+
+    try:
+        for store, apple_id in selections:
+            item = lookup_album_metadata_store(apple_id, store)
+
+            if not item:
+                continue
+
+            album_key = make_album_key(
+                item.get('artist', ''),
+                item.get('title', ''),
+                item.get('release_year', '')
+            )
+
+            existing = conn.execute(
+                "SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1",
+                (album_key, apple_id, apple_id)
+            ).fetchone()
+
+            duplicate_count = 0
+
+            if existing:
+                duplicate_count = conn.execute(
+                    'SELECT COUNT(*) AS count FROM albums WHERE album_id = ?',
+                    (existing['album_id'],)
+                ).fetchone()['count']
+
+            item['classification'] = '한국' if store == 'KR' else '해외'
+            item['duplicate_count'] = duplicate_count
+            albums.append(item)
+
+    finally:
+        conn.close()
+
+    if not albums:
+        return redirect(url_for('add_album_page'))
+
+    return render_template(
+        'bulk_register.html',
+        albums=albums
+    )
+
+
+@app.route('/save-bulk', methods=['POST'])
+def save_bulk_albums():
+    selected_indexes = request.form.getlist('selected_index')
+
+    if not selected_indexes:
+        return redirect(url_for('add_album_page'))
+
+    indexes = []
+
+    for raw_index in selected_indexes[:30]:
+        try:
+            index = int(raw_index)
+        except Exception:
+            continue
+
+        if index < 0 or index > 29 or index in indexes:
+            continue
+
+        indexes.append(index)
+
+    if not indexes:
+        return redirect(url_for('add_album_page'))
+
+    conn = get_db()
+    saved_management_numbers = []
+
+    try:
+        for index in indexes:
+            prefix = f'album_{index}_'
+
+            apple_id = request.form.get(prefix + 'apple_id', '').strip()
+            apple_artist_id = request.form.get(prefix + 'artist_id', '').strip()
+            artist = request.form.get(prefix + 'artist', '').strip()
+            album_title = request.form.get(prefix + 'title', '').strip()
+            release_year = request.form.get(prefix + 'release_year', '').strip()
+            cover_url = request.form.get(prefix + 'cover', '').strip()
+            classification = request.form.get(prefix + 'classification', '').strip()
+            media_format = request.form.get(prefix + 'media_format', '').strip()
+            album_type = request.form.get(prefix + 'album_type', '').strip()
+            genre = normalize_genre_name(
+                request.form.get(prefix + 'genre', '').strip()
+            )
+            open_status = request.form.get(prefix + 'open_status', '').strip()
+            signed = request.form.get(prefix + 'signed', '').strip()
+            purchase_price_text = (
+                request.form.get(prefix + 'purchase_price', '')
+                .replace(',', '')
+                .strip()
+            )
+            memo = request.form.get(prefix + 'memo', '').strip()
+
+            if not artist or not album_title:
+                raise ValueError(
+                    f'일괄 등록 데이터가 올바르지 않습니다: {index}'
+                )
+
+            if classification not in {'한국', '해외'}:
+                classification = '한국'
+            if media_format not in {'CD', 'LP', 'Casette', 'USB', '기타'}:
+                media_format = 'CD'
+            if album_type not in ALBUM_TYPES:
+                album_type = '앨범'
+            if open_status not in {'개봉', '미개봉'}:
+                open_status = '개봉'
+            if signed not in {'O', 'X'}:
+                signed = 'X'
+
+            try:
+                purchase_price = (
+                    int(purchase_price_text)
+                    if purchase_price_text != ''
+                    else None
+                )
+                if purchase_price is not None and purchase_price < 0:
+                    purchase_price = None
+            except Exception:
+                purchase_price = None
+
+            learn_artist_alias(
+                conn,
+                artist,
+                artist,
+                apple_artist_id
+            )
+
+            album_id = get_or_create_album_id(
+                conn,
+                apple_id,
+                artist,
+                album_title,
+                release_year,
+                cover_url
+            )
+
+            management_no = get_next_management_no(
+                conn,
+                media_format
+            )
+
+            conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    classification,
+                    media_format,
+                    album_type,
+                    genre,
+                    artist,
+                    album_title,
+                    release_year,
+                    open_status,
+                    signed,
+                    purchase_price,
+                    memo,
+                    apple_collection_id,
+                    cover_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    management_no,
+                    album_id,
+                    classification,
+                    media_format,
+                    album_type,
+                    genre,
+                    artist,
+                    album_title,
+                    release_year,
+                    open_status,
+                    signed,
+                    purchase_price,
+                    memo,
+                    apple_id,
+                    cover_url
+                )
+            )
+
+            saved_management_numbers.append(management_no)
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+    SEARCH_CACHE.clear()
+    TRACK_CACHE.clear()
+    APPLE_PAGE_CACHE.clear()
+
+    return redirect(
+        url_for(
+            'index',
+            bulk_saved=len(saved_management_numbers)
         )
     )
 
