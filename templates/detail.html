@@ -179,6 +179,15 @@ a {
     letter-spacing: -.6px;
 }
 
+.artist a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.artist a:hover {
+    color: var(--accent);
+}
+
 .meta-line {
     margin-top: 20px;
     display: flex;
@@ -414,7 +423,11 @@ a {
 
         <h1 class="album-title">{{ album.album_title }}</h1>
 
-        <div class="artist">{{ album.artist }}</div>
+        <div class="artist">
+            <a href="{{ url_for('artist_page', artist_name=album.artist) }}">
+                {{ album.artist }}
+            </a>
+        </div>
 
     </div>
 
