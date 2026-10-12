@@ -104,6 +104,8 @@ TRACK_CACHE_SECONDS = 3600
 APPLE_PAGE_CACHE = BoundedCache(300)
 APPLE_PAGE_CACHE_SECONDS = 3600
 KR_TITLE_CACHE = BoundedCache(1000)
+APPLE_ARTIST_CACHE = BoundedCache(500)
+APPLE_ARTIST_CACHE_SECONDS = 86400
 LOGIN_ATTEMPTS = BoundedCache(500)
 
 # =========================================================
@@ -1590,7 +1592,14 @@ def get_album_tracks(collection_id, artist='', album_title='', release_year=''):
 def find_apple_artist_in_store(artist_name, store):
     if not artist_name:
         return None
+
     target = normalize_text(artist_name)
+    cache_key = f'{store}|{target}'
+    cached = APPLE_ARTIST_CACHE.get(cache_key)
+
+    if cached and time.time() - cached['time'] < APPLE_ARTIST_CACHE_SECONDS:
+        return cached['data']
+
     best_candidate = None
     best_score = 0
     try:
@@ -1604,16 +1613,28 @@ def find_apple_artist_in_store(artist_name, store):
                 continue
             result_normalized = normalize_text(result_name)
             if result_normalized == target:
-                return {'artist_id': str(artist_id), 'artist_name': result_name, 'store': store}
+                result = {
+                    'artist_id': str(artist_id),
+                    'artist_name': result_name,
+                    'store': store
+                }
+                APPLE_ARTIST_CACHE[cache_key] = {
+                    'time': time.time(),
+                    'data': result
+                }
+                return result
             score = similarity(artist_name, result_name)
             if score > best_score:
                 best_score = score
                 best_candidate = {'artist_id': str(artist_id), 'artist_name': result_name, 'store': store}
     except Exception as e:
         print(f'ARTIST SEARCH ERROR [{store}]:', e)
-    if best_candidate and best_score >= 0.72:
-        return best_candidate
-    return None
+    result = best_candidate if best_candidate and best_score >= 0.72 else None
+    APPLE_ARTIST_CACHE[cache_key] = {
+        'time': time.time(),
+        'data': result
+    }
+    return result
 
 def find_apple_artist(artist_name, stores=None):
     if stores is None:
@@ -1684,11 +1705,7 @@ def lookup_artist_albums(
                 release_date = item.get('releaseDate', '')[:10]
                 release_year = release_date[:4] if release_date else ''
 
-                meta_key = (
-                    normalize_text(result_artist),
-                    normalize_text(title),
-                    release_year
-                )
+                meta_key = str(collection_id)
 
                 if meta_key in seen_meta:
                     continue
@@ -1878,11 +1895,7 @@ def discover_by_album(search_artist, album):
                 release_date = item.get('releaseDate', '')[:10]
                 release_year = release_date[:4] if release_date else ''
 
-                meta_key = (
-                    normalize_text(artist_name),
-                    normalize_text(title),
-                    release_year
-                )
+                meta_key = str(collection_id)
 
                 if meta_key in seen_meta:
                     continue
@@ -2038,8 +2051,57 @@ def score_album_search_result(item, search_artist='', search_album=''):
         ):
             score += 500
 
+    # Explicit/Clean 버전이 함께 있으면 Explicit 버전을 숨기지 않고
+    # 사용자가 바로 찾을 수 있도록 같은 정확도에서 약간 우선한다.
+    if item.get('explicit') == 'Explicit':
+        score += 90
+
     item['score'] = score
     return score
+
+
+def merge_album_search_results(
+    groups,
+    search_artist='',
+    search_album='',
+    limit=40
+):
+    merged = []
+    seen = set()
+
+    for group in groups:
+        for item in group or []:
+            apple_id = str(item.get('apple_id') or '').strip()
+            key = apple_id or (
+                f"{item.get('store', '')}|"
+                f"{normalize_text(item.get('artist', ''))}|"
+                f"{normalize_text(item.get('title', ''))}|"
+                f"{item.get('release_year', '')}|"
+                f"{item.get('explicit', '')}"
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            score_album_search_result(
+                item,
+                search_artist,
+                search_album
+            )
+            merged.append(item)
+
+    merged.sort(
+        key=lambda item: (
+            item.get('score', 0),
+            1 if item.get('explicit') == 'Explicit' else 0,
+            1 if item.get('store') == 'KR' else 0,
+            item.get('release_year', '')
+        ),
+        reverse=True
+    )
+
+    return merged[:limit]
 
 
 def search_kr_album_query(
@@ -2657,6 +2719,67 @@ def search_apple(artist, album):
         results = discover_by_album(
             artist,
             album
+        )
+
+    # =====================================================
+    # Explicit 보강
+    # iTunes Search API가 Explicit 앨범을 누락하는 경우가 있어,
+    # 앨범명을 함께 검색했을 때는 아티스트 전체 앨범 lookup 결과를
+    # 반드시 합쳐 Clean / Explicit 버전을 모두 살린다.
+    # =====================================================
+    if artist and album:
+        result_groups = [results]
+
+        canonical_artist = (
+            learned_name
+            or (
+                results[0].get('artist', '')
+                if results
+                else ''
+            )
+            or artist
+        )
+
+        kr_discography = search_artist_albums_in_stores(
+            canonical_artist,
+            album,
+            ['KR'],
+            prefer_korean=False
+        )
+        result_groups.append(kr_discography)
+
+        combined_now = merge_album_search_results(
+            result_groups,
+            artist,
+            album,
+            limit=40
+        )
+
+        # KR lookup에도 Explicit 버전이 없을 때만 US 카탈로그를 한 번 더 본다.
+        if not any(
+            item.get('explicit') == 'Explicit'
+            for item in combined_now
+        ):
+            us_discography = search_artist_albums_in_stores(
+                canonical_artist,
+                album,
+                ['US'],
+                prefer_korean=False
+            )
+            result_groups.append(us_discography)
+
+        results = merge_album_search_results(
+            result_groups,
+            artist,
+            album,
+            limit=40
+        )
+    else:
+        results = merge_album_search_results(
+            [results],
+            artist,
+            album,
+            limit=40
         )
 
     SEARCH_CACHE[cache_key] = {
