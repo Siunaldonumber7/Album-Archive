@@ -1,5 +1,5 @@
 /* =========================================================
-   My Album Archive - shared UI foundation
+   Archive my - shared UI foundation
    Page-specific layout and colors stay in each template.
 ========================================================= */
 
@@ -12,15 +12,20 @@
 body {
     margin: 0;
     font-family:
+        "SF Pro Text",
+        "SF Pro Display",
         -apple-system,
         BlinkMacSystemFont,
-        "SF Pro Display",
-        "SF Pro Text",
+        "Apple SD Gothic Neo",
+        "Noto Sans KR",
         "Segoe UI",
         "Helvetica Neue",
         Arial,
         sans-serif;
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 button,
