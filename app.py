@@ -3969,8 +3969,6 @@ def save_bulk_albums():
     return redirect(
         url_for(
             'add_album_page',
-            artist=search_artist,
-            album=search_album,
             bulk_saved=len(saved_management_numbers)
         )
     )
@@ -4054,8 +4052,6 @@ def save_album():
     return redirect(
         url_for(
             'add_album_page',
-            artist=search_artist,
-            album=search_album,
             saved=management_no
         )
     )
