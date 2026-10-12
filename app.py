@@ -3141,6 +3141,8 @@ def album_detail(album_row_id):
 
 @app.route('/album/<int:album_row_id>/tracks')
 def edit_album_tracks(album_row_id):
+    track_saved = request.args.get('track_saved', '').strip()
+    track_reset = request.args.get('track_reset', '').strip()
     conn = get_db()
     album = conn.execute(
         'SELECT * FROM albums WHERE id = ?',
@@ -3199,7 +3201,9 @@ def edit_album_tracks(album_row_id):
         'track_edit.html',
         album=album,
         tracks=editor_tracks,
-        manual_track_mode=manual_track_mode
+        manual_track_mode=manual_track_mode,
+        track_saved=track_saved,
+        track_reset=track_reset
     )
 
 
@@ -3319,8 +3323,9 @@ def save_album_tracks(album_row_id):
 
     return redirect(
         url_for(
-            'album_detail',
-            album_row_id=album_row_id
+            'edit_album_tracks',
+            album_row_id=album_row_id,
+            track_saved='1'
         )
     )
 
@@ -3353,8 +3358,9 @@ def reset_album_tracks(album_row_id):
 
     return redirect(
         url_for(
-            'album_detail',
-            album_row_id=album_row_id
+            'edit_album_tracks',
+            album_row_id=album_row_id,
+            track_reset='1'
         )
     )
 
