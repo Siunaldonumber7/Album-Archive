@@ -367,23 +367,8 @@ body {
 
     <div class="summary">
         <span class="summary-pill">
-            <strong>{{ owned_count }}</strong>장 보유
+            <strong>{{ owned_count }}</strong>장
         </span>
-
-        <span class="summary-pill">
-            <strong>{{ unique_album_count }}</strong>종
-        </span>
-
-        {% for type_name in ['앨범', 'EP(미니)', '싱글', '믹스테잎'] %}
-            {% if type_counts.get(type_name, 0) %}
-            <span class="summary-pill">
-                {{ type_name }}
-                <strong style="margin-left:4px;margin-right:0;">
-                    {{ type_counts.get(type_name, 0) }}
-                </strong>
-            </span>
-            {% endif %}
-        {% endfor %}
     </div>
 </section>
 
