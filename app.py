@@ -364,6 +364,11 @@ def artists_page():
     grouped_artists = [
         {
             'key': group,
+            'anchor': (
+                'other'
+                if group == '#'
+                else 'group-' + str(ord(group[0]))
+            ),
             'artists': grouped[group],
         }
         for group in sorted(
