@@ -50,6 +50,10 @@ MUSICBRAINZ_RATE_LOCK = threading.Lock()
 MUSICBRAINZ_LAST_REQUEST = 0.0
 
 
+def clear_search_cache():
+    SEARCH_CACHE.clear()
+
+
 class AppleMusicHTMLParser(HTMLParser):
 
     def __init__(self):
