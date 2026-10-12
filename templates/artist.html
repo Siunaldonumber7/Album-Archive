@@ -224,6 +224,34 @@ body {
     font-weight: 650;
 }
 
+.section-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sort-form {
+    margin: 0;
+}
+
+.sort-select {
+    height: 36px;
+    min-width: 168px;
+    padding: 0 32px 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(255,255,255,.78);
+    color: #55555b;
+    outline: none;
+    font-size: 11px;
+    font-weight: 720;
+}
+
+.sort-select:focus {
+    border-color: rgba(250,45,72,.28);
+    box-shadow: 0 0 0 3px rgba(250,45,72,.07);
+}
+
 .album-grid {
     display: grid;
     grid-template-columns:
@@ -451,6 +479,18 @@ body {
         margin: 0 7px;
     }
 
+    .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 13px;
+    }
+
+    .section-tools,
+    .sort-form,
+    .sort-select {
+        width: 100%;
+    }
+
     .album-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 28px 12px;
@@ -560,8 +600,31 @@ body {
 </section>
 
 <div class="section-head">
-    <h2 class="section-title">보유 앨범</h2>
-    <div class="section-sub">발매년도 최신순</div>
+    <div>
+        <h2 class="section-title">보유 앨범</h2>
+        <div class="section-sub">{{ owned_count }}장</div>
+    </div>
+
+    <div class="section-tools">
+        <form
+            class="sort-form"
+            method="GET"
+            action="{{ url_for('artist_page', artist_name=artist_name) }}"
+        >
+            <select
+                class="sort-select"
+                name="sort"
+                onchange="this.form.submit()"
+                aria-label="앨범 정렬"
+            >
+                <option value="release_desc" {% if sort_order == 'release_desc' %}selected{% endif %}>발매년도 최신순</option>
+                <option value="release_asc" {% if sort_order == 'release_asc' %}selected{% endif %}>발매년도 오래된순</option>
+                <option value="recent" {% if sort_order == 'recent' %}selected{% endif %}>최근 등록순</option>
+                <option value="oldest" {% if sort_order == 'oldest' %}selected{% endif %}>오래된 등록순</option>
+                <option value="title" {% if sort_order == 'title' %}selected{% endif %}>앨범명순</option>
+            </select>
+        </form>
+    </div>
 </div>
 
 <div class="album-grid">
@@ -640,7 +703,8 @@ body {
             href="{{ url_for(
                 'artist_page',
                 artist_name=artist_name,
-                page=page-1
+                page=page-1,
+                    sort=sort_order
             ) }}"
         >
             ‹ 이전
@@ -660,7 +724,8 @@ body {
                 href="{{ url_for(
                     'artist_page',
                     artist_name=artist_name,
-                    page=page_number
+                    page=page_number,
+                    sort=sort_order
                 ) }}"
             >
                 {{ page_number }}
@@ -674,7 +739,8 @@ body {
             href="{{ url_for(
                 'artist_page',
                 artist_name=artist_name,
-                page=page+1
+                page=page+1,
+                    sort=sort_order
             ) }}"
         >
             다음 ›
