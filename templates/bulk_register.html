@@ -142,7 +142,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           </div>
 
           <div class="field">
-            <label>장르 · 복수</label>
+            <label>장르 · 복수 선택 (⌘/Ctrl+클릭)</label>
             {% set selected_genres = split_genres(album.genre or '') %}
             <select class="genre-multi" name="album_{{ i }}_genre" multiple>
               {% for genre_name in genre_choices(album.genre or '') %}
