@@ -612,7 +612,7 @@ body {
             action="{{ url_for('artist_page', artist_name=artist_name) }}"
         >
             <select
-                class="sort-select"
+                class="sort-select js-artist-sort"
                 name="sort"
                 onchange="this.form.submit()"
                 aria-label="앨범 정렬"
@@ -755,6 +755,44 @@ body {
 
 </main>
 </div>
+
+<script>
+(() => {
+    const storageKey = 'albumArchiveArtistSortV1';
+    const allowedSorts = new Set([
+        'release_desc',
+        'release_asc',
+        'price_desc',
+        'price_asc',
+        'title'
+    ]);
+
+    const params = new URLSearchParams(window.location.search);
+    const currentSort = (params.get('sort') || '').trim();
+
+    if (allowedSorts.has(currentSort)) {
+        localStorage.setItem(storageKey, currentSort);
+        return;
+    }
+
+    const savedSort = (
+        localStorage.getItem(storageKey) || ''
+    ).trim();
+
+    if (!allowedSorts.has(savedSort)) {
+        return;
+    }
+
+    params.set('sort', savedSort);
+    params.delete('page');
+
+    const query = params.toString();
+    window.location.replace(
+        window.location.pathname
+        + (query ? '?' + query : '')
+    );
+})();
+</script>
 
 </body>
 </html>
