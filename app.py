@@ -4291,13 +4291,53 @@ def register_bulk():
     if not selections:
         return redirect(url_for('add_album_page'))
 
+    # Apple/iTunes 메타데이터 조회만 병렬 처리한다.
+    # SQLite 작업은 아래에서 메인 스레드로 순차 처리한다.
+    worker_count = min(6, len(selections))
+
+    print(
+        'BULK PREVIEW PARALLEL:',
+        len(selections),
+        'albums /',
+        worker_count,
+        'workers'
+    )
+
+    def fetch_selection(selection):
+        store, apple_id = selection
+        return lookup_album_metadata_store(
+            apple_id,
+            store
+        )
+
+    try:
+        with ThreadPoolExecutor(
+            max_workers=worker_count
+        ) as executor:
+            metadata_results = list(
+                executor.map(
+                    fetch_selection,
+                    selections
+                )
+            )
+    except Exception as e:
+        print('BULK PREVIEW PARALLEL ERROR:', e)
+        metadata_results = [
+            lookup_album_metadata_store(
+                apple_id,
+                store
+            )
+            for store, apple_id in selections
+        ]
+
     albums = []
     conn = get_db()
 
     try:
-        for store, apple_id in selections:
-            item = lookup_album_metadata_store(apple_id, store)
-
+        for (store, apple_id), item in zip(
+            selections,
+            metadata_results
+        ):
             if not item:
                 continue
 
@@ -4320,7 +4360,11 @@ def register_bulk():
                     (existing['album_id'],)
                 ).fetchone()['count']
 
-            item['classification'] = '한국' if store == 'KR' else '해외'
+            item['classification'] = (
+                '한국'
+                if store == 'KR'
+                else '해외'
+            )
             item['duplicate_count'] = duplicate_count
             albums.append(item)
 
