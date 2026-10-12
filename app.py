@@ -19,6 +19,7 @@ from catalog import (
     split_artists,
     artist_group_key,
     artist_group_sort_key,
+    name_sort_key,
 )
 
 from cache_utils import BoundedCache
@@ -209,14 +210,14 @@ def index():
             "CASE WHEN purchase_price IS NULL THEN 1 ELSE 0 END ASC, "
             "purchase_price ASC, album_title COLLATE NOCASE ASC, id DESC"
         ),
-        'artist': (
-            'artist COLLATE NOCASE ASC, '
-            'album_title COLLATE NOCASE ASC, id DESC'
-        ),
-        'title': 'album_title COLLATE NOCASE ASC, id DESC',
     }
 
-    if sort_order not in sort_sql_map:
+    allowed_sorts = set(sort_sql_map) | {
+        'artist',
+        'title',
+    }
+
+    if sort_order not in allowed_sorts:
         sort_order = 'release_desc'
     saved = request.args.get('saved', '')
     bulk_saved = request.args.get('bulk_saved', '')
@@ -277,17 +278,46 @@ def index():
     page = min(page, total_pages)
     offset = (page - 1) * ALBUMS_PER_PAGE
 
-    query = (
-        'SELECT * FROM albums'
-        + where_sql
-        + ' ORDER BY '
-        + sort_sql_map[sort_order]
-        + ' LIMIT ? OFFSET ?'
-    )
-    albums = conn.execute(
-        query,
-        params + [ALBUMS_PER_PAGE, offset]
-    ).fetchall()
+    if sort_order in {'artist', 'title'}:
+        sorted_albums = conn.execute(
+            'SELECT * FROM albums' + where_sql,
+            params
+        ).fetchall()
+
+        if sort_order == 'artist':
+            sorted_albums = sorted(
+                sorted_albums,
+                key=lambda album: (
+                    name_sort_key(album['artist']),
+                    name_sort_key(album['album_title']),
+                    -(int(album['id'] or 0)),
+                )
+            )
+        else:
+            sorted_albums = sorted(
+                sorted_albums,
+                key=lambda album: (
+                    name_sort_key(album['album_title']),
+                    name_sort_key(album['artist']),
+                    -(int(album['id'] or 0)),
+                )
+            )
+
+        albums = sorted_albums[
+            offset:offset + ALBUMS_PER_PAGE
+        ]
+    else:
+        query = (
+            'SELECT * FROM albums'
+            + where_sql
+            + ' ORDER BY '
+            + sort_sql_map[sort_order]
+            + ' LIMIT ? OFFSET ?'
+        )
+        albums = conn.execute(
+            query,
+            params + [ALBUMS_PER_PAGE, offset]
+        ).fetchall()
 
     total_album_count = conn.execute(
         'SELECT COUNT(*) AS count FROM albums'
@@ -386,7 +416,7 @@ def artists_page():
             artist_group_sort_key(
                 artist_group_key(item['name'])
             ),
-            item['name'].casefold()
+            name_sort_key(item['name'])
         )
     )
 
@@ -547,7 +577,7 @@ def artist_page(artist_name):
             key=lambda album: (
                 release_year_number(album) is None,
                 release_year_number(album) or 0,
-                str(album['album_title'] or '').casefold(),
+                name_sort_key(album['album_title']),
                 int(album['id'] or 0),
             )
         )
@@ -556,7 +586,7 @@ def artist_page(artist_name):
             key=lambda album: (
                 purchase_price_number(album) is None,
                 -(purchase_price_number(album) or 0),
-                str(album['album_title'] or '').casefold(),
+                name_sort_key(album['album_title']),
                 -(int(album['id'] or 0)),
             )
         )
@@ -565,14 +595,14 @@ def artist_page(artist_name):
             key=lambda album: (
                 purchase_price_number(album) is None,
                 purchase_price_number(album) or 0,
-                str(album['album_title'] or '').casefold(),
+                name_sort_key(album['album_title']),
                 -(int(album['id'] or 0)),
             )
         )
     elif sort_order == 'title':
         matched_albums.sort(
             key=lambda album: (
-                str(album['album_title'] or '').casefold(),
+                name_sort_key(album['album_title']),
                 -(int(album['id'] or 0)),
             )
         )
@@ -581,7 +611,7 @@ def artist_page(artist_name):
             key=lambda album: (
                 release_year_number(album) is None,
                 -(release_year_number(album) or 0),
-                str(album['album_title'] or '').casefold(),
+                name_sort_key(album['album_title']),
                 -(int(album['id'] or 0)),
             )
         )
