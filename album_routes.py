@@ -806,7 +806,3 @@ def delete_album(album_row_id):
         delete_local_cover(cover_url)
     clear_track_caches()
     return redirect(url_for('manage_albums', deleted=management_no))
-if __name__ == '__main__':
-    init_db()
-    app.run(host='0.0.0.0', port=5001, debug=True)
-
