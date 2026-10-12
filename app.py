@@ -361,12 +361,6 @@ def artist_page(artist_name):
         else:
             format_counts['ETC'] += 1
 
-    type_label_map = {
-        '앨범': 'ALBUM',
-        'EP(미니)': 'EP',
-        '싱글': 'SINGLE',
-        '믹스테잎': 'MIXTAPE',
-    }
     type_order = [
         '앨범',
         'EP(미니)',
@@ -378,7 +372,7 @@ def artist_page(artist_name):
         for album in matched_albums
     }
     album_type_names = [
-        type_label_map[type_name]
+        type_name
         for type_name in type_order
         if type_name in found_types
     ]
