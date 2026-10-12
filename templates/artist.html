@@ -394,9 +394,13 @@ body {
         </span>
         {% endif %}
 
-        {% if album_type_names %}
+        {% if album_type_summary %}
         <span class="summary-pill">
-            앨범 종류&nbsp;({{ album_type_names|join(' · ') }})
+            앨범 종류&nbsp;(
+            {%- for item in album_type_summary -%}
+                {{ item.name }} {{ item.count }}장{% if not loop.last %} · {% endif %}
+            {%- endfor -%}
+            )
         </span>
         {% endif %}
     </div>
