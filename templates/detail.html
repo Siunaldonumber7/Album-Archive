@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ album.album_title }} · {{ album.artist }}</title>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+
 <style>
 :root {
     --bg: #f5f5f7;
@@ -16,27 +18,13 @@
     --card: rgba(255,255,255,.82);
 }
 
-* {
-    box-sizing: border-box;
-}
-
 html {
     background: var(--bg);
 }
 
 body {
-    margin: 0;
     color: var(--text);
     background: var(--bg);
-    font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "SF Pro Display",
-        "SF Pro Text",
-        "Helvetica Neue",
-        Arial,
-        sans-serif;
-    -webkit-font-smoothing: antialiased;
 }
 
 a {
