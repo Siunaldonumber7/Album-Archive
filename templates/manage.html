@@ -444,6 +444,20 @@ td {
 }
 
 
+.track-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 31px;
+    padding: 0 11px;
+    border-radius: 8px;
+    background: #eef4ff;
+    color: #3478d4;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 750;
+}
+
 .delete-button {
 
     height: 31px;
@@ -1103,6 +1117,16 @@ X
 
 수정
 
+</a>
+
+<a
+    href="{{ url_for(
+        'edit_album_tracks',
+        album_row_id=album.id
+    ) }}"
+    class="track-edit"
+>
+트랙 수정
 </a>
 
 
