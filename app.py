@@ -289,6 +289,119 @@ def index():
     )
 
 
+@app.route('/artist/<path:artist_name>')
+def artist_page(artist_name):
+    artist_name = str(artist_name or '').strip()
+    page = parse_page_number(request.args.get('page', '1'))
+
+    if not artist_name:
+        return redirect(url_for('index'))
+
+    conn = get_db()
+
+    canonical_row = conn.execute(
+        '''
+        SELECT artist
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (artist_name,)
+    ).fetchone()
+
+    if canonical_row is None:
+        conn.close()
+        abort(404)
+
+    canonical_artist = canonical_row['artist']
+
+    owned_count = conn.execute(
+        '''
+        SELECT COUNT(*) AS count
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        ''',
+        (canonical_artist,)
+    ).fetchone()['count']
+
+    unique_album_count = conn.execute(
+        '''
+        SELECT COUNT(DISTINCT album_id) AS count
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        ''',
+        (canonical_artist,)
+    ).fetchone()['count']
+
+    type_rows = conn.execute(
+        '''
+        SELECT
+            COALESCE(NULLIF(TRIM(album_type), ''), '앨범') AS album_type,
+            COUNT(DISTINCT album_id) AS count
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        GROUP BY COALESCE(NULLIF(TRIM(album_type), ''), '앨범')
+        ''',
+        (canonical_artist,)
+    ).fetchall()
+
+    type_counts = {
+        row['album_type']: row['count']
+        for row in type_rows
+    }
+
+    total_pages = max(
+        1,
+        (
+            owned_count
+            + ALBUMS_PER_PAGE
+            - 1
+        ) // ALBUMS_PER_PAGE
+    )
+    page = min(page, total_pages)
+    offset = (page - 1) * ALBUMS_PER_PAGE
+
+    albums = conn.execute(
+        '''
+        SELECT *
+        FROM albums
+        WHERE artist = ? COLLATE NOCASE
+        ORDER BY
+            CASE
+                WHEN release_year GLOB '[0-9][0-9][0-9][0-9]'
+                THEN CAST(release_year AS INTEGER)
+                ELSE 0
+            END DESC,
+            album_title COLLATE NOCASE ASC,
+            id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        (
+            canonical_artist,
+            ALBUMS_PER_PAGE,
+            offset
+        )
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        'artist.html',
+        artist_name=canonical_artist,
+        albums=albums,
+        owned_count=owned_count,
+        unique_album_count=unique_album_count,
+        type_counts=type_counts,
+        page=page,
+        total_pages=total_pages,
+        pagination_pages=build_pagination_pages(
+            page,
+            total_pages
+        )
+    )
+
+
 @app.route('/album/<int:album_row_id>')
 def album_detail(album_row_id):
     conn = get_db()
