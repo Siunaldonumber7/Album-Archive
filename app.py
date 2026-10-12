@@ -185,7 +185,33 @@ def index():
     format_filter = request.args.get('media_format', '').strip()
     album_type_filter = request.args.get('album_type', '').strip()
     genre_filter = request.args.get('genre', '').strip()
+    sort_order = request.args.get('sort', 'recent').strip()
     page = parse_page_number(request.args.get('page', '1'))
+
+    sort_sql_map = {
+        'recent': 'id DESC',
+        'oldest': 'id ASC',
+        'release_desc': (
+            "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+            "THEN 0 ELSE 1 END ASC, "
+            "CAST(release_year AS INTEGER) DESC, "
+            "album_title COLLATE NOCASE ASC, id DESC"
+        ),
+        'release_asc': (
+            "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+            "THEN 0 ELSE 1 END ASC, "
+            "CAST(release_year AS INTEGER) ASC, "
+            "album_title COLLATE NOCASE ASC, id ASC"
+        ),
+        'artist': (
+            'artist COLLATE NOCASE ASC, '
+            'album_title COLLATE NOCASE ASC, id DESC'
+        ),
+        'title': 'album_title COLLATE NOCASE ASC, id DESC',
+    }
+
+    if sort_order not in sort_sql_map:
+        sort_order = 'recent'
     saved = request.args.get('saved', '')
     bulk_saved = request.args.get('bulk_saved', '')
 
@@ -248,7 +274,9 @@ def index():
     query = (
         'SELECT * FROM albums'
         + where_sql
-        + ' ORDER BY id DESC LIMIT ? OFFSET ?'
+        + ' ORDER BY '
+        + sort_sql_map[sort_order]
+        + ' LIMIT ? OFFSET ?'
     )
     albums = conn.execute(
         query,
@@ -282,6 +310,7 @@ def index():
         album_type_filter=album_type_filter,
         genre_filter=genre_filter,
         genre_options=genre_options,
+        sort_order=sort_order,
         total_album_count=total_album_count,
         filtered_album_count=filtered_album_count,
         page=page,
@@ -389,7 +418,19 @@ def artists_page():
 @app.route('/artist/<path:artist_name>')
 def artist_page(artist_name):
     artist_name = str(artist_name or '').strip()
+    sort_order = request.args.get('sort', 'release_desc').strip()
     page = parse_page_number(request.args.get('page', '1'))
+
+    allowed_sorts = {
+        'release_desc',
+        'release_asc',
+        'recent',
+        'oldest',
+        'title',
+    }
+
+    if sort_order not in allowed_sorts:
+        sort_order = 'release_desc'
 
     if not artist_name:
         return redirect(url_for('index'))
@@ -482,6 +523,45 @@ def artist_page(artist_name):
         if album_type_counts[type_name] > 0
     ]
 
+    def release_year_number(album):
+        value = str(album['release_year'] or '').strip()
+        return int(value) if value.isdigit() else None
+
+    if sort_order == 'recent':
+        matched_albums.sort(
+            key=lambda album: int(album['id'] or 0),
+            reverse=True
+        )
+    elif sort_order == 'oldest':
+        matched_albums.sort(
+            key=lambda album: int(album['id'] or 0)
+        )
+    elif sort_order == 'release_asc':
+        matched_albums.sort(
+            key=lambda album: (
+                release_year_number(album) is None,
+                release_year_number(album) or 0,
+                str(album['album_title'] or '').casefold(),
+                int(album['id'] or 0),
+            )
+        )
+    elif sort_order == 'title':
+        matched_albums.sort(
+            key=lambda album: (
+                str(album['album_title'] or '').casefold(),
+                -(int(album['id'] or 0)),
+            )
+        )
+    else:
+        matched_albums.sort(
+            key=lambda album: (
+                release_year_number(album) is None,
+                -(release_year_number(album) or 0),
+                str(album['album_title'] or '').casefold(),
+                -(int(album['id'] or 0)),
+            )
+        )
+
     total_pages = max(
         1,
         (
@@ -503,6 +583,7 @@ def artist_page(artist_name):
         owned_count=owned_count,
         format_counts=format_counts,
         album_type_summary=album_type_summary,
+        sort_order=sort_order,
         page=page,
         total_pages=total_pages,
         pagination_pages=build_pagination_pages(
