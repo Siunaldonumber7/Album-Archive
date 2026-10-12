@@ -15,6 +15,8 @@ from catalog import (
     GENRE_OPTIONS,
     split_genres,
     genre_choices,
+    artist_credit_parts,
+    split_artists,
 )
 
 from cache_utils import BoundedCache
@@ -162,6 +164,8 @@ def add_security_headers(response):
 app.jinja_env.globals['genre_options_all'] = GENRE_OPTIONS
 app.jinja_env.globals['split_genres'] = split_genres
 app.jinja_env.globals['genre_choices'] = genre_choices
+app.jinja_env.globals['artist_credit_parts'] = artist_credit_parts
+app.jinja_env.globals['split_artists'] = split_artists
 app.jinja_env.globals['cover_thumbnail_url'] = cover_thumbnail_url
 
 register_admin_routes(
@@ -297,60 +301,65 @@ def artist_page(artist_name):
     if not artist_name:
         return redirect(url_for('index'))
 
+    target_key = artist_name.casefold()
     conn = get_db()
 
-    canonical_row = conn.execute(
+    all_albums = conn.execute(
         '''
-        SELECT artist
+        SELECT *
         FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        ORDER BY id DESC
-        LIMIT 1
-        ''',
-        (artist_name,)
-    ).fetchone()
+        ORDER BY
+            CASE
+                WHEN release_year GLOB '[0-9][0-9][0-9][0-9]'
+                THEN CAST(release_year AS INTEGER)
+                ELSE 0
+            END DESC,
+            album_title COLLATE NOCASE ASC,
+            id DESC
+        '''
+    ).fetchall()
 
-    if canonical_row is None:
-        conn.close()
+    conn.close()
+
+    matched_albums = []
+    canonical_artist = ''
+
+    for album in all_albums:
+        for credit_name in split_artists(album['artist']):
+            if credit_name.casefold() == target_key:
+                matched_albums.append(album)
+                if not canonical_artist:
+                    canonical_artist = credit_name
+                break
+
+    if not matched_albums:
         abort(404)
 
-    canonical_artist = canonical_row['artist']
-
-    owned_count = conn.execute(
-        '''
-        SELECT COUNT(*) AS count
-        FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        ''',
-        (canonical_artist,)
-    ).fetchone()['count']
-
-    format_rows = conn.execute(
-        '''
-        SELECT
-            COALESCE(NULLIF(TRIM(media_format), ''), '기타') AS media_format,
-            COUNT(*) AS count
-        FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        GROUP BY COALESCE(NULLIF(TRIM(media_format), ''), '기타')
-        ''',
-        (canonical_artist,)
-    ).fetchall()
+    owned_count = len(matched_albums)
 
     format_counts = {
-        row['media_format']: row['count']
-        for row in format_rows
+        'CD': 0,
+        'LP': 0,
+        'CASETTE': 0,
+        'ETC': 0,
     }
 
-    type_rows = conn.execute(
-        '''
-        SELECT DISTINCT
-            COALESCE(NULLIF(TRIM(album_type), ''), '앨범') AS album_type
-        FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        ''',
-        (canonical_artist,)
-    ).fetchall()
+    for album in matched_albums:
+        media_format = str(album['media_format'] or '').strip()
+        media_key = media_format.casefold()
+
+        if media_key == 'cd':
+            format_counts['CD'] += 1
+        elif media_key == 'lp':
+            format_counts['LP'] += 1
+        elif media_key in {
+            'casette',
+            'cassette',
+            '카세트',
+        }:
+            format_counts['CASETTE'] += 1
+        else:
+            format_counts['ETC'] += 1
 
     type_label_map = {
         '앨범': 'ALBUM',
@@ -365,8 +374,8 @@ def artist_page(artist_name):
         '믹스테잎',
     ]
     found_types = {
-        row['album_type']
-        for row in type_rows
+        str(album['album_type'] or '앨범').strip() or '앨범'
+        for album in matched_albums
     }
     album_type_names = [
         type_label_map[type_name]
@@ -384,30 +393,9 @@ def artist_page(artist_name):
     )
     page = min(page, total_pages)
     offset = (page - 1) * ALBUMS_PER_PAGE
-
-    albums = conn.execute(
-        '''
-        SELECT *
-        FROM albums
-        WHERE artist = ? COLLATE NOCASE
-        ORDER BY
-            CASE
-                WHEN release_year GLOB '[0-9][0-9][0-9][0-9]'
-                THEN CAST(release_year AS INTEGER)
-                ELSE 0
-            END DESC,
-            album_title COLLATE NOCASE ASC,
-            id DESC
-        LIMIT ? OFFSET ?
-        ''',
-        (
-            canonical_artist,
-            ALBUMS_PER_PAGE,
-            offset
-        )
-    ).fetchall()
-
-    conn.close()
+    albums = matched_albums[
+        offset:offset + ALBUMS_PER_PAGE
+    ]
 
     return render_template(
         'artist.html',
@@ -423,6 +411,7 @@ def artist_page(artist_name):
             total_pages
         )
     )
+
 
 
 @app.route('/album/<int:album_row_id>')
