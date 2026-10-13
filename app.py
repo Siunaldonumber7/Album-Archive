@@ -179,12 +179,59 @@ register_album_routes(app)
 
 @app.route('/')
 def index():
-    library_q = request.args.get('library_q', '').strip()
-    classification_filter = request.args.get('classification', '').strip()
-    format_filter = request.args.get('media_format', '').strip()
-    album_type_filter = request.args.get('album_type', '').strip()
-    genre_filter = request.args.get('genre', '').strip()
-    sort_order = request.args.get('sort', 'release_desc').strip()
+    state_keys = (
+        'library_q',
+        'classification',
+        'media_format',
+        'album_type',
+        'genre',
+        'sort',
+    )
+    reset_filters = (
+        request.args.get('reset_filters', '').strip() == '1'
+    )
+    has_explicit_state = any(
+        key in request.args
+        for key in state_keys
+    )
+
+    if reset_filters:
+        session.pop('album_index_state', None)
+        saved_state = {}
+    else:
+        saved_state = session.get('album_index_state', {})
+        if not isinstance(saved_state, dict):
+            saved_state = {}
+
+    def state_value(key, default=''):
+        if has_explicit_state:
+            return request.args.get(key, default)
+        return saved_state.get(key, default)
+
+    library_q = str(
+        state_value('library_q', '')
+        or ''
+    ).strip()
+    classification_filter = str(
+        state_value('classification', '')
+        or ''
+    ).strip()
+    format_filter = str(
+        state_value('media_format', '')
+        or ''
+    ).strip()
+    album_type_filter = str(
+        state_value('album_type', '')
+        or ''
+    ).strip()
+    genre_filter = str(
+        state_value('genre', '')
+        or ''
+    ).strip()
+    sort_order = str(
+        state_value('sort', 'release_desc')
+        or 'release_desc'
+    ).strip()
     page = parse_page_number(request.args.get('page', '1'))
 
     sort_sql_map = {
@@ -217,6 +264,21 @@ def index():
 
     if sort_order not in allowed_sorts:
         sort_order = 'release_desc'
+
+    if not reset_filters:
+        session['album_index_state'] = {
+            key: value
+            for key, value in {
+                'library_q': library_q,
+                'classification': classification_filter,
+                'media_format': format_filter,
+                'album_type': album_type_filter,
+                'genre': genre_filter,
+                'sort': sort_order,
+            }.items()
+            if value
+        }
+
     saved = request.args.get('saved', '')
     bulk_saved = request.args.get('bulk_saved', '')
 
@@ -482,8 +544,6 @@ def artists_page():
 @app.route('/artist/<path:artist_name>')
 def artist_page(artist_name):
     artist_name = str(artist_name or '').strip()
-    sort_order = request.args.get('sort', 'release_desc').strip()
-    page = parse_page_number(request.args.get('page', '1'))
 
     allowed_sorts = {
         'release_desc',
@@ -493,8 +553,27 @@ def artist_page(artist_name):
         'title',
     }
 
+    requested_sort = request.args.get('sort')
+    if requested_sort is None:
+        sort_order = str(
+            session.get(
+                'album_artist_sort',
+                'release_desc'
+            )
+            or 'release_desc'
+        ).strip()
+    else:
+        sort_order = str(
+            requested_sort
+            or 'release_desc'
+        ).strip()
+
     if sort_order not in allowed_sorts:
         sort_order = 'release_desc'
+
+    session['album_artist_sort'] = sort_order
+
+    page = parse_page_number(request.args.get('page', '1'))
 
     if not artist_name:
         return redirect(url_for('index'))
