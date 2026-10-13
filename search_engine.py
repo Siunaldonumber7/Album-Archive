@@ -15,7 +15,11 @@ from requests.adapters import HTTPAdapter
 
 from album_database import get_db, get_artist_profile_cache, save_artist_profile_cache
 from cache_utils import BoundedCache
-from catalog import extract_apple_genre, normalize_apple_album_type
+from catalog import (
+    extract_apple_genre,
+    normalize_apple_album_type,
+    normalize_text,
+)
 
 
 APPLE_SESSION = requests.Session()
@@ -136,12 +140,6 @@ class AppleMusicHTMLParser(HTMLParser):
     @property
     def page_title(self):
         return ''.join(self.title_parts).strip()
-
-def normalize_text(text):
-    if not text:
-        return ''
-    text = str(text).lower().strip()
-    return re.sub('[^a-z0-9가-힣ぁ-んァ-ン一-龥]+', '', text)
 
 def contains_hangul(text):
     if not text:
