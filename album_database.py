@@ -250,40 +250,59 @@ def init_db():
 
 
 
-def ensure_primary_display(conn, album_id):
-    album_id = str(album_id or '').strip()
+def ensure_primary_display(
+    conn,
+    album_id
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
 
     if not album_id:
         return
 
-    selected = conn.execute(
-        'SELECT id FROM albums '
-        'WHERE album_id = ? AND is_primary_display = 1 '
-        'ORDER BY id ASC LIMIT 1',
-        (album_id,)
-    ).fetchone()
-
-    if selected is None:
-        selected = conn.execute(
-            'SELECT id FROM albums '
-            'WHERE album_id = ? ORDER BY id ASC LIMIT 1',
-            (album_id,)
-        ).fetchone()
-
-    if selected is None:
-        return
-
     conn.execute(
-        'UPDATE albums '
-        'SET is_primary_display = CASE WHEN id = ? THEN 1 ELSE 0 END '
-        'WHERE album_id = ?',
-        (selected['id'], album_id)
+        '''
+        UPDATE albums
+        SET is_primary_display = CASE
+            WHEN id = (
+                SELECT COALESCE(
+                    MIN(
+                        CASE
+                            WHEN candidate.is_primary_display = 1
+                            THEN candidate.id
+                        END
+                    ),
+                    MIN(candidate.id)
+                )
+                FROM albums AS candidate
+                WHERE candidate.album_id = ?
+            )
+            THEN 1
+            ELSE 0
+        END
+        WHERE album_id = ?
+        ''',
+        (
+            album_id,
+            album_id,
+        )
     )
 
 
-def set_primary_display(conn, album_row_id):
+def set_primary_display(
+    conn,
+    album_row_id
+):
     row = conn.execute(
-        'SELECT id, album_id FROM albums WHERE id = ?',
+        '''
+        SELECT
+            id,
+            album_id
+        FROM albums
+        WHERE id = ?
+        ''',
         (album_row_id,)
     ).fetchone()
 
@@ -291,12 +310,19 @@ def set_primary_display(conn, album_row_id):
         return None
 
     conn.execute(
-        'UPDATE albums SET is_primary_display = 0 WHERE album_id = ?',
-        (row['album_id'],)
-    )
-    conn.execute(
-        'UPDATE albums SET is_primary_display = 1 WHERE id = ?',
-        (row['id'],)
+        '''
+        UPDATE albums
+        SET is_primary_display = CASE
+            WHEN id = ?
+            THEN 1
+            ELSE 0
+        END
+        WHERE album_id = ?
+        ''',
+        (
+            row['id'],
+            row['album_id'],
+        )
     )
 
     return row['album_id']
