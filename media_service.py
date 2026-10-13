@@ -1,14 +1,17 @@
+import hashlib
 import os
+import threading
 
 from flask import current_app, url_for
 from PIL import Image, UnidentifiedImageError
 
-from search_engine import apple_artwork_size
+from catalog import apple_artwork_size
 
 
 UPLOAD_FOLDER = ''
 THUMBNAIL_FOLDER = ''
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+THUMBNAIL_WRITE_LOCK = threading.Lock()
 
 
 def configure_media(app):
@@ -105,24 +108,85 @@ def delete_local_cover(cover_url):
         if os.path.isfile(file_path):
             os.remove(file_path)
 
-        stem = os.path.splitext(os.path.basename(filename))[0].strip(' .') or 'cover'
-        if os.path.isdir(THUMBNAIL_FOLDER):
-            prefix_name = f'{stem}__thumb_'
-            for thumb_name in os.listdir(THUMBNAIL_FOLDER):
-                if thumb_name.startswith(prefix_name):
-                    thumb_path = os.path.join(THUMBNAIL_FOLDER, thumb_name)
-                    if os.path.isfile(thumb_path):
-                        os.remove(thumb_path)
+        safe_name = os.path.basename(
+            filename
+        )
+        stem = (
+            os.path.splitext(
+                safe_name
+            )[0].strip(' .')
+            or 'cover'
+        )
+        digest = hashlib.sha1(
+            safe_name.encode(
+                'utf-8',
+                errors='ignore'
+            )
+        ).hexdigest()[:12]
+
+        if os.path.isdir(
+            THUMBNAIL_FOLDER
+        ):
+            prefixes = (
+                f'{stem}__{digest}__thumb_',
+                f'{stem}__thumb_',
+            )
+
+            for thumb_name in os.listdir(
+                THUMBNAIL_FOLDER
+            ):
+                if not thumb_name.startswith(
+                    prefixes
+                ):
+                    continue
+
+                thumb_path = os.path.join(
+                    THUMBNAIL_FOLDER,
+                    thumb_name
+                )
+
+                if os.path.isfile(
+                    thumb_path
+                ):
+                    os.remove(
+                        thumb_path
+                    )
 
     except Exception as e:
         print('LOCAL COVER DELETE ERROR:', e)
 
-def local_cover_thumbnail_path(filename, size=400):
-    safe_name = os.path.basename(str(filename or '').replace('\\', '/'))
-    stem = os.path.splitext(safe_name)[0].strip(' .') or 'cover'
+def local_cover_thumbnail_path(
+    filename,
+    size=400
+):
+    safe_name = os.path.basename(
+        str(
+            filename
+            or ''
+        ).replace(
+            '\\',
+            '/'
+        )
+    )
+    stem = (
+        os.path.splitext(
+            safe_name
+        )[0].strip(' .')
+        or 'cover'
+    )
+    digest = hashlib.sha1(
+        safe_name.encode(
+            'utf-8',
+            errors='ignore'
+        )
+    ).hexdigest()[:12]
+
     return os.path.join(
         THUMBNAIL_FOLDER,
-        f'{stem}__thumb_{int(size)}.webp'
+        (
+            f'{stem}__{digest}'
+            f'__thumb_{int(size)}.webp'
+        )
     )
 
 def cover_thumbnail_url(cover_url, size=400):
@@ -161,31 +225,78 @@ def cover_thumbnail_url(cover_url, size=400):
     thumb_path = local_cover_thumbnail_path(filename, size)
 
     try:
-        if not os.path.isfile(thumb_path):
-            os.makedirs(THUMBNAIL_FOLDER, exist_ok=True)
+        if not os.path.isfile(
+            thumb_path
+        ):
+            with THUMBNAIL_WRITE_LOCK:
+                if not os.path.isfile(
+                    thumb_path
+                ):
+                    os.makedirs(
+                        THUMBNAIL_FOLDER,
+                        exist_ok=True
+                    )
 
-            with Image.open(source_path) as image:
-                try:
-                    image.seek(0)
-                except Exception:
-                    pass
+                    temp_path = (
+                        thumb_path
+                        + '.tmp-'
+                        + str(
+                            threading.get_ident()
+                        )
+                    )
 
-                image.thumbnail(
-                    (size, size),
-                    Image.Resampling.LANCZOS
-                )
+                    try:
+                        with Image.open(
+                            source_path
+                        ) as image:
+                            try:
+                                image.seek(0)
+                            except Exception:
+                                pass
 
-                if image.mode not in {'RGB', 'RGBA'}:
-                    image = image.convert('RGBA' if 'transparency' in image.info else 'RGB')
+                            image.thumbnail(
+                                (
+                                    size,
+                                    size,
+                                ),
+                                Image.Resampling.LANCZOS
+                            )
 
-                image.save(
-                    thumb_path,
-                    'WEBP',
-                    quality=82,
-                    method=4
-                )
+                            if image.mode not in {
+                                'RGB',
+                                'RGBA',
+                            }:
+                                image = image.convert(
+                                    (
+                                        'RGBA'
+                                        if 'transparency'
+                                        in image.info
+                                        else 'RGB'
+                                    )
+                                )
 
-        thumb_name = os.path.basename(thumb_path)
+                            image.save(
+                                temp_path,
+                                'WEBP',
+                                quality=82,
+                                method=4
+                            )
+
+                        os.replace(
+                            temp_path,
+                            thumb_path
+                        )
+                    finally:
+                        if os.path.isfile(
+                            temp_path
+                        ):
+                            os.remove(
+                                temp_path
+                            )
+
+        thumb_name = os.path.basename(
+            thumb_path
+        )
         return url_for(
             'static',
             filename=f'uploads/.thumbs/{thumb_name}'
