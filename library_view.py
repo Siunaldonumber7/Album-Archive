@@ -518,6 +518,73 @@ def purchase_price_number(album):
         return None
 
 
+def _release_sort_key(
+    album,
+    descending=False
+):
+    year = release_year_number(
+        album
+    )
+    numeric_year = (
+        year
+        if year is not None
+        else 0
+    )
+
+    return (
+        year is None,
+        (
+            -numeric_year
+            if descending
+            else numeric_year
+        ),
+        name_sort_key(
+            album['album_title']
+        ),
+        (
+            -int(
+                album['id']
+                or 0
+            )
+            if descending
+            else int(
+                album['id']
+                or 0
+            )
+        ),
+    )
+
+
+def _price_sort_key(
+    album,
+    descending=False
+):
+    price = purchase_price_number(
+        album
+    )
+    numeric_price = (
+        price
+        if price is not None
+        else 0
+    )
+
+    return (
+        price is None,
+        (
+            -numeric_price
+            if descending
+            else numeric_price
+        ),
+        name_sort_key(
+            album['album_title']
+        ),
+        -int(
+            album['id']
+            or 0
+        ),
+    )
+
+
 def sort_artist_albums(
     albums,
     sort_order
@@ -527,58 +594,28 @@ def sort_artist_albums(
     if sort_order == 'release_asc':
         rows.sort(
             key=lambda album: (
-                release_year_number(
-                    album
-                ) is None,
-                release_year_number(
-                    album
-                ) or 0,
-                name_sort_key(
-                    album['album_title']
-                ),
-                int(
-                    album['id']
-                    or 0
-                ),
+                _release_sort_key(
+                    album,
+                    descending=False
+                )
             )
         )
     elif sort_order == 'price_desc':
         rows.sort(
             key=lambda album: (
-                purchase_price_number(
-                    album
-                ) is None,
-                -(
-                    purchase_price_number(
-                        album
-                    )
-                    or 0
-                ),
-                name_sort_key(
-                    album['album_title']
-                ),
-                -int(
-                    album['id']
-                    or 0
-                ),
+                _price_sort_key(
+                    album,
+                    descending=True
+                )
             )
         )
     elif sort_order == 'price_asc':
         rows.sort(
             key=lambda album: (
-                purchase_price_number(
-                    album
-                ) is None,
-                purchase_price_number(
-                    album
-                ) or 0,
-                name_sort_key(
-                    album['album_title']
-                ),
-                -int(
-                    album['id']
-                    or 0
-                ),
+                _price_sort_key(
+                    album,
+                    descending=False
+                )
             )
         )
     elif sort_order == 'title':
@@ -596,22 +633,10 @@ def sort_artist_albums(
     else:
         rows.sort(
             key=lambda album: (
-                release_year_number(
-                    album
-                ) is None,
-                -(
-                    release_year_number(
-                        album
-                    )
-                    or 0
-                ),
-                name_sort_key(
-                    album['album_title']
-                ),
-                -int(
-                    album['id']
-                    or 0
-                ),
+                _release_sort_key(
+                    album,
+                    descending=True
+                )
             )
         )
 
