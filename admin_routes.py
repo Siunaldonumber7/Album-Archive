@@ -4,7 +4,7 @@ import time
 
 from flask import render_template, request, redirect, url_for, session
 
-from album_database import get_db
+from album_database import get_db, set_primary_display
 from pagination import (
     ALBUMS_PER_PAGE,
     parse_page_number,
@@ -43,6 +43,12 @@ def register_admin_routes(app, admin_pin, login_attempts):
         '/manage',
         endpoint='manage_albums',
         view_func=manage_albums
+    )
+    app.add_url_rule(
+        '/manage/main/<int:album_row_id>',
+        endpoint='set_main_album',
+        view_func=set_main_album,
+        methods=['POST']
     )
 
 
@@ -109,6 +115,33 @@ def admin_dashboard():
     conn.close()
     return render_template('admin.html', stats=stats, recent_albums=recent_albums)
 
+def set_main_album(album_row_id):
+    conn = get_db()
+
+    try:
+        row = conn.execute(
+            'SELECT management_no, album_id FROM albums WHERE id = ?',
+            (album_row_id,)
+        ).fetchone()
+
+        if row is None:
+            return redirect(url_for('manage_albums'))
+
+        set_primary_display(conn, album_row_id)
+        conn.commit()
+        management_no = row['management_no'] or ''
+
+    finally:
+        conn.close()
+
+    return redirect(
+        url_for(
+            'manage_albums',
+            featured=management_no
+        )
+    )
+
+
 def manage_albums():
     library_q = request.args.get('library_q', '').strip()
     classification_filter = request.args.get('classification', '').strip()
@@ -123,6 +156,7 @@ def manage_albums():
     page = parse_page_number(request.args.get('page', '1'))
     updated = request.args.get('updated', '')
     deleted = request.args.get('deleted', '')
+    featured = request.args.get('featured', '')
 
     conn = get_db()
     conditions = []
@@ -196,7 +230,10 @@ def manage_albums():
     offset = (page - 1) * ALBUMS_PER_PAGE
 
     query = (
-        'SELECT * FROM albums'
+        'SELECT albums.*, '
+        '(SELECT COUNT(*) FROM albums AS copies '
+        ' WHERE copies.album_id = albums.album_id) AS copy_count '
+        'FROM albums'
         + where_sql
         + f" ORDER BY {sort_columns[sort_by]} {sort_order.upper()}, id DESC"
         + ' LIMIT ? OFFSET ?'
@@ -231,6 +268,7 @@ def manage_albums():
             total_pages
         ),
         updated=updated,
-        deleted=deleted
+        deleted=deleted,
+        featured=featured
     )
 
