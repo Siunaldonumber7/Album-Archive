@@ -201,6 +201,22 @@ def add_security_headers(response):
         "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
     )
 
+    if request.path.startswith(
+        '/static/uploads/.thumbs/'
+    ):
+        response.headers[
+            'Cache-Control'
+        ] = (
+            'public, max-age=31536000, '
+            'immutable'
+        )
+    elif request.path.startswith(
+        '/static/uploads/'
+    ):
+        response.headers[
+            'Cache-Control'
+        ] = 'public, max-age=86400'
+
     forwarded_proto = request.headers.get(
         'X-Forwarded-Proto',
         ''
