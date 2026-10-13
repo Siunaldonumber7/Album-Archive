@@ -159,6 +159,61 @@ def normalize_genre_name(value):
     return normalized
 
 
+BUGS_GENRE_MAP = {
+    '발라드': ('발라드',),
+    '댄스/팝': ('댄스', 'Pop'),
+    '포크/어쿠스틱': ('포크',),
+    '랩/힙합': ('힙합/랩',),
+    '알앤비/소울': ('R&B', '소울'),
+    '일렉트로닉': ('일렉트로닉',),
+    '락/메탈': ('록', '메탈'),
+    '재즈': ('재즈',),
+    '인디': ('인디',),
+    '클래식': ('클래식',),
+    '뉴에이지': ('뉴에이지',),
+    'OST': ('사운드트랙',),
+    '영화음악': ('영화음악',),
+}
+
+
+def normalize_bugs_genres(value):
+    """
+    벅스 앨범 장르를 Album Archive의 제한된 장르 체계로 변환한다.
+    알 수 없는 벅스 장르는 새 장르를 만들지 않고 무시한다.
+    """
+    normalized = []
+    seen = set()
+
+    for raw in str(value or '').split(','):
+        raw = str(raw or '').strip()
+        if not raw:
+            continue
+
+        mapped = BUGS_GENRE_MAP.get(raw)
+
+        if mapped is None:
+            single = normalize_genre_name(raw)
+            mapped = (
+                (single,)
+                if single in GENRE_OPTIONS
+                else ()
+            )
+
+        for genre in mapped:
+            genre = normalize_genre_name(genre)
+            key = genre.casefold()
+
+            if (
+                genre
+                and genre in GENRE_OPTIONS
+                and key not in seen
+            ):
+                seen.add(key)
+                normalized.append(genre)
+
+    return ', '.join(normalized)
+
+
 def artist_credit_parts(value):
     """
     공동 아티스트 표기를 링크 가능한 개별 아티스트로 나눈다.
