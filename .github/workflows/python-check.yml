@@ -1,0 +1,63 @@
+name: Python check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Python
+        run: python -m compileall -q .
+
+      - name: Check Flask routes
+        run: |
+          python - <<'PY'
+          from app import app
+
+          expected = {
+              'index',
+              'artists_page',
+              'artist_page',
+              'album_detail',
+              'add_album_page',
+              'save_album',
+              'save_bulk_albums',
+              'edit_album_tracks',
+              'save_album_tracks',
+              'reset_album_tracks',
+          }
+
+          registered = {
+              rule.endpoint
+              for rule in app.url_map.iter_rules()
+          }
+
+          missing = expected - registered
+          if missing:
+              raise SystemExit(
+                  'Missing routes: '
+                  + ', '.join(sorted(missing))
+              )
+
+          print(
+              f'Route check OK: '
+              f'{len(registered)} endpoints'
+          )
+          PY
