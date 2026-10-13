@@ -102,18 +102,84 @@ def admin_logout():
 
 def admin_dashboard():
     conn = get_db()
-    stats = {
-        'total': conn.execute("SELECT COUNT(*) AS count FROM albums").fetchone()['count'],
-        'korean': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE classification = '한국'").fetchone()['count'],
-        'overseas': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE classification = '해외'").fetchone()['count'],
-        'cd': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE media_format = 'CD'").fetchone()['count'],
-        'lp': conn.execute("SELECT COUNT(*) AS count FROM albums WHERE media_format = 'LP'").fetchone()['count'],
-    }
-    recent_albums = conn.execute(
-        "SELECT id, management_no, artist, album_title, cover_url FROM albums ORDER BY id DESC LIMIT 5"
-    ).fetchall()
-    conn.close()
-    return render_template('admin.html', stats=stats, recent_albums=recent_albums)
+
+    try:
+        row = conn.execute(
+            '''
+            SELECT
+                COUNT(*) AS total,
+                SUM(
+                    CASE
+                        WHEN classification = '한국'
+                        THEN 1 ELSE 0
+                    END
+                ) AS korean,
+                SUM(
+                    CASE
+                        WHEN classification = '해외'
+                        THEN 1 ELSE 0
+                    END
+                ) AS overseas,
+                SUM(
+                    CASE
+                        WHEN media_format = 'CD'
+                        THEN 1 ELSE 0
+                    END
+                ) AS cd,
+                SUM(
+                    CASE
+                        WHEN media_format = 'LP'
+                        THEN 1 ELSE 0
+                    END
+                ) AS lp
+            FROM albums
+            '''
+        ).fetchone()
+
+        stats = {
+            'total': int(
+                row['total']
+                or 0
+            ),
+            'korean': int(
+                row['korean']
+                or 0
+            ),
+            'overseas': int(
+                row['overseas']
+                or 0
+            ),
+            'cd': int(
+                row['cd']
+                or 0
+            ),
+            'lp': int(
+                row['lp']
+                or 0
+            ),
+        }
+
+        recent_albums = conn.execute(
+            '''
+            SELECT
+                id,
+                management_no,
+                artist,
+                album_title,
+                cover_url
+            FROM albums
+            ORDER BY id DESC
+            LIMIT 5
+            '''
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return render_template(
+        'admin.html',
+        stats=stats,
+        recent_albums=recent_albums
+    )
 
 def set_main_album(album_row_id):
     conn = get_db()
@@ -231,41 +297,61 @@ def manage_albums():
         else ''
     )
 
-    filtered_album_count = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums' + where_sql,
-        params
-    ).fetchone()['count']
+    try:
+        filtered_album_count = conn.execute(
+            'SELECT COUNT(*) AS count '
+            'FROM albums'
+            + where_sql,
+            params
+        ).fetchone()['count']
 
-    total_pages = max(
-        1,
-        (
-            filtered_album_count
-            + ALBUMS_PER_PAGE
-            - 1
-        ) // ALBUMS_PER_PAGE
-    )
-    page = min(page, total_pages)
-    offset = (page - 1) * ALBUMS_PER_PAGE
+        total_pages = max(
+            1,
+            (
+                filtered_album_count
+                + ALBUMS_PER_PAGE
+                - 1
+            ) // ALBUMS_PER_PAGE
+        )
+        page = min(
+            page,
+            total_pages
+        )
+        offset = (
+            page - 1
+        ) * ALBUMS_PER_PAGE
 
-    query = (
+        query = (
         'SELECT albums.*, '
-        '(SELECT COUNT(*) FROM albums AS copies '
-        ' WHERE copies.album_id = albums.album_id) AS copy_count '
-        'FROM albums'
+        'COALESCE(copies.copy_count, 1) AS copy_count '
+        'FROM albums '
+        'LEFT JOIN ( '
+        '    SELECT album_id, COUNT(*) AS copy_count '
+        '    FROM albums '
+        '    GROUP BY album_id '
+        ') AS copies '
+        'ON copies.album_id = albums.album_id'
         + where_sql
-        + f" ORDER BY {sort_columns[sort_by]} {sort_order.upper()}, id DESC"
+        + (
+            f" ORDER BY {sort_columns[sort_by]} "
+            f"{sort_order.upper()}, albums.id DESC"
+        )
         + ' LIMIT ? OFFSET ?'
     )
-    albums = conn.execute(
-        query,
-        params + [ALBUMS_PER_PAGE, offset]
-    ).fetchall()
+        albums = conn.execute(
+            query,
+            params + [
+                ALBUMS_PER_PAGE,
+                offset,
+            ]
+        ).fetchall()
 
-    total_album_count = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums'
-    ).fetchone()['count']
-
-    conn.close()
+        total_album_count = conn.execute(
+            'SELECT COUNT(*) AS count '
+            'FROM albums'
+        ).fetchone()['count']
+    finally:
+        conn.close()
 
     return render_template(
         'manage.html',
