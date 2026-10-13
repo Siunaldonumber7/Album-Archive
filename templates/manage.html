@@ -1234,6 +1234,14 @@ X
         method="POST"
     >
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        {% if library_q %}<input type="hidden" name="library_q" value="{{ library_q }}">{% endif %}
+        {% if classification_filter %}<input type="hidden" name="classification" value="{{ classification_filter }}">{% endif %}
+        {% if format_filter %}<input type="hidden" name="media_format" value="{{ format_filter }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="open_status" value="{{ status_filter }}">{% endif %}
+        {% if signed_filter %}<input type="hidden" name="signed" value="{{ signed_filter }}">{% endif %}
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+        <input type="hidden" name="page" value="{{ page }}">
         <button type="submit" class="primary-button">메인에 표시</button>
     </form>
     {% endif %}
