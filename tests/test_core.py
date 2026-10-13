@@ -3,6 +3,8 @@ import tempfile
 import unittest
 
 import album_database
+import media_service
+from PIL import Image
 from album_service import (
     find_existing_album_id,
     get_next_management_no,
@@ -13,6 +15,7 @@ from library_view import (
     resolve_index_state,
 )
 from media_service import (
+    generate_cover_thumbnails,
     local_cover_thumbnail_path,
 )
 
@@ -263,6 +266,39 @@ class DatabaseOptimizationTests(unittest.TestCase):
 
 class MediaServiceTests(unittest.TestCase):
 
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.old_upload_folder = (
+            media_service.UPLOAD_FOLDER
+        )
+        self.old_thumbnail_folder = (
+            media_service.THUMBNAIL_FOLDER
+        )
+
+        media_service.UPLOAD_FOLDER = (
+            self.temp_dir.name
+        )
+        media_service.THUMBNAIL_FOLDER = (
+            os.path.join(
+                self.temp_dir.name,
+                '.thumbs'
+            )
+        )
+
+        os.makedirs(
+            media_service.THUMBNAIL_FOLDER,
+            exist_ok=True
+        )
+
+    def tearDown(self):
+        media_service.UPLOAD_FOLDER = (
+            self.old_upload_folder
+        )
+        media_service.THUMBNAIL_FOLDER = (
+            self.old_thumbnail_folder
+        )
+        self.temp_dir.cleanup()
+
     def test_thumbnail_names_do_not_collide_across_extensions(self):
         jpg_path = local_cover_thumbnail_path(
             'cover.jpg',
@@ -276,6 +312,98 @@ class MediaServiceTests(unittest.TestCase):
         self.assertNotEqual(
             jpg_path,
             png_path
+        )
+
+    def test_uploaded_cover_thumbnails_are_prebuilt(self):
+        source_path = os.path.join(
+            self.temp_dir.name,
+            'cover.jpg'
+        )
+
+        Image.new(
+            'RGB',
+            (
+                1200,
+                1200,
+            ),
+            'white'
+        ).save(
+            source_path,
+            'JPEG'
+        )
+
+        created = generate_cover_thumbnails(
+            'cover.jpg'
+        )
+
+        self.assertEqual(
+            created,
+            3
+        )
+
+        for size in (
+            180,
+            400,
+            800,
+        ):
+            thumb_path = (
+                local_cover_thumbnail_path(
+                    'cover.jpg',
+                    size
+                )
+            )
+
+            self.assertTrue(
+                os.path.isfile(
+                    thumb_path
+                )
+            )
+
+            with Image.open(
+                thumb_path
+            ) as image:
+                self.assertLessEqual(
+                    max(image.size),
+                    size
+                )
+
+    def test_thumbnail_url_version_changes_when_source_changes(self):
+        source_path = os.path.join(
+            self.temp_dir.name,
+            'cover.jpg'
+        )
+
+        Image.new(
+            'RGB',
+            (600, 600),
+            'white'
+        ).save(
+            source_path,
+            'JPEG'
+        )
+
+        first_path = local_cover_thumbnail_path(
+            'cover.jpg',
+            400
+        )
+
+        Image.new(
+            'RGB',
+            (700, 700),
+            'black'
+        ).save(
+            source_path,
+            'JPEG'
+        )
+
+        second_path = local_cover_thumbnail_path(
+            'cover.jpg',
+            400
+        )
+
+        self.assertNotEqual(
+            first_path,
+            second_path
         )
 
 
