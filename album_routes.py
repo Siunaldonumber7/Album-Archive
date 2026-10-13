@@ -335,7 +335,12 @@ def add_album_manual():
     genre = _collect_genres(request.form, 'genre', 'genre_new')
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
-    purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
+    purchase_price = _parse_purchase_price(
+        request.form.get(
+            'purchase_price',
+            ''
+        )
+    )
     memo = request.form.get('memo', '').strip()
     cover_file = request.files.get('cover_file')
 
@@ -347,19 +352,18 @@ def add_album_manual():
             )
         )
 
-    if classification not in {'한국', '해외'}:
-        classification = '한국'
-
-    if media_format not in {'CD', 'LP', 'Casette', 'USB', '기타'}:
-        media_format = 'CD'
-    if album_type not in ALBUM_TYPES:
-        album_type = '앨범'
-
-    if open_status not in {'개봉', '미개봉'}:
-        open_status = '개봉'
-
-    if signed not in {'O', 'X'}:
-        signed = 'X'
+    choices = _normalize_album_choices(
+        classification,
+        media_format,
+        album_type,
+        open_status,
+        signed
+    )
+    classification = choices['classification']
+    media_format = choices['media_format']
+    album_type = choices['album_type']
+    open_status = choices['open_status']
+    signed = choices['signed']
 
     if cover_file and cover_file.filename and not allowed_image_file(cover_file.filename):
         return redirect(
@@ -368,11 +372,6 @@ def add_album_manual():
                 manual_error='커버 이미지는 JPG, JPEG, PNG, WEBP, GIF 파일만 등록할 수 있습니다.'
             )
         )
-
-    try:
-        purchase_price = int(purchase_price_text) if purchase_price_text else None
-    except Exception:
-        purchase_price = None
 
     cover_url = ''
 
@@ -674,10 +673,11 @@ def save_bulk_albums():
             )
             open_status = request.form.get(prefix + 'open_status', '').strip()
             signed = request.form.get(prefix + 'signed', '').strip()
-            purchase_price_text = (
-                request.form.get(prefix + 'purchase_price', '')
-                .replace(',', '')
-                .strip()
+            purchase_price = _parse_purchase_price(
+                request.form.get(
+                    prefix + 'purchase_price',
+                    ''
+                )
             )
             memo = request.form.get(prefix + 'memo', '').strip()
 
@@ -686,27 +686,18 @@ def save_bulk_albums():
                     f'일괄 등록 데이터가 올바르지 않습니다: {index}'
                 )
 
-            if classification not in {'한국', '해외'}:
-                classification = '한국'
-            if media_format not in {'CD', 'LP', 'Casette', 'USB', '기타'}:
-                media_format = 'CD'
-            if album_type not in ALBUM_TYPES:
-                album_type = '앨범'
-            if open_status not in {'개봉', '미개봉'}:
-                open_status = '개봉'
-            if signed not in {'O', 'X'}:
-                signed = 'X'
-
-            try:
-                purchase_price = (
-                    int(purchase_price_text)
-                    if purchase_price_text != ''
-                    else None
-                )
-                if purchase_price is not None and purchase_price < 0:
-                    purchase_price = None
-            except Exception:
-                purchase_price = None
+            choices = _normalize_album_choices(
+                classification,
+                media_format,
+                album_type,
+                open_status,
+                signed
+            )
+            classification = choices['classification']
+            media_format = choices['media_format']
+            album_type = choices['album_type']
+            open_status = choices['open_status']
+            signed = choices['signed']
 
             learn_artist_alias(
                 conn,
@@ -844,33 +835,33 @@ def save_album():
     release_year = request.form.get('release_year', '').strip()
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
-    purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
+    purchase_price = _parse_purchase_price(
+        request.form.get(
+            'purchase_price',
+            ''
+        )
+    )
     memo = request.form.get('memo', '').strip()
     if not artist or not album_title:
         return redirect(url_for('add_album_page'))
 
-    if classification not in {'한국', '해외'}:
-        classification = '한국'
-    if media_format not in {'CD', 'LP', 'Casette', 'USB', '기타'}:
-        media_format = 'CD'
-    if open_status not in {'개봉', '미개봉'}:
-        open_status = '개봉'
-    if signed not in {'O', 'X'}:
-        signed = 'X'
-
-    try:
-        purchase_price = int(purchase_price_text)
-        if purchase_price < 0:
-            purchase_price = None
-    except Exception:
-        purchase_price = None
+    choices = _normalize_album_choices(
+        classification,
+        media_format,
+        album_type,
+        open_status,
+        signed
+    )
+    classification = choices['classification']
+    media_format = choices['media_format']
+    album_type = choices['album_type']
+    open_status = choices['open_status']
+    signed = choices['signed']
     conn = get_db()
     learn_artist_alias(conn, search_artist, artist, apple_artist_id)
     album_id = get_or_create_album_id(conn, apple_id, artist, album_title, release_year, cover_url)
     management_no = get_next_management_no(conn, media_format)
     remember_genres(conn, genre)
-    if album_type not in ALBUM_TYPES:
-        album_type = '앨범'
     conn.execute('INSERT INTO albums ( management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_collection_id, cover_url ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )', (management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_id, cover_url))
     ensure_primary_display(conn, album_id)
     conn.commit()
@@ -908,14 +899,32 @@ def update_album(album_row_id):
     release_year = request.form.get('release_year', '').strip()
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
-    purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
+    purchase_price = _parse_purchase_price(
+        request.form.get(
+            'purchase_price',
+            ''
+        )
+    )
     memo = request.form.get('memo', '').strip()
     cover_file = request.files.get('cover_file')
-    remove_cover = request.form.get('remove_cover', '0')
-    try:
-        purchase_price = int(purchase_price_text)
-    except Exception:
-        purchase_price = None
+    remove_cover = request.form.get(
+        'remove_cover',
+        '0'
+    )
+
+    choices = _normalize_album_choices(
+        classification,
+        media_format,
+        album_type,
+        open_status,
+        signed
+    )
+    classification = choices['classification']
+    media_format = choices['media_format']
+    album_type = choices['album_type']
+    open_status = choices['open_status']
+    signed = choices['signed']
+
     conn = get_db()
     current = conn.execute('SELECT * FROM albums WHERE id = ?', (album_row_id,)).fetchone()
     if not current:
@@ -929,8 +938,6 @@ def update_album(album_row_id):
         uploaded_cover_url = save_uploaded_cover(cover_file)
         if uploaded_cover_url:
             new_cover_url = uploaded_cover_url
-    if album_type not in ALBUM_TYPES:
-        album_type = '앨범'
     remember_genres(conn, genre)
     conn.execute('UPDATE albums SET classification = ?, media_format = ?, album_type = ?, genre = ?, artist = ?, album_title = ?, release_year = ?, open_status = ?, signed = ?, purchase_price = ?, memo = ?, cover_url = ? WHERE id = ?', (classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, new_cover_url, album_row_id))
     conn.commit()
