@@ -599,10 +599,12 @@ textarea {
 
 
 <div class="full">
-<label>장르 · 복수 선택 가능</label>
+<label>장르 · 직접 관리 · 복수 선택 가능</label>
 {% set selected_genres = split_genres(album.genre or '') %}
+
+{% if genre_options %}
 <div class="genre-checks">
-{% for genre_name in genre_choices(album.genre or '') %}
+{% for genre_name in genre_options %}
 <label class="genre-choice">
     <input
         type="checkbox"
@@ -614,6 +616,15 @@ textarea {
 </label>
 {% endfor %}
 </div>
+{% endif %}
+
+<input
+    type="text"
+    name="genre_new"
+    placeholder="새 장르 추가 · 여러 개는 쉼표로 구분"
+    autocomplete="off"
+>
+<div style="margin-top:7px;color:#999;font-size:12px;">새 장르는 저장 후 다른 앨범에서도 선택할 수 있습니다.</div>
 </div>
 
 
