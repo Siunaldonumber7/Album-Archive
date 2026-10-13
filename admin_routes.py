@@ -134,10 +134,28 @@ def set_main_album(album_row_id):
     finally:
         conn.close()
 
+    redirect_args = {
+        'featured': management_no,
+    }
+
+    for name in (
+        'library_q',
+        'classification',
+        'media_format',
+        'open_status',
+        'signed',
+        'sort_by',
+        'sort_order',
+        'page',
+    ):
+        value = request.form.get(name, '').strip()
+        if value:
+            redirect_args[name] = value
+
     return redirect(
         url_for(
             'manage_albums',
-            featured=management_no
+            **redirect_args
         )
     )
 
