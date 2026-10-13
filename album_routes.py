@@ -821,53 +821,160 @@ def register():
     )
 
 def save_album():
-    apple_id = request.form.get('apple_id', '').strip()
-    apple_artist_id = request.form.get('apple_artist_id', '').strip()
-    search_artist = request.form.get('search_artist', '').strip()
-    search_album = request.form.get('search_album', '').strip()
-    cover_url = request.form.get('cover_url', '').strip()
-    classification = request.form.get('classification', '').strip()
-    media_format = request.form.get('media_format', '').strip()
-    album_type = request.form.get('album_type', '').strip()
-    genre = _collect_genres(request.form, 'genre', 'genre_new')
-    artist = request.form.get('artist', '').strip()
-    album_title = request.form.get('album_title', '').strip()
-    release_year = request.form.get('release_year', '').strip()
-    open_status = request.form.get('open_status', '').strip()
-    signed = request.form.get('signed', '').strip()
+    apple_id = request.form.get(
+        'apple_id',
+        ''
+    ).strip()
+    apple_artist_id = request.form.get(
+        'apple_artist_id',
+        ''
+    ).strip()
+    search_artist = request.form.get(
+        'search_artist',
+        ''
+    ).strip()
+    cover_url = request.form.get(
+        'cover_url',
+        ''
+    ).strip()
+
+    artist = request.form.get(
+        'artist',
+        ''
+    ).strip()
+    album_title = request.form.get(
+        'album_title',
+        ''
+    ).strip()
+    release_year = request.form.get(
+        'release_year',
+        ''
+    ).strip()
+    genre = _collect_genres(
+        request.form,
+        'genre',
+        'genre_new'
+    )
+    memo = request.form.get(
+        'memo',
+        ''
+    ).strip()
     purchase_price = _parse_purchase_price(
         request.form.get(
             'purchase_price',
             ''
         )
     )
-    memo = request.form.get('memo', '').strip()
+
     if not artist or not album_title:
-        return redirect(url_for('add_album_page'))
+        return redirect(
+            url_for('add_album_page')
+        )
 
     choices = _normalize_album_choices(
-        classification,
-        media_format,
-        album_type,
-        open_status,
-        signed
+        request.form.get(
+            'classification',
+            ''
+        ),
+        request.form.get(
+            'media_format',
+            ''
+        ),
+        request.form.get(
+            'album_type',
+            ''
+        ),
+        request.form.get(
+            'open_status',
+            ''
+        ),
+        request.form.get(
+            'signed',
+            ''
+        )
     )
-    classification = choices['classification']
-    media_format = choices['media_format']
-    album_type = choices['album_type']
-    open_status = choices['open_status']
-    signed = choices['signed']
+
     conn = get_db()
-    learn_artist_alias(conn, search_artist, artist, apple_artist_id)
-    album_id = get_or_create_album_id(conn, apple_id, artist, album_title, release_year, cover_url)
-    management_no = get_next_management_no(conn, media_format)
-    remember_genres(conn, genre)
-    conn.execute('INSERT INTO albums ( management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_collection_id, cover_url ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )', (management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_id, cover_url))
-    ensure_primary_display(conn, album_id)
-    conn.commit()
-    conn.close()
+
+    try:
+        learn_artist_alias(
+            conn,
+            search_artist,
+            artist,
+            apple_artist_id
+        )
+
+        album_id = get_or_create_album_id(
+            conn,
+            apple_id,
+            artist,
+            album_title,
+            release_year,
+            cover_url
+        )
+        management_no = get_next_management_no(
+            conn,
+            choices['media_format']
+        )
+
+        remember_genres(
+            conn,
+            genre
+        )
+
+        conn.execute(
+            '''
+            INSERT INTO albums (
+                management_no,
+                album_id,
+                classification,
+                media_format,
+                album_type,
+                genre,
+                artist,
+                album_title,
+                release_year,
+                open_status,
+                signed,
+                purchase_price,
+                memo,
+                apple_collection_id,
+                cover_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                management_no,
+                album_id,
+                choices['classification'],
+                choices['media_format'],
+                choices['album_type'],
+                genre,
+                artist,
+                album_title,
+                release_year,
+                choices['open_status'],
+                choices['signed'],
+                purchase_price,
+                memo,
+                apple_id,
+                cover_url,
+            )
+        )
+
+        ensure_primary_display(
+            conn,
+            album_id
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
     clear_search_cache()
     clear_track_caches()
+
     return redirect(
         url_for(
             'add_album_page',
@@ -875,86 +982,229 @@ def save_album():
         )
     )
 
+
 def edit_album(album_row_id):
-    updated = request.args.get('updated', '').strip()
+    updated = request.args.get(
+        'updated',
+        ''
+    ).strip()
+
     conn = get_db()
-    album = conn.execute('SELECT * FROM albums WHERE id = ?', (album_row_id,)).fetchone()
-    conn.close()
+
+    try:
+        album = conn.execute(
+            'SELECT * FROM albums '
+            'WHERE id = ?',
+            (album_row_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
     if album is None:
-        return redirect(url_for('manage_albums'))
+        return redirect(
+            url_for('manage_albums')
+        )
+
     return render_template(
         'edit.html',
         album=album,
         updated=updated,
-        genre_options=_genre_options_with_current(album['genre'] or '')
+        genre_options=(
+            _genre_options_with_current(
+                album['genre']
+                or ''
+            )
+        )
     )
 
+
 def update_album(album_row_id):
-    classification = request.form.get('classification', '').strip()
-    media_format = request.form.get('media_format', '').strip()
-    album_type = request.form.get('album_type', '').strip()
-    genre = _collect_genres(request.form, 'genre', 'genre_new')
-    artist = request.form.get('artist', '').strip()
-    album_title = request.form.get('album_title', '').strip()
-    release_year = request.form.get('release_year', '').strip()
-    open_status = request.form.get('open_status', '').strip()
-    signed = request.form.get('signed', '').strip()
+    artist = request.form.get(
+        'artist',
+        ''
+    ).strip()
+    album_title = request.form.get(
+        'album_title',
+        ''
+    ).strip()
+    release_year = request.form.get(
+        'release_year',
+        ''
+    ).strip()
+    genre = _collect_genres(
+        request.form,
+        'genre',
+        'genre_new'
+    )
+    memo = request.form.get(
+        'memo',
+        ''
+    ).strip()
     purchase_price = _parse_purchase_price(
         request.form.get(
             'purchase_price',
             ''
         )
     )
-    memo = request.form.get('memo', '').strip()
-    cover_file = request.files.get('cover_file')
-    remove_cover = request.form.get(
-        'remove_cover',
-        '0'
-    )
 
     choices = _normalize_album_choices(
-        classification,
-        media_format,
-        album_type,
-        open_status,
-        signed
+        request.form.get(
+            'classification',
+            ''
+        ),
+        request.form.get(
+            'media_format',
+            ''
+        ),
+        request.form.get(
+            'album_type',
+            ''
+        ),
+        request.form.get(
+            'open_status',
+            ''
+        ),
+        request.form.get(
+            'signed',
+            ''
+        )
     )
-    classification = choices['classification']
-    media_format = choices['media_format']
-    album_type = choices['album_type']
-    open_status = choices['open_status']
-    signed = choices['signed']
+
+    cover_file = request.files.get(
+        'cover_file'
+    )
+    remove_cover = (
+        request.form.get(
+            'remove_cover',
+            '0'
+        ) == '1'
+    )
 
     conn = get_db()
-    current = conn.execute('SELECT * FROM albums WHERE id = ?', (album_row_id,)).fetchone()
-    if not current:
-        conn.close()
-        return redirect(url_for('manage_albums'))
-    old_cover_url = current['cover_url'] or ''
-    new_cover_url = old_cover_url
-    if remove_cover == '1':
-        new_cover_url = ''
-    if cover_file and cover_file.filename:
-        uploaded_cover_url = save_uploaded_cover(cover_file)
-        if uploaded_cover_url:
-            new_cover_url = uploaded_cover_url
-    remember_genres(conn, genre)
-    conn.execute('UPDATE albums SET classification = ?, media_format = ?, album_type = ?, genre = ?, artist = ?, album_title = ?, release_year = ?, open_status = ?, signed = ?, purchase_price = ?, memo = ?, cover_url = ? WHERE id = ?', (classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, new_cover_url, album_row_id))
-    conn.commit()
-    management_no = current['management_no']
-
+    uploaded_cover_url = ''
+    old_cover_url = ''
+    new_cover_url = ''
     old_cover_still_used = 0
-    if old_cover_url and old_cover_url != new_cover_url:
-        old_cover_still_used = conn.execute(
-            'SELECT COUNT(*) AS count FROM albums WHERE cover_url = ?',
-            (old_cover_url,)
-        ).fetchone()['count']
 
-    conn.close()
+    try:
+        current = conn.execute(
+            'SELECT * FROM albums '
+            'WHERE id = ?',
+            (album_row_id,)
+        ).fetchone()
 
-    if old_cover_url and old_cover_url != new_cover_url and old_cover_still_used == 0:
-        delete_local_cover(old_cover_url)
+        if current is None:
+            return redirect(
+                url_for('manage_albums')
+            )
+
+        old_cover_url = (
+            current['cover_url']
+            or ''
+        )
+        new_cover_url = (
+            ''
+            if remove_cover
+            else old_cover_url
+        )
+
+        if (
+            cover_file
+            and cover_file.filename
+        ):
+            uploaded_cover_url = (
+                save_uploaded_cover(
+                    cover_file
+                )
+                or ''
+            )
+            if uploaded_cover_url:
+                new_cover_url = (
+                    uploaded_cover_url
+                )
+
+        remember_genres(
+            conn,
+            genre
+        )
+
+        conn.execute(
+            '''
+            UPDATE albums
+            SET
+                classification = ?,
+                media_format = ?,
+                album_type = ?,
+                genre = ?,
+                artist = ?,
+                album_title = ?,
+                release_year = ?,
+                open_status = ?,
+                signed = ?,
+                purchase_price = ?,
+                memo = ?,
+                cover_url = ?
+            WHERE id = ?
+            ''',
+            (
+                choices['classification'],
+                choices['media_format'],
+                choices['album_type'],
+                genre,
+                artist,
+                album_title,
+                release_year,
+                choices['open_status'],
+                choices['signed'],
+                purchase_price,
+                memo,
+                new_cover_url,
+                album_row_id,
+            )
+        )
+        conn.commit()
+
+        management_no = (
+            current['management_no']
+        )
+
+        if (
+            old_cover_url
+            and old_cover_url
+            != new_cover_url
+        ):
+            old_cover_still_used = (
+                conn.execute(
+                    'SELECT COUNT(*) AS count '
+                    'FROM albums '
+                    'WHERE cover_url = ?',
+                    (old_cover_url,)
+                ).fetchone()['count']
+            )
+    except Exception:
+        conn.rollback()
+
+        if uploaded_cover_url:
+            delete_local_cover(
+                uploaded_cover_url
+            )
+
+        raise
+    finally:
+        conn.close()
+
+    if (
+        old_cover_url
+        and old_cover_url
+        != new_cover_url
+        and old_cover_still_used == 0
+    ):
+        delete_local_cover(
+            old_cover_url
+        )
+
     clear_track_caches()
+
     return redirect(
         url_for(
             'edit_album',
@@ -963,36 +1213,95 @@ def update_album(album_row_id):
         )
     )
 
+
 def delete_album(album_row_id):
     conn = get_db()
-    album = conn.execute('SELECT * FROM albums WHERE id = ?', (album_row_id,)).fetchone()
-    if album is None:
-        conn.close()
-        return redirect(url_for('manage_albums'))
-    management_no = album['management_no']
-    cover_url = album['cover_url'] or ''
-    album_id = album['album_id']
-    conn.execute('DELETE FROM albums WHERE id = ?', (album_row_id,))
-    remaining = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums WHERE album_id = ?',
-        (album_id,)
-    ).fetchone()['count']
-    if remaining > 0:
-        ensure_primary_display(conn, album_id)
-    if remaining == 0:
-        conn.execute('DELETE FROM album_tracks WHERE album_id = ?', (album_id,))
-        conn.execute('DELETE FROM album_track_settings WHERE album_id = ?', (album_id,))
+    cover_url = ''
     cover_still_used = 0
-    if cover_url:
-        cover_still_used = conn.execute(
-            'SELECT COUNT(*) AS count FROM albums WHERE cover_url = ?',
-            (cover_url,)
+
+    try:
+        album = conn.execute(
+            'SELECT * FROM albums '
+            'WHERE id = ?',
+            (album_row_id,)
+        ).fetchone()
+
+        if album is None:
+            return redirect(
+                url_for('manage_albums')
+            )
+
+        management_no = (
+            album['management_no']
+        )
+        cover_url = (
+            album['cover_url']
+            or ''
+        )
+        album_id = album['album_id']
+
+        conn.execute(
+            'DELETE FROM albums '
+            'WHERE id = ?',
+            (album_row_id,)
+        )
+
+        remaining = conn.execute(
+            'SELECT COUNT(*) AS count '
+            'FROM albums '
+            'WHERE album_id = ?',
+            (album_id,)
         ).fetchone()['count']
 
-    conn.commit()
-    conn.close()
+        if remaining > 0:
+            ensure_primary_display(
+                conn,
+                album_id
+            )
+        else:
+            conn.execute(
+                'DELETE FROM album_tracks '
+                'WHERE album_id = ?',
+                (album_id,)
+            )
+            conn.execute(
+                'DELETE FROM '
+                'album_track_settings '
+                'WHERE album_id = ?',
+                (album_id,)
+            )
 
-    if cover_url and cover_still_used == 0:
-        delete_local_cover(cover_url)
+        if cover_url:
+            cover_still_used = (
+                conn.execute(
+                    'SELECT COUNT(*) AS count '
+                    'FROM albums '
+                    'WHERE cover_url = ?',
+                    (cover_url,)
+                ).fetchone()['count']
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    if (
+        cover_url
+        and cover_still_used == 0
+    ):
+        delete_local_cover(
+            cover_url
+        )
+
     clear_track_caches()
-    return redirect(url_for('manage_albums', deleted=management_no))
+
+    return redirect(
+        url_for(
+            'manage_albums',
+            deleted=management_no
+        )
+    )
+
