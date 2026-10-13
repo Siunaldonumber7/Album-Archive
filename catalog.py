@@ -19,6 +19,38 @@ def normalize_text(value):
     )
 
 
+def apple_artwork_size(
+    url,
+    size=400
+):
+    url = str(
+        url
+        or ''
+    ).strip()
+
+    if not url:
+        return ''
+
+    size = max(
+        120,
+        min(
+            int(size or 400),
+            2000
+        )
+    )
+
+    url = re.sub(
+        r'\d+x\d+bb',
+        f'{size}x{size}bb',
+        url
+    )
+    return re.sub(
+        r'\d+x\d+-75',
+        f'{size}x{size}-75',
+        url
+    )
+
+
 def normalize_genre_name(value):
     """
     장르는 사용자가 만든 이름을 그대로 사용한다.
