@@ -533,39 +533,18 @@ body {
 
         <div class="summary">
 
+            {% if format_summary %}
             <div class="summary-line">
-                <span class="summary-item">
-                    총&nbsp;<strong>{{ owned_count }}장</strong>
-                </span>
-
-                {% if format_counts.get('CD', 0) %}
-                <span class="summary-sep">·</span>
-                <span class="summary-item">
-                    CD&nbsp;<strong>{{ format_counts.get('CD', 0) }}장</strong>
-                </span>
-                {% endif %}
-
-                {% if format_counts.get('LP', 0) %}
-                <span class="summary-sep">·</span>
-                <span class="summary-item">
-                    LP&nbsp;<strong>{{ format_counts.get('LP', 0) }}장</strong>
-                </span>
-                {% endif %}
-
-                {% if format_counts.get('CASETTE', 0) %}
-                <span class="summary-sep">·</span>
-                <span class="summary-item">
-                    CASETTE&nbsp;<strong>{{ format_counts.get('CASETTE', 0) }}장</strong>
-                </span>
-                {% endif %}
-
-                {% if format_counts.get('ETC', 0) %}
-                <span class="summary-sep">·</span>
-                <span class="summary-item">
-                    ETC&nbsp;<strong>{{ format_counts.get('ETC', 0) }}장</strong>
-                </span>
-                {% endif %}
+                {% for item in format_summary %}
+                    {% if not loop.first %}
+                    <span class="summary-sep">·</span>
+                    {% endif %}
+                    <span class="summary-item">
+                        {{ item.name }}&nbsp;<strong>{{ item.count }}장</strong>
+                    </span>
+                {% endfor %}
             </div>
+            {% endif %}
 
             {% if album_type_summary %}
             <div class="summary-line secondary">
@@ -609,7 +588,6 @@ body {
 <div class="section-head">
     <div>
         <h2 class="section-title">보유 앨범</h2>
-        <div class="section-sub">{{ owned_count }}장</div>
     </div>
 
     <div class="section-tools">
