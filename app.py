@@ -361,6 +361,32 @@ def index():
     )
 
 
+@app.route('/artist-profile-image/<path:artist_name>')
+def artist_profile_image(artist_name):
+    artist_name = str(artist_name or '').strip()
+
+    if not artist_name:
+        return ('', 404)
+
+    profile_url = get_artist_profile_image(
+        artist_name
+    )
+
+    if not profile_url:
+        response = app.response_class(
+            status=404
+        )
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response
+
+    response = redirect(
+        profile_url,
+        code=302
+    )
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
+
+
 @app.route('/artists')
 def artists_page():
     query = request.args.get('q', '').strip()
