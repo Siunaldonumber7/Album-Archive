@@ -143,16 +143,25 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           </div>
 
           <div class="field">
-            <label>장르 · 벅스 기준 · 복수 선택 (⌘/Ctrl+클릭)</label>
+            <label>장르 · 직접 관리 · 복수 선택</label>
             {% set selected_genres = split_genres(album.genre or '') %}
-            {% if not selected_genres %}
-            <div style="margin:0 0 6px;color:#999;font-size:11px;">벅스 장르 매칭 없음 · 직접 선택 가능</div>
-            {% endif %}
+
+            {% if genre_options %}
             <select class="genre-multi" name="album_{{ i }}_genre" multiple>
-              {% for genre_name in genre_choices(album.genre or '') %}
+              {% for genre_name in genre_options %}
               <option value="{{ genre_name }}" {% if genre_name in selected_genres %}selected{% endif %}>{{ genre_name }}</option>
               {% endfor %}
             </select>
+            {% else %}
+            <div style="margin:0 0 6px;color:#999;font-size:11px;">아직 등록된 장르가 없습니다.</div>
+            {% endif %}
+
+            <input
+              type="text"
+              name="album_{{ i }}_genre_new"
+              placeholder="새 장르 · 쉼표로 복수 입력"
+              autocomplete="off"
+            >
           </div>
 
           <div class="field">
