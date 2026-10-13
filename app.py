@@ -12,6 +12,8 @@ from flask import (
     url_for,
 )
 
+from flask_compress import Compress
+
 from album_database import DATA_DIR, init_db
 from catalog import (
     split_genres,
@@ -27,6 +29,18 @@ from library_routes import register_library_routes
 from track_routes import register_track_routes
 
 app = Flask(__name__)
+app.config.update(
+    COMPRESS_MIMETYPES=[
+        'text/html',
+        'text/css',
+        'text/javascript',
+        'application/javascript',
+        'application/json',
+    ],
+    COMPRESS_LEVEL=6,
+    COMPRESS_MIN_SIZE=500,
+)
+Compress(app)
 
 
 def load_or_create_private_value(env_name, filename, generator):
