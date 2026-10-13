@@ -157,6 +157,16 @@ def init_db():
         'created_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
 
+    conn.execute(
+        'CREATE TABLE IF NOT EXISTS artist_profiles ( '
+        'artist_key TEXT PRIMARY KEY, '
+        'artist_name TEXT NOT NULL, '
+        'apple_artist_id TEXT, '
+        'profile_url TEXT, '
+        'source TEXT, '
+        'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
+    )
+
     # Every album_id group must have exactly one public representative.
     album_groups = conn.execute(
         'SELECT DISTINCT album_id FROM albums '
@@ -282,3 +292,68 @@ def remember_genres(conn, value):
             'VALUES (?)',
             (genre,)
         )
+
+
+
+def get_artist_profile_cache(artist_key):
+    artist_key = str(artist_key or '').strip()
+
+    if not artist_key:
+        return None
+
+    conn = get_db()
+
+    try:
+        return conn.execute(
+            'SELECT * FROM artist_profiles '
+            'WHERE artist_key = ? LIMIT 1',
+            (artist_key,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def save_artist_profile_cache(
+    artist_key,
+    artist_name,
+    apple_artist_id='',
+    profile_url='',
+    source='apple'
+):
+    artist_key = str(artist_key or '').strip()
+    artist_name = str(artist_name or '').strip()
+
+    if not artist_key or not artist_name:
+        return
+
+    conn = get_db()
+
+    try:
+        conn.execute(
+            '''
+            INSERT INTO artist_profiles (
+                artist_key,
+                artist_name,
+                apple_artist_id,
+                profile_url,
+                source,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(artist_key) DO UPDATE SET
+                artist_name = excluded.artist_name,
+                apple_artist_id = excluded.apple_artist_id,
+                profile_url = excluded.profile_url,
+                source = excluded.source,
+                updated_at = CURRENT_TIMESTAMP
+            ''',
+            (
+                artist_key,
+                artist_name,
+                str(apple_artist_id or '').strip(),
+                str(profile_url or '').strip(),
+                str(source or '').strip(),
+            )
+        )
+        conn.commit()
+    finally:
+        conn.close()
