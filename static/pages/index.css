@@ -782,6 +782,8 @@ h1 {
 .album-card {
 
     min-width: 0;
+    content-visibility: auto;
+    contain-intrinsic-size: 330px 390px;
 }
 
 
