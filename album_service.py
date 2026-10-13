@@ -68,10 +68,34 @@ def get_or_create_album_id(
         release_year
     )
 
-    existing = conn.execute(
-        "SELECT * FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1",
-        (album_key, apple_id, apple_id)
-    ).fetchone()
+    apple_id = str(
+        apple_id
+        or ''
+    ).strip()
+
+    existing = None
+
+    if apple_id:
+        existing = conn.execute(
+            '''
+            SELECT album_id
+            FROM album_master
+            WHERE apple_collection_id = ?
+            LIMIT 1
+            ''',
+            (apple_id,)
+        ).fetchone()
+
+    if existing is None:
+        existing = conn.execute(
+            '''
+            SELECT album_id
+            FROM album_master
+            WHERE album_key = ?
+            LIMIT 1
+            ''',
+            (album_key,)
+        ).fetchone()
 
     if existing:
         return existing['album_id']
