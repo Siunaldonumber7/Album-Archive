@@ -684,15 +684,27 @@ textarea {
 
             <div class="form-field full">
                 <label>장르</label>
+
+                {% if genre_options %}
                 <div class="genre-checks">
-                    {% for genre_name in genre_options_all %}
+                    {% for genre_name in genre_options %}
                     <label class="genre-choice">
                         <input type="checkbox" name="genre" value="{{ genre_name }}">
                         <span>{{ genre_name }}</span>
                     </label>
                     {% endfor %}
                 </div>
-                <div class="genre-help">여러 장르를 동시에 선택할 수 있습니다.</div>
+                {% else %}
+                <div class="genre-help" style="margin-bottom:8px;">아직 등록된 장르가 없습니다.</div>
+                {% endif %}
+
+                <input
+                    type="text"
+                    name="genre_new"
+                    placeholder="새 장르 추가 · 여러 개는 쉼표로 구분"
+                    autocomplete="off"
+                >
+                <div class="genre-help">새 장르를 입력해 저장하면 다음 등록부터 선택지에 자동으로 추가됩니다.</div>
             </div>
 
             <div class="form-field">
