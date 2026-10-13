@@ -160,56 +160,57 @@ def normalize_genre_name(value):
 
 
 BUGS_GENRE_MAP = {
-    '발라드': ('발라드',),
-    '댄스/팝': ('댄스', 'Pop'),
-    '포크/어쿠스틱': ('포크',),
-    '랩/힙합': ('힙합/랩',),
-    '알앤비/소울': ('R&B', '소울'),
-    '일렉트로닉': ('일렉트로닉',),
-    '락/메탈': ('록', '메탈'),
-    '재즈': ('재즈',),
-    '인디': ('인디',),
-    '클래식': ('클래식',),
-    '뉴에이지': ('뉴에이지',),
-    'OST': ('사운드트랙',),
-    '영화음악': ('영화음악',),
+    # 사용자가 정한 표시명만 최소한으로 보정한다.
+    # 그 외 벅스 장르명은 그대로 보존한다.
+    '랩/힙합': '힙합/랩',
+    '힙합': '힙합/랩',
+    'Hip-Hop/Rap': '힙합/랩',
+    'Hip Hop/Rap': '힙합/랩',
+    'Rap': '힙합/랩',
+    'Funk': '펑크',
+    '펑크(Funk)': '펑크',
+    '락': '록',
+    '락/메탈': '록/메탈',
 }
 
 
 def normalize_bugs_genres(value):
     """
-    벅스 앨범 장르를 Album Archive의 제한된 장르 체계로 변환한다.
-    알 수 없는 벅스 장르는 새 장르를 만들지 않고 무시한다.
+    벅스 앨범 상세 페이지의 장르를 자동 장르의 기준값으로 사용한다.
+
+    원칙:
+    - 벅스 장르명을 최대한 그대로 보존한다.
+    - 사용자 요청으로 삭제한 장르는 제외한다.
+    - 힙합/랩, 펑크, 록처럼 명시적으로 정한 표기만 최소 보정한다.
+    - 알 수 없는 벅스 장르도 버리지 않는다.
     """
     normalized = []
     seen = set()
 
     for raw in str(value or '').split(','):
         raw = str(raw or '').strip()
+
         if not raw:
             continue
 
-        mapped = BUGS_GENRE_MAP.get(raw)
+        genre = BUGS_GENRE_MAP.get(
+            raw,
+            raw
+        ).strip()
 
-        if mapped is None:
-            single = normalize_genre_name(raw)
-            mapped = (
-                (single,)
-                if single in GENRE_OPTIONS
-                else ()
-            )
+        # 기존 공통 정규화에서 삭제 대상 장르 필터만 재사용한다.
+        genre = normalize_genre_name(genre)
 
-        for genre in mapped:
-            genre = normalize_genre_name(genre)
-            key = genre.casefold()
+        if not genre:
+            continue
 
-            if (
-                genre
-                and genre in GENRE_OPTIONS
-                and key not in seen
-            ):
-                seen.add(key)
-                normalized.append(genre)
+        key = genre.casefold()
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        normalized.append(genre)
 
     return ', '.join(normalized)
 
