@@ -33,7 +33,8 @@ def init_db():
         'purchase_price INTEGER, '
         'memo TEXT, '
         'apple_collection_id TEXT, '
-        'cover_url TEXT )'
+        'cover_url TEXT, '
+        'is_primary_display INTEGER NOT NULL DEFAULT 0 )'
     )
 
     existing_columns = {
@@ -51,6 +52,12 @@ def init_db():
     if 'genre' not in existing_columns:
         conn.execute(
             'ALTER TABLE albums ADD COLUMN genre TEXT'
+        )
+
+    if 'is_primary_display' not in existing_columns:
+        conn.execute(
+            'ALTER TABLE albums '
+            'ADD COLUMN is_primary_display INTEGER NOT NULL DEFAULT 0'
         )
 
     conn.execute(
@@ -150,9 +157,91 @@ def init_db():
         'created_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
 
+    # Every album_id group must have exactly one public representative.
+    album_groups = conn.execute(
+        'SELECT DISTINCT album_id FROM albums '
+        "WHERE album_id IS NOT NULL AND TRIM(album_id) != ''"
+    ).fetchall()
+
+    for group in album_groups:
+        album_id = group['album_id']
+        selected = conn.execute(
+            'SELECT id FROM albums '
+            'WHERE album_id = ? AND is_primary_display = 1 '
+            'ORDER BY id ASC LIMIT 1',
+            (album_id,)
+        ).fetchone()
+
+        if selected is None:
+            selected = conn.execute(
+                'SELECT id FROM albums '
+                'WHERE album_id = ? ORDER BY id ASC LIMIT 1',
+                (album_id,)
+            ).fetchone()
+
+        if selected is not None:
+            conn.execute(
+                'UPDATE albums '
+                'SET is_primary_display = CASE WHEN id = ? THEN 1 ELSE 0 END '
+                'WHERE album_id = ?',
+                (selected['id'], album_id)
+            )
+
     conn.commit()
     conn.close()
 
+
+
+def ensure_primary_display(conn, album_id):
+    album_id = str(album_id or '').strip()
+
+    if not album_id:
+        return
+
+    selected = conn.execute(
+        'SELECT id FROM albums '
+        'WHERE album_id = ? AND is_primary_display = 1 '
+        'ORDER BY id ASC LIMIT 1',
+        (album_id,)
+    ).fetchone()
+
+    if selected is None:
+        selected = conn.execute(
+            'SELECT id FROM albums '
+            'WHERE album_id = ? ORDER BY id ASC LIMIT 1',
+            (album_id,)
+        ).fetchone()
+
+    if selected is None:
+        return
+
+    conn.execute(
+        'UPDATE albums '
+        'SET is_primary_display = CASE WHEN id = ? THEN 1 ELSE 0 END '
+        'WHERE album_id = ?',
+        (selected['id'], album_id)
+    )
+
+
+def set_primary_display(conn, album_row_id):
+    row = conn.execute(
+        'SELECT id, album_id FROM albums WHERE id = ?',
+        (album_row_id,)
+    ).fetchone()
+
+    if row is None:
+        return None
+
+    conn.execute(
+        'UPDATE albums SET is_primary_display = 0 WHERE album_id = ?',
+        (row['album_id'],)
+    )
+    conn.execute(
+        'UPDATE albums SET is_primary_display = 1 WHERE id = ?',
+        (row['id'],)
+    )
+
+    return row['album_id']
 
 
 def get_genre_options():
