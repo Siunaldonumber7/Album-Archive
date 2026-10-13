@@ -82,6 +82,7 @@ body {
     align-items: center;
     gap: 38px;
     overflow: hidden;
+    isolation: isolate;
     border-radius: 30px;
     background:
         radial-gradient(
@@ -97,6 +98,69 @@ body {
     box-shadow:
         0 1px 0 rgba(255,255,255,.85) inset,
         0 18px 48px rgba(0,0,0,.055);
+}
+
+.hero-background-image {
+    position: absolute;
+    z-index: 0;
+    inset: -18px;
+    width: calc(100% + 36px);
+    height: calc(100% + 36px);
+    object-fit: cover;
+    object-position: center 28%;
+    transform: scale(1.025);
+    filter: saturate(.88) contrast(1.02) brightness(.72);
+}
+
+.hero.has-cover-fallback .hero-background-image {
+    filter:
+        blur(11px)
+        saturate(.72)
+        contrast(1.04)
+        brightness(.62);
+    transform: scale(1.09);
+}
+
+.hero-shade {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(5,8,11,.88) 0%,
+            rgba(5,8,11,.73) 31%,
+            rgba(5,8,11,.46) 62%,
+            rgba(5,8,11,.30) 100%
+        ),
+        linear-gradient(
+            0deg,
+            rgba(0,0,0,.22),
+            transparent 60%
+        );
+}
+
+.hero.has-visual .artist-name {
+    color: #fff;
+    text-shadow: 0 2px 22px rgba(0,0,0,.28);
+}
+
+.hero.has-visual .eyebrow {
+    color: rgba(255,255,255,.76);
+}
+
+.hero.has-visual .summary-line,
+.hero.has-visual .summary-line.secondary {
+    color: rgba(255,255,255,.74);
+}
+
+.hero.has-visual .summary-item strong {
+    color: #fff;
+}
+
+.hero.has-visual .summary-sep {
+    color: rgba(255,255,255,.32);
 }
 
 .hero-copy {
@@ -166,6 +230,7 @@ body {
 .hero-art {
     height: 205px;
     position: relative;
+    z-index: 3;
 }
 
 .hero-cover {
@@ -525,7 +590,19 @@ body {
 
 <main class="container">
 
-<section class="hero">
+<section class="hero{% if hero_background_url %} has-visual{% endif %}{% if hero_background_source == 'profile' %} has-profile{% elif hero_background_source == 'cover' %} has-cover-fallback{% endif %}">
+
+    {% if hero_background_url %}
+    <img
+        class="hero-background-image"
+        src="{{ hero_background_url }}"
+        alt=""
+        loading="eager"
+        decoding="async"
+        aria-hidden="true"
+    >
+    <div class="hero-shade" aria-hidden="true"></div>
+    {% endif %}
 
     <div class="hero-copy">
         <div class="eyebrow">Artist Collection</div>
