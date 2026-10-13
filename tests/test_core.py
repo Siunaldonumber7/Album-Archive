@@ -161,6 +161,54 @@ class DatabaseOptimizationTests(unittest.TestCase):
         self.assertEqual(lp_first, 'LP-0001')
 
 
+    def test_management_counter_recovers_from_existing_numbers(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title
+                ) VALUES (?, ?, ?, ?)
+                ''',
+                (
+                    'CD-0099',
+                    'ALB-9999',
+                    'Artist',
+                    'Recovered',
+                )
+            )
+            conn.execute(
+                'DELETE FROM number_counters'
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        album_database.init_db()
+
+        conn = album_database.get_db()
+
+        try:
+            next_number = (
+                get_next_management_no(
+                    conn,
+                    'CD'
+                )
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            next_number,
+            'CD-0100'
+        )
+
+
     def test_existing_album_lookup_uses_apple_id_then_key(self):
         conn = album_database.get_db()
 
