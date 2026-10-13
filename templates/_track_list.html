@@ -1,0 +1,50 @@
+<div class="section-head">
+    <h2 class="section-title">트랙리스트</h2>
+
+    {% if tracks %}
+    <div class="section-sub">
+        {{ tracks|length }} Tracks
+    </div>
+    {% endif %}
+</div>
+
+<section class="track-panel">
+    {% if tracks %}
+        {% set ns = namespace(last_disc=0) %}
+
+        {% for track in tracks %}
+            {% if total_discs > 1 and track.disc_number != ns.last_disc %}
+            <div class="disc-title">
+                DISC {{ track.disc_number }}
+            </div>
+            {% set ns.last_disc = track.disc_number %}
+            {% endif %}
+
+            <div class="track-row">
+                <div class="track-number">
+                    {{ track.track_number }}
+                </div>
+
+                <div>
+                    <div class="track-name">
+                        {{ track.title }}
+                    </div>
+
+                    {% if track.artist and track.artist != album.artist %}
+                    <div class="track-artist">
+                        {{ track.artist }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="track-duration">
+                    {{ track.duration or '' }}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-tracks">
+            수록곡 정보가 없습니다.
+        </div>
+    {% endif %}
+</section>
