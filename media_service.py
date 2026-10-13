@@ -27,17 +27,39 @@ _PREWARM_START_LOCK = threading.Lock()
 _PREWARM_STARTED = False
 
 
-def configure_media(app):
+def _set_media_paths(upload_folder):
     global UPLOAD_FOLDER, THUMBNAIL_FOLDER
 
-    UPLOAD_FOLDER = os.path.join(
-        app.root_path,
-        'static',
-        'uploads'
+    UPLOAD_FOLDER = os.path.abspath(
+        str(
+            upload_folder
+            or ''
+        )
     )
     THUMBNAIL_FOLDER = os.path.join(
         UPLOAD_FOLDER,
         '.thumbs'
+    )
+
+    os.makedirs(
+        UPLOAD_FOLDER,
+        exist_ok=True
+    )
+    os.makedirs(
+        THUMBNAIL_FOLDER,
+        exist_ok=True
+    )
+
+
+def configure_media(app):
+    upload_folder = os.path.join(
+        app.root_path,
+        'static',
+        'uploads'
+    )
+
+    _set_media_paths(
+        upload_folder
     )
 
     app.config[
@@ -49,15 +71,6 @@ def configure_media(app):
 
     Image.MAX_IMAGE_PIXELS = (
         40_000_000
-    )
-
-    os.makedirs(
-        UPLOAD_FOLDER,
-        exist_ok=True
-    )
-    os.makedirs(
-        THUMBNAIL_FOLDER,
-        exist_ok=True
     )
 
     start_thumbnail_prewarm()
@@ -471,6 +484,18 @@ def _prewarm_worker():
             created,
             'created'
         )
+
+
+def prewarm_thumbnail_directory(
+    upload_folder
+):
+    _set_media_paths(
+        upload_folder
+    )
+    Image.MAX_IMAGE_PIXELS = (
+        40_000_000
+    )
+    _prewarm_worker()
 
 
 def start_thumbnail_prewarm():
