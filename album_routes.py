@@ -24,14 +24,116 @@ from search_engine import (
 from track_service import clear_track_caches
 
 
+CLASSIFICATIONS = frozenset({
+    '한국',
+    '해외',
+})
+MEDIA_FORMATS = frozenset({
+    'CD',
+    'LP',
+    'Casette',
+    'USB',
+    '기타',
+})
+OPEN_STATUSES = frozenset({
+    '개봉',
+    '미개봉',
+})
+SIGNED_VALUES = frozenset({
+    'O',
+    'X',
+})
+
+
 def _collect_genres(form, selected_name, new_name):
-    values = list(form.getlist(selected_name))
-    new_value = form.get(new_name, '').strip()
+    values = list(
+        form.getlist(selected_name)
+    )
+    new_value = form.get(
+        new_name,
+        ''
+    ).strip()
 
     if new_value:
         values.append(new_value)
 
     return normalize_genres(values)
+
+
+def _normalize_choice(
+    value,
+    allowed,
+    default
+):
+    value = str(
+        value
+        or ''
+    ).strip()
+    return (
+        value
+        if value in allowed
+        else default
+    )
+
+
+def _normalize_album_choices(
+    classification,
+    media_format,
+    album_type,
+    open_status,
+    signed
+):
+    return {
+        'classification': _normalize_choice(
+            classification,
+            CLASSIFICATIONS,
+            '한국'
+        ),
+        'media_format': _normalize_choice(
+            media_format,
+            MEDIA_FORMATS,
+            'CD'
+        ),
+        'album_type': _normalize_choice(
+            album_type,
+            ALBUM_TYPES,
+            '앨범'
+        ),
+        'open_status': _normalize_choice(
+            open_status,
+            OPEN_STATUSES,
+            '개봉'
+        ),
+        'signed': _normalize_choice(
+            signed,
+            SIGNED_VALUES,
+            'X'
+        ),
+    }
+
+
+def _parse_purchase_price(value):
+    text = str(
+        value
+        or ''
+    ).replace(
+        ',',
+        ''
+    ).strip()
+
+    if not text:
+        return None
+
+    try:
+        amount = int(text)
+    except Exception:
+        return None
+
+    return (
+        amount
+        if amount >= 0
+        else None
+    )
 
 
 def _genre_options_with_current(current=''):
