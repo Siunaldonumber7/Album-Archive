@@ -16,6 +16,7 @@ BUGS_SEARCH_URL = 'https://music.bugs.co.kr/search/album?q={query}'
 BUGS_ALBUM_URL = 'https://music.bugs.co.kr/album/{album_id}'
 BUGS_SEARCH_LIMIT = 5
 BUGS_MATCH_THRESHOLD = 0.68
+BUGS_CACHE_VERSION = 'v2-bugs-only'
 
 BUGS_HEADERS = {
     'User-Agent': (
@@ -52,6 +53,7 @@ def _compact_text(value):
 
 def _cache_key(artist, album_title, release_year=''):
     raw = '|'.join([
+        BUGS_CACHE_VERSION,
         _compact_text(artist),
         _compact_text(album_title),
         str(release_year or '').strip(),
@@ -711,21 +713,18 @@ def lookup_bugs_genre(
         return ''
 
 
-def prefer_bugs_genre(
+def get_bugs_genre(
     artist,
     album_title,
-    release_year='',
-    fallback_genre=''
+    release_year=''
 ):
-    bugs_genre = lookup_bugs_genre(
+    """
+    자동 장르는 벅스만 사용한다.
+    벅스에서 찾지 못하거나 매칭 신뢰도가 낮으면 빈 문자열을 반환한다.
+    Apple Music 장르로 폴백하지 않는다.
+    """
+    return lookup_bugs_genre(
         artist,
         album_title,
         release_year
-    )
-
-    if bugs_genre:
-        return bugs_genre
-
-    return normalize_genres(
-        fallback_genre
     )
