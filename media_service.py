@@ -10,8 +10,21 @@ from catalog import apple_artwork_size
 
 UPLOAD_FOLDER = ''
 THUMBNAIL_FOLDER = ''
-ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+ALLOWED_IMAGE_EXTENSIONS = {
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'gif',
+}
+THUMBNAIL_SIZES = (
+    400,
+    180,
+    800,
+)
 THUMBNAIL_WRITE_LOCK = threading.Lock()
+_PREWARM_START_LOCK = threading.Lock()
+_PREWARM_STARTED = False
 
 
 def configure_media(app):
@@ -27,10 +40,16 @@ def configure_media(app):
         '.thumbs'
     )
 
-    app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
-    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config[
+        'MAX_CONTENT_LENGTH'
+    ] = 15 * 1024 * 1024
+    app.config[
+        'UPLOAD_FOLDER'
+    ] = UPLOAD_FOLDER
 
-    Image.MAX_IMAGE_PIXELS = 40_000_000
+    Image.MAX_IMAGE_PIXELS = (
+        40_000_000
+    )
 
     os.makedirs(
         UPLOAD_FOLDER,
@@ -41,95 +60,611 @@ def configure_media(app):
         exist_ok=True
     )
 
+    start_thumbnail_prewarm()
+
 
 def allowed_image_file(filename):
-    if not filename or '.' not in filename:
+    if (
+        not filename
+        or '.' not in filename
+    ):
         return False
-    extension = filename.rsplit('.', 1)[1].lower()
-    return extension in ALLOWED_IMAGE_EXTENSIONS
+
+    extension = (
+        filename
+        .rsplit('.', 1)[1]
+        .lower()
+    )
+
+    return (
+        extension
+        in ALLOWED_IMAGE_EXTENSIONS
+    )
+
+
+def _safe_filename(filename):
+    return os.path.basename(
+        str(
+            filename
+            or ''
+        ).replace(
+            '\\',
+            '/'
+        )
+    ).strip()
+
+
+def _source_path(filename):
+    safe_name = _safe_filename(
+        filename
+    )
+
+    if not safe_name:
+        return ''
+
+    upload_root = os.path.abspath(
+        UPLOAD_FOLDER
+    )
+    source_path = os.path.abspath(
+        os.path.join(
+            upload_root,
+            safe_name
+        )
+    )
+
+    if not source_path.startswith(
+        upload_root + os.sep
+    ):
+        return ''
+
+    return source_path
+
+
+def _thumbnail_name_parts(
+    filename
+):
+    safe_name = _safe_filename(
+        filename
+    )
+    stem = (
+        os.path.splitext(
+            safe_name
+        )[0].strip(' .')
+        or 'cover'
+    )
+
+    name_digest = hashlib.sha1(
+        safe_name.encode(
+            'utf-8',
+            errors='ignore'
+        )
+    ).hexdigest()[:10]
+
+    source_path = _source_path(
+        safe_name
+    )
+    version_seed = safe_name
+
+    try:
+        stat = os.stat(
+            source_path
+        )
+        version_seed += (
+            f'|{stat.st_size}'
+            f'|{stat.st_mtime_ns}'
+        )
+    except OSError:
+        pass
+
+    version_digest = hashlib.sha1(
+        version_seed.encode(
+            'utf-8',
+            errors='ignore'
+        )
+    ).hexdigest()[:10]
+
+    return (
+        stem,
+        name_digest,
+        version_digest,
+    )
+
+
+def local_cover_thumbnail_path(
+    filename,
+    size=400
+):
+    (
+        stem,
+        name_digest,
+        version_digest,
+    ) = _thumbnail_name_parts(
+        filename
+    )
+
+    return os.path.join(
+        THUMBNAIL_FOLDER,
+        (
+            f'{stem}__{name_digest}'
+            f'__{version_digest}'
+            f'__thumb_{int(size)}.webp'
+        )
+    )
+
+
+def _prepare_image(
+    image,
+    max_size
+):
+    try:
+        image.seek(0)
+    except Exception:
+        pass
+
+    if (
+        image.format == 'JPEG'
+        and max_size > 0
+    ):
+        try:
+            image.draft(
+                'RGB',
+                (
+                    max_size,
+                    max_size,
+                )
+            )
+        except Exception:
+            pass
+
+    image.load()
+
+    if image.mode not in {
+        'RGB',
+        'RGBA',
+    }:
+        has_transparency = (
+            'transparency'
+            in image.info
+        )
+        image = image.convert(
+            (
+                'RGBA'
+                if has_transparency
+                else 'RGB'
+            )
+        )
+    else:
+        image = image.copy()
+
+    image.thumbnail(
+        (
+            max_size,
+            max_size,
+        ),
+        Image.Resampling.LANCZOS,
+        reducing_gap=3.0
+    )
+
+    return image
+
+
+def _write_thumbnail(
+    image,
+    thumb_path
+):
+    os.makedirs(
+        THUMBNAIL_FOLDER,
+        exist_ok=True
+    )
+
+    temp_path = (
+        thumb_path
+        + '.tmp-'
+        + str(
+            threading.get_ident()
+        )
+    )
+
+    try:
+        image.save(
+            temp_path,
+            'WEBP',
+            quality=80,
+            method=4
+        )
+        os.replace(
+            temp_path,
+            thumb_path
+        )
+    finally:
+        if os.path.isfile(
+            temp_path
+        ):
+            os.remove(
+                temp_path
+            )
+
+
+def generate_cover_thumbnails(
+    filename,
+    sizes=THUMBNAIL_SIZES
+):
+    safe_name = _safe_filename(
+        filename
+    )
+
+    if (
+        not safe_name
+        or not allowed_image_file(
+            safe_name
+        )
+    ):
+        return 0
+
+    source_path = _source_path(
+        safe_name
+    )
+
+    if (
+        not source_path
+        or not os.path.isfile(
+            source_path
+        )
+    ):
+        return 0
+
+    normalized_sizes = sorted(
+        {
+            max(
+                120,
+                min(
+                    int(size),
+                    800
+                )
+            )
+            for size in sizes
+        },
+        reverse=True
+    )
+
+    missing_sizes = [
+        size
+        for size in normalized_sizes
+        if not os.path.isfile(
+            local_cover_thumbnail_path(
+                safe_name,
+                size
+            )
+        )
+    ]
+
+    if not missing_sizes:
+        return 0
+
+    created = 0
+
+    with THUMBNAIL_WRITE_LOCK:
+        missing_sizes = [
+            size
+            for size in missing_sizes
+            if not os.path.isfile(
+                local_cover_thumbnail_path(
+                    safe_name,
+                    size
+                )
+            )
+        ]
+
+        if not missing_sizes:
+            return 0
+
+        try:
+            with Image.open(
+                source_path
+            ) as source:
+                largest_size = max(
+                    missing_sizes
+                )
+                base = _prepare_image(
+                    source,
+                    largest_size
+                )
+
+            for size in missing_sizes:
+                thumb_path = (
+                    local_cover_thumbnail_path(
+                        safe_name,
+                        size
+                    )
+                )
+
+                if os.path.isfile(
+                    thumb_path
+                ):
+                    continue
+
+                if (
+                    base.width <= size
+                    and base.height <= size
+                ):
+                    output = base.copy()
+                else:
+                    output = base.copy()
+                    output.thumbnail(
+                        (
+                            size,
+                            size,
+                        ),
+                        Image.Resampling.LANCZOS,
+                        reducing_gap=3.0
+                    )
+
+                try:
+                    _write_thumbnail(
+                        output,
+                        thumb_path
+                    )
+                    created += 1
+                finally:
+                    output.close()
+        except (
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+            Image.DecompressionBombError,
+        ) as exc:
+            print(
+                'COVER THUMBNAIL ERROR:',
+                safe_name,
+                exc
+            )
+        finally:
+            try:
+                base.close()
+            except Exception:
+                pass
+
+    return created
+
+
+def _prewarm_worker():
+    created = 0
+    checked = 0
+
+    try:
+        filenames = sorted(
+            os.listdir(
+                UPLOAD_FOLDER
+            )
+        )
+    except OSError:
+        return
+
+    for filename in filenames:
+        if (
+            filename.startswith('.')
+            or not allowed_image_file(
+                filename
+            )
+        ):
+            continue
+
+        source_path = _source_path(
+            filename
+        )
+
+        if not os.path.isfile(
+            source_path
+        ):
+            continue
+
+        checked += 1
+        created += generate_cover_thumbnails(
+            filename
+        )
+
+    if checked:
+        print(
+            'COVER THUMBNAIL PREWARM:',
+            checked,
+            'files /',
+            created,
+            'created'
+        )
+
+
+def start_thumbnail_prewarm():
+    global _PREWARM_STARTED
+
+    with _PREWARM_START_LOCK:
+        if _PREWARM_STARTED:
+            return
+
+        _PREWARM_STARTED = True
+
+        thread = threading.Thread(
+            target=_prewarm_worker,
+            name='cover-thumbnail-prewarm',
+            daemon=True
+        )
+        thread.start()
+
 
 def save_uploaded_cover(file):
-    if not file or not file.filename:
+    if (
+        not file
+        or not file.filename
+    ):
         return None
-    if not allowed_image_file(file.filename):
+
+    if not allowed_image_file(
+        file.filename
+    ):
         return None
 
     try:
         file.stream.seek(0)
-        with Image.open(file.stream) as image:
+
+        with Image.open(
+            file.stream
+        ) as image:
             width, height = image.size
-            if width < 1 or height < 1 or width * height > 40_000_000:
+
+            if (
+                width < 1
+                or height < 1
+                or width * height
+                > 40_000_000
+            ):
                 return None
+
             image.verify()
+
         file.stream.seek(0)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        Image.DecompressionBombError,
+    ):
         return None
 
-    # 원본 파일명(한글/공백 포함)을 최대한 유지하되 경로 문자는 제거한다.
-    original_name = os.path.basename(file.filename.replace('\\', '/')).strip()
+    original_name = os.path.basename(
+        file.filename.replace(
+            '\\',
+            '/'
+        )
+    ).strip()
+
     original_name = ''.join(
-        ch for ch in original_name
-        if ch not in {'/', '\\'} and ord(ch) >= 32
+        ch
+        for ch in original_name
+        if (
+            ch not in {
+                '/',
+                '\\',
+            }
+            and ord(ch) >= 32
+        )
     ).strip(' .')
 
-    if not original_name or '.' not in original_name:
+    if (
+        not original_name
+        or '.' not in original_name
+    ):
         return None
 
-    stem, extension = os.path.splitext(original_name)
+    stem, extension = os.path.splitext(
+        original_name
+    )
     extension = extension.lower()
+    stem = (
+        stem.strip(' .')
+        or 'cover'
+    )
 
-    # 파일명이 "." 등으로만 구성된 경우를 방지한다.
-    stem = stem.strip(' .') or 'cover'
-    filename = f'{stem}{extension}'
-    save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    filename = (
+        f'{stem}{extension}'
+    )
+    save_path = os.path.join(
+        current_app.config[
+            'UPLOAD_FOLDER'
+        ],
+        filename
+    )
 
-    # 같은 파일명이 이미 있으면 _2, _3 ... 을 붙여 기존 파일을 덮어쓰지 않는다.
     counter = 2
-    while os.path.exists(save_path):
-        filename = f'{stem}_{counter}{extension}'
-        save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
+    while os.path.exists(
+        save_path
+    ):
+        filename = (
+            f'{stem}_{counter}'
+            f'{extension}'
+        )
+        save_path = os.path.join(
+            current_app.config[
+                'UPLOAD_FOLDER'
+            ],
+            filename
+        )
         counter += 1
 
-    file.save(save_path)
-    return url_for('static', filename=f'uploads/{filename}')
+    file.save(
+        save_path
+    )
+
+    # Pay the resize cost once at upload time so normal browsing never has
+    # to open a large original just to build a list thumbnail.
+    generate_cover_thumbnails(
+        filename
+    )
+
+    return url_for(
+        'static',
+        filename=(
+            f'uploads/{filename}'
+        )
+    )
+
 
 def delete_local_cover(cover_url):
     if not cover_url:
         return
-    prefix = '/static/uploads/'
-    if not cover_url.startswith(prefix):
-        return
-    filename = cover_url[len(prefix):]
-    upload_folder_abs = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
-    file_path = os.path.abspath(os.path.join(upload_folder_abs, filename))
-    if not file_path.startswith(upload_folder_abs + os.sep):
-        return
-    try:
-        if os.path.isfile(file_path):
-            os.remove(file_path)
 
-        safe_name = os.path.basename(
-            filename
-        )
+    prefix = '/static/uploads/'
+
+    if not cover_url.startswith(
+        prefix
+    ):
+        return
+
+    filename = cover_url[
+        len(prefix):
+    ]
+    safe_name = _safe_filename(
+        filename
+    )
+    source_path = _source_path(
+        safe_name
+    )
+
+    if not source_path:
+        return
+
+    try:
+        if os.path.isfile(
+            source_path
+        ):
+            os.remove(
+                source_path
+            )
+
         stem = (
             os.path.splitext(
                 safe_name
             )[0].strip(' .')
             or 'cover'
         )
-        digest = hashlib.sha1(
+        name_digest = hashlib.sha1(
             safe_name.encode(
                 'utf-8',
                 errors='ignore'
             )
-        ).hexdigest()[:12]
+        ).hexdigest()[:10]
 
         if os.path.isdir(
             THUMBNAIL_FOLDER
         ):
             prefixes = (
-                f'{stem}__{digest}__thumb_',
-                f'{stem}__thumb_',
+                (
+                    f'{stem}'
+                    f'__{name_digest}__'
+                ),
+                (
+                    f'{stem}'
+                    f'__thumb_'
+                ),
             )
 
             for thumb_name in os.listdir(
@@ -152,158 +687,100 @@ def delete_local_cover(cover_url):
                         thumb_path
                     )
 
-    except Exception as e:
-        print('LOCAL COVER DELETE ERROR:', e)
+    except Exception as exc:
+        print(
+            'LOCAL COVER DELETE ERROR:',
+            exc
+        )
 
-def local_cover_thumbnail_path(
-    filename,
+
+def cover_thumbnail_url(
+    cover_url,
     size=400
 ):
-    safe_name = os.path.basename(
-        str(
-            filename
-            or ''
-        ).replace(
-            '\\',
-            '/'
-        )
-    )
-    stem = (
-        os.path.splitext(
-            safe_name
-        )[0].strip(' .')
-        or 'cover'
-    )
-    digest = hashlib.sha1(
-        safe_name.encode(
-            'utf-8',
-            errors='ignore'
-        )
-    ).hexdigest()[:12]
+    cover_url = str(
+        cover_url
+        or ''
+    ).strip()
 
-    return os.path.join(
-        THUMBNAIL_FOLDER,
-        (
-            f'{stem}__{digest}'
-            f'__thumb_{int(size)}.webp'
-        )
-    )
-
-def cover_thumbnail_url(cover_url, size=400):
-    """
-    목록 화면용 경량 커버 URL을 반환한다.
-    Apple 이미지는 CDN 크기만 줄이고, 직접 업로드한 이미지는
-    최초 1회만 WEBP 썸네일을 생성해 재사용한다.
-    """
-    cover_url = str(cover_url or '').strip()
     if not cover_url:
         return ''
 
-    size = max(120, min(int(size or 400), 800))
+    size = max(
+        120,
+        min(
+            int(size or 400),
+            800
+        )
+    )
 
-    if cover_url.startswith('http://') or cover_url.startswith('https://'):
-        return apple_artwork_size(cover_url, size)
+    if cover_url.startswith(
+        (
+            'http://',
+            'https://',
+        )
+    ):
+        return apple_artwork_size(
+            cover_url,
+            size
+        )
 
     prefix = '/static/uploads/'
-    if not cover_url.startswith(prefix):
+
+    if not cover_url.startswith(
+        prefix
+    ):
         return cover_url
 
-    filename = os.path.basename(cover_url[len(prefix):].replace('\\', '/'))
+    filename = _safe_filename(
+        cover_url[
+            len(prefix):
+        ]
+    )
+
     if not filename:
         return cover_url
 
-    source_path = os.path.abspath(
-        os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    source_path = _source_path(
+        filename
     )
-    upload_root = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
 
-    if not source_path.startswith(upload_root + os.sep):
-        return cover_url
-    if not os.path.isfile(source_path):
-        return cover_url
-
-    thumb_path = local_cover_thumbnail_path(filename, size)
-
-    try:
-        if not os.path.isfile(
-            thumb_path
-        ):
-            with THUMBNAIL_WRITE_LOCK:
-                if not os.path.isfile(
-                    thumb_path
-                ):
-                    os.makedirs(
-                        THUMBNAIL_FOLDER,
-                        exist_ok=True
-                    )
-
-                    temp_path = (
-                        thumb_path
-                        + '.tmp-'
-                        + str(
-                            threading.get_ident()
-                        )
-                    )
-
-                    try:
-                        with Image.open(
-                            source_path
-                        ) as image:
-                            try:
-                                image.seek(0)
-                            except Exception:
-                                pass
-
-                            image.thumbnail(
-                                (
-                                    size,
-                                    size,
-                                ),
-                                Image.Resampling.LANCZOS
-                            )
-
-                            if image.mode not in {
-                                'RGB',
-                                'RGBA',
-                            }:
-                                image = image.convert(
-                                    (
-                                        'RGBA'
-                                        if 'transparency'
-                                        in image.info
-                                        else 'RGB'
-                                    )
-                                )
-
-                            image.save(
-                                temp_path,
-                                'WEBP',
-                                quality=82,
-                                method=4
-                            )
-
-                        os.replace(
-                            temp_path,
-                            thumb_path
-                        )
-                    finally:
-                        if os.path.isfile(
-                            temp_path
-                        ):
-                            os.remove(
-                                temp_path
-                            )
-
-        thumb_name = os.path.basename(
-            thumb_path
+    if (
+        not source_path
+        or not os.path.isfile(
+            source_path
         )
-        return url_for(
-            'static',
-            filename=f'uploads/.thumbs/{thumb_name}'
+    ):
+        return cover_url
+
+    thumb_path = (
+        local_cover_thumbnail_path(
+            filename,
+            size
+        )
+    )
+
+    if not os.path.isfile(
+        thumb_path
+    ):
+        generate_cover_thumbnails(
+            filename,
+            sizes=(size,)
         )
 
-    except Exception as e:
-        print('COVER THUMBNAIL ERROR:', e)
+    if not os.path.isfile(
+        thumb_path
+    ):
         return cover_url
 
+    thumb_name = os.path.basename(
+        thumb_path
+    )
 
+    return url_for(
+        'static',
+        filename=(
+            'uploads/.thumbs/'
+            + thumb_name
+        )
+    )
