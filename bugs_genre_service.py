@@ -186,28 +186,85 @@ def _search_album_ids(artist, album_title):
         query=quote_plus(query)
     )
     html = _fetch_html(url)
+    soup = BeautifulSoup(
+        html,
+        'html.parser'
+    )
 
     album_ids = []
     seen = set()
 
-    for match in re.finditer(
-        r'(?:https?:)?//music\.bugs\.co\.kr/album/(\d+)|'
-        r'/album/(\d+)',
-        html
-    ):
-        album_id = (
-            match.group(1)
-            or match.group(2)
+    def add_album_id(href):
+        match = re.search(
+            r'/album/(\d+)',
+            str(href or '')
         )
 
-        if not album_id or album_id in seen:
-            continue
+        if not match:
+            return
+
+        album_id = match.group(1)
+
+        if album_id in seen:
+            return
 
         seen.add(album_id)
         album_ids.append(album_id)
 
+    # 벅스 앨범 검색 결과 영역을 우선 사용한다.
+    for row in soup.select(
+        'table.byAlbum tbody tr'
+    ):
+        anchor = (
+            row.select_one(
+                'p.title a[href*="/album/"]'
+            )
+            or row.select_one(
+                'a[href*="/album/"]'
+            )
+        )
+
+        if anchor:
+            add_album_id(
+                anchor.get('href')
+            )
+
         if len(album_ids) >= BUGS_SEARCH_LIMIT:
             break
+
+    # 페이지 형태가 달라졌을 때 타일형 앨범 목록도 확인한다.
+    if not album_ids:
+        for anchor in soup.select(
+            'ul.albumList a[href*="/album/"], '
+            'ul.list.tileView a[href*="/album/"]'
+        ):
+            add_album_id(
+                anchor.get('href')
+            )
+
+            if len(album_ids) >= BUGS_SEARCH_LIMIT:
+                break
+
+    # 마지막 폴백: 앨범 URL 패턴만 추출한다.
+    if not album_ids:
+        for match in re.finditer(
+            r'(?:https?:)?//music\.bugs\.co\.kr/album/(\d+)|'
+            r'/album/(\d+)',
+            html
+        ):
+            album_id = (
+                match.group(1)
+                or match.group(2)
+            )
+
+            if not album_id or album_id in seen:
+                continue
+
+            seen.add(album_id)
+            album_ids.append(album_id)
+
+            if len(album_ids) >= BUGS_SEARCH_LIMIT:
+                break
 
     return album_ids
 
