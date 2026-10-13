@@ -491,6 +491,15 @@ def artist_page(artist_name):
         '''
     ).fetchall()
 
+    all_owned_copies = conn.execute(
+        '''
+        SELECT artist, media_format
+        FROM albums
+        WHERE artist IS NOT NULL
+          AND TRIM(artist) != ''
+        '''
+    ).fetchall()
+
     conn.close()
 
     matched_albums = []
@@ -516,8 +525,20 @@ def artist_page(artist_name):
         'ETC': 0,
     }
 
-    for album in matched_albums:
-        media_format = str(album['media_format'] or '').strip()
+    for album in all_owned_copies:
+        artist_match = any(
+            credit_name.casefold() == target_key
+            for credit_name in split_artists(
+                album['artist']
+            )
+        )
+
+        if not artist_match:
+            continue
+
+        media_format = str(
+            album['media_format'] or ''
+        ).strip()
         media_key = media_format.casefold()
 
         if media_key == 'cd':
@@ -532,6 +553,20 @@ def artist_page(artist_name):
             format_counts['CASETTE'] += 1
         else:
             format_counts['ETC'] += 1
+
+    format_summary = [
+        {
+            'name': name,
+            'count': format_counts[name]
+        }
+        for name in (
+            'CD',
+            'LP',
+            'CASETTE',
+            'ETC',
+        )
+        if format_counts[name] > 0
+    ]
 
     type_order = [
         '앨범',
@@ -638,6 +673,7 @@ def artist_page(artist_name):
         albums=albums,
         owned_count=owned_count,
         format_counts=format_counts,
+        format_summary=format_summary,
         album_type_summary=album_type_summary,
         sort_order=sort_order,
         page=page,
