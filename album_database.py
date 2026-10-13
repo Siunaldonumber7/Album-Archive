@@ -195,6 +195,24 @@ def init_db():
         'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
 
+    genre_registry_count = conn.execute(
+        'SELECT COUNT(*) AS count '
+        'FROM genre_registry'
+    ).fetchone()['count']
+
+    if genre_registry_count == 0:
+        genre_rows = conn.execute(
+            "SELECT genre FROM albums "
+            "WHERE genre IS NOT NULL "
+            "AND TRIM(genre) != ''"
+        ).fetchall()
+
+        for row in genre_rows:
+            remember_genres(
+                conn,
+                row['genre']
+            )
+
     # Every album_id group must have exactly one public representative.
     # Preserve the oldest selected representative when one already exists;
     # otherwise choose the oldest row in the group. One set-based UPDATE is
@@ -284,21 +302,32 @@ def set_primary_display(conn, album_row_id):
     return row['album_id']
 
 
-def get_genre_options():
-    conn = get_db()
+def get_genre_options(conn=None):
+    owns_connection = conn is None
+
+    if owns_connection:
+        conn = get_db()
 
     try:
         rows = conn.execute(
             'SELECT name FROM genre_registry '
             'ORDER BY name COLLATE NOCASE ASC'
         ).fetchall()
+
         return [
-            str(row['name'] or '').strip()
+            str(
+                row['name']
+                or ''
+            ).strip()
             for row in rows
-            if str(row['name'] or '').strip()
+            if str(
+                row['name']
+                or ''
+            ).strip()
         ]
     finally:
-        conn.close()
+        if owns_connection:
+            conn.close()
 
 
 def remember_genres(conn, value):
