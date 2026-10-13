@@ -4,19 +4,56 @@ import re
 ALBUM_TYPES = ('앨범', 'EP(미니)', '싱글', '믹스테잎')
 
 GENRE_OPTIONS = (
-    '힙합', 'R&B', '소울', 'Pop', 'K-Pop', 'J-Pop',
-    '록', '인디 록', '얼터너티브', '얼터너티브/인디', '인디',
+    '힙합/랩', 'R&B', '소울', 'Pop', 'K-Pop', 'J-Pop',
+    '발라드',
+    '록', '인디 록', '얼터너티브', '인디',
     '펑크', '펑크 록', '메탈', '하드 록', '프로그레시브 록', '사이키델릭',
-    '일렉트로닉', '일렉트로니카', '댄스', '하우스', '테크노', '트랜스',
-    '앰비언트', '다운템포', '재즈', '블루스', '포크', '컨트리',
-    '레게', '스카', '펑크(Funk)', '디스코', '싱어송라이터', '보컬',
-    '이지 리스닝', '어덜트 컨템포러리', '클래식', '오페라', '뉴에이지',
-    '사운드트랙', '영화음악', '뮤지컬', '라틴', '브라질', '아프리카',
-    '월드뮤직', 'CCM', '가스펠', 'CCM/가스펠', '어린이 음악',
-    '홀리데이', '크리스마스', '코미디', '스포큰 워드', '피트니스',
-    '디즈니', '만도팝', '칸토팝', '프렌치 팝', '저먼 팝',
-    '인도 음악', '볼리우드', '한국 음악', '일본 음악'
+    '일렉트로닉', '일렉트로니카', '댄스', '하우스', '테크노',
+    '재즈', '블루스', '포크', '컨트리',
+    '레게', '디스코',
+    '클래식', '뉴에이지',
+    '사운드트랙', '영화음악'
 )
+
+
+SUPPRESSED_GENRES = {
+    value.casefold()
+    for value in (
+        '어덜트 컨템포러리',
+        '오페라',
+        '스카',
+        '싱어송라이터',
+        '보컬',
+        '이지 리스닝',
+        '다운템포',
+        '얼터너티브/인디',
+        '트랜스',
+        '앰비언트',
+        '뮤지컬',
+        '라틴',
+        '브라질',
+        '아프리카',
+        '월드뮤직',
+        'CCM',
+        '가스펠',
+        'CCM/가스펠',
+        '어린이 음악',
+        '홀리데이',
+        '크리스마스',
+        '코미디',
+        '스포큰 워드',
+        '피트니스',
+        '디즈니',
+        '만도팝',
+        '칸토팝',
+        '프렌치 팝',
+        '저먼 팝',
+        '인도 음악',
+        '볼리우드',
+        '한국 음악',
+        '일본 음악',
+    )
+}
 
 
 def normalize_genre_name(value):
@@ -26,11 +63,13 @@ def normalize_genre_name(value):
         return ''
 
     genre_map = {
-        'hip-hop/rap': '힙합',
-        'hip hop/rap': '힙합',
-        'hip-hop': '힙합',
-        'hip hop': '힙합',
-        'rap': '힙합',
+        '힙합': '힙합/랩',
+        '힙합/랩': '힙합/랩',
+        'hip-hop/rap': '힙합/랩',
+        'hip hop/rap': '힙합/랩',
+        'hip-hop': '힙합/랩',
+        'hip hop': '힙합/랩',
+        'rap': '힙합/랩',
         'r&b/soul': 'R&B',
         'r&b': 'R&B',
         'soul': '소울',
@@ -39,6 +78,9 @@ def normalize_genre_name(value):
         'kpop': 'K-Pop',
         'j-pop': 'J-Pop',
         'jpop': 'J-Pop',
+        'ballad': '발라드',
+        'ballads': '발라드',
+        '발라드': '발라드',
         'mandopop': '만도팝',
         'cantopop': '칸토팝',
         'french pop': '프렌치 팝',
@@ -69,7 +111,8 @@ def normalize_genre_name(value):
         'country': '컨트리',
         'reggae': '레게',
         'ska': '스카',
-        'funk': '펑크(Funk)',
+        'funk': '펑크',
+        '펑크(funk)': '펑크',
         'disco': '디스코',
         'singer/songwriter': '싱어송라이터',
         'singer-songwriter': '싱어송라이터',
@@ -105,7 +148,15 @@ def normalize_genre_name(value):
         'japanese': '일본 음악',
     }
 
-    return genre_map.get(value.lower(), value)
+    normalized = genre_map.get(
+        value.casefold(),
+        value
+    ).strip()
+
+    if normalized.casefold() in SUPPRESSED_GENRES:
+        return ''
+
+    return normalized
 
 
 def artist_credit_parts(value):
