@@ -749,13 +749,12 @@ USB
 
 
 <div class="field full">
-<label>장르 <span style="color:#999;font-weight:500;">· 벅스 기준 · 복수 선택 가능</span></label>
+<label>장르 <span style="color:#999;font-weight:500;">· 직접 관리 · 복수 선택 가능</span></label>
 {% set selected_genres = split_genres(album.genre or '') %}
-{% if not selected_genres %}
-<div style="margin:0 0 9px;color:#999;font-size:12px;">벅스에서 장르를 찾지 못했습니다. 필요하면 직접 선택해 주세요.</div>
-{% endif %}
+
+{% if genre_options %}
 <div class="genre-checks">
-{% for genre_name in genre_choices(album.genre or '') %}
+{% for genre_name in genre_options %}
 <label class="genre-choice">
     <input
         type="checkbox"
@@ -767,6 +766,17 @@ USB
 </label>
 {% endfor %}
 </div>
+{% else %}
+<div style="margin:0 0 9px;color:#999;font-size:12px;">아직 등록된 장르가 없습니다. 아래에서 첫 장르를 추가해 주세요.</div>
+{% endif %}
+
+<input
+    type="text"
+    name="genre_new"
+    placeholder="새 장르 추가 · 예: 힙합/랩, 발라드"
+    autocomplete="off"
+>
+<div style="margin-top:7px;color:#999;font-size:12px;">새 장르는 저장 후 다음 앨범부터 선택지에 자동으로 나타납니다.</div>
 </div>
 
 
