@@ -310,7 +310,7 @@ table {
 
     border-collapse: collapse;
 
-    min-width: 1100px;
+    min-width: 1220px;
 }
 
 
@@ -402,6 +402,53 @@ td {
 
     color: #fa2d48;
 
+    font-weight: 800;
+}
+
+
+.primary-current {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #171719;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.primary-auto {
+    color: #999;
+    font-size: 10px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.primary-button {
+    min-height: 31px;
+    padding: 0 10px;
+    border: 1px solid #d9d9dd;
+    border-radius: 9px;
+    background: #fff;
+    color: #444;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.primary-button:hover {
+    border-color: #171719;
+    color: #171719;
+}
+
+.copy-count {
+    display: block;
+    margin-top: 4px;
+    color: #fa2d48;
+    font-size: 9px;
     font-weight: 800;
 }
 
@@ -635,6 +682,16 @@ td {
 <div class="message delete-message">
 
 {{ deleted }} 삭제 완료
+
+</div>
+
+{% endif %}
+
+{% if featured %}
+
+<div class="message success">
+
+✓ {{ featured }} 앨범을 메인 대표로 설정했습니다.
 
 </div>
 
@@ -999,6 +1056,10 @@ X
 </th>
 
 <th>
+메인 표시
+</th>
+
+<th>
 관리
 </th>
 
@@ -1055,6 +1116,10 @@ X
 <td>
 
 {{ album.album_id }}
+
+{% if album.copy_count and album.copy_count > 1 %}
+<span class="copy-count">중복 {{ album.copy_count }}장</span>
+{% endif %}
 
 </td>
 
@@ -1152,6 +1217,32 @@ X
 
 {% endif %}
 
+
+</td>
+
+
+
+<td>
+
+{% if album.copy_count and album.copy_count > 1 %}
+
+    {% if album.is_primary_display %}
+    <span class="primary-current">대표</span>
+    {% else %}
+    <form
+        action="{{ url_for('set_main_album', album_row_id=album.id) }}"
+        method="POST"
+    >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="primary-button">메인에 표시</button>
+    </form>
+    {% endif %}
+
+{% else %}
+
+<span class="primary-auto">자동</span>
+
+{% endif %}
 
 </td>
 
