@@ -950,31 +950,16 @@ def get_artist_profile_image(
                 or ''
             ).strip()
 
-    if not resolved_id:
-        for store in ('KR', 'US', 'JP', 'GB'):
-            result = find_apple_artist_in_store(
-                artist_name,
-                store
-            )
-
-            if result:
-                resolved_id = str(
-                    result.get('artist_id')
-                    or ''
-                ).strip()
-                preferred_store = str(
-                    result.get('store')
-                    or store
-                ).upper()
-                break
-
+    # 등록 과정에서 확보된 Apple Artist ID가 없는 경우에는
+    # 공개 아티스트 페이지에서 느린 실시간 검색을 하지 않는다.
+    # 수동 등록 아티스트는 즉시 앨범 커버 배경으로 fallback 한다.
     if not resolved_id:
         save_artist_profile_cache(
             artist_key,
             artist_name,
             '',
             '',
-            'apple-miss'
+            'apple-id-missing'
         )
         return ''
 
@@ -984,7 +969,6 @@ def get_artist_profile_image(
         'KR',
         'US',
         'JP',
-        'GB',
     ):
         store = str(store or '').upper()
 
@@ -1007,7 +991,7 @@ def get_artist_profile_image(
             response = APPLE_SESSION.get(
                 url,
                 headers=APPLE_WEB_HEADERS,
-                timeout=(2.5, 4.5),
+                timeout=(2.0, 3.5),
                 allow_redirects=True
             )
 
