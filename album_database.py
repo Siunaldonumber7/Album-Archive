@@ -100,6 +100,58 @@ def init_db():
         'apple_artist_id TEXT )'
     )
 
+    for prefix in (
+        'CD',
+        'LP',
+        'ETC',
+    ):
+        row = conn.execute(
+            '''
+            SELECT MAX(
+                CAST(
+                    SUBSTR(
+                        management_no,
+                        INSTR(
+                            management_no,
+                            '-'
+                        ) + 1
+                    )
+                    AS INTEGER
+                )
+            ) AS max_number
+            FROM albums
+            WHERE management_no LIKE ?
+            ''',
+            (f'{prefix}-%',)
+        ).fetchone()
+
+        max_number = int(
+            row['max_number']
+            or 0
+        )
+
+        if max_number <= 0:
+            continue
+
+        conn.execute(
+            '''
+            INSERT INTO number_counters (
+                counter_type,
+                last_number
+            ) VALUES (?, ?)
+            ON CONFLICT(counter_type)
+            DO UPDATE SET
+                last_number = MAX(
+                    number_counters.last_number,
+                    excluded.last_number
+                )
+            ''',
+            (
+                f'MANAGEMENT_{prefix}',
+                max_number,
+            )
+        )
+
     conn.execute(
         'CREATE TABLE IF NOT EXISTS album_tracks ( '
         'id INTEGER PRIMARY KEY AUTOINCREMENT, '
