@@ -1090,6 +1090,63 @@ def _find_artist_artwork_in_apple_page(page, artist_id=''):
     return candidates[0][1]
 
 
+def get_cached_artist_profile_image(
+    artist_name
+):
+    artist_name = str(
+        artist_name
+        or ''
+    ).strip()
+
+    if not artist_name:
+        return ''
+
+    artist_key = normalize_text(
+        artist_name
+    )
+
+    if not artist_key:
+        return ''
+
+    memory_profile_url = (
+        _get_artist_profile_memory(
+            artist_key
+        )
+    )
+
+    if memory_profile_url is not None:
+        return memory_profile_url
+
+    cached = get_artist_profile_cache(
+        artist_key
+    )
+
+    if not cached:
+        return ''
+
+    profile_url = str(
+        cached['profile_url']
+        or ''
+    ).strip()
+
+    if profile_url:
+        _save_artist_profile_memory(
+            artist_key,
+            profile_url
+        )
+        return profile_url
+
+    if _artist_profile_cache_is_fresh(
+        cached
+    ):
+        _save_artist_profile_memory(
+            artist_key,
+            ''
+        )
+
+    return ''
+
+
 def get_artist_profile_image(
     artist_name,
     apple_artist_id=''
