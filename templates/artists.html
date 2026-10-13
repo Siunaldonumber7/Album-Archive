@@ -403,7 +403,7 @@ body {
 </style>
 </head>
 
-<body>
+<body data-page="artist-directory">
 <div class="page">
 
 <header class="topbar">
@@ -492,69 +492,7 @@ body {
 </main>
 </div>
 
-<script>
-(() => {
-    const images = Array.from(
-        document.querySelectorAll('.js-artist-profile')
-    );
-
-    const loadImage = (img) => {
-        if (!img || img.dataset.loaded === '1') {
-            return;
-        }
-
-        img.dataset.loaded = '1';
-
-        const profileSrc = img.dataset.profileSrc || '';
-        const fallbackSrc = img.dataset.fallbackSrc || '';
-
-        let fallbackUsed = false;
-
-        img.addEventListener('error', () => {
-            if (!fallbackUsed && fallbackSrc) {
-                fallbackUsed = true;
-                img.classList.add('is-fallback');
-                img.src = fallbackSrc;
-                return;
-            }
-
-            img.style.display = 'none';
-        });
-
-        if (profileSrc) {
-            img.src = profileSrc;
-        } else if (fallbackSrc) {
-            fallbackUsed = true;
-            img.classList.add('is-fallback');
-            img.src = fallbackSrc;
-        } else {
-            img.style.display = 'none';
-        }
-    };
-
-    if ('IntersectionObserver' in window) {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (!entry.isIntersecting) {
-                        continue;
-                    }
-
-                    observer.unobserve(entry.target);
-                    loadImage(entry.target);
-                }
-            },
-            {
-                rootMargin: '320px 0px'
-            }
-        );
-
-        images.forEach((img) => observer.observe(img));
-    } else {
-        images.forEach(loadImage);
-    }
-})();
-</script>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
 
 </body>
 </html>
