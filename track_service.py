@@ -2,10 +2,10 @@ import re
 import time
 
 from cache_utils import BoundedCache
+from catalog import normalize_text
 from search_engine import (
     APPLE_SESSION,
     APPLE_PAGE_CACHE,
-    normalize_text,
     contains_hangul,
     similarity,
     fetch_apple_music_kr_page,
