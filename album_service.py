@@ -1,4 +1,4 @@
-from search_engine import normalize_text
+from catalog import normalize_text
 
 
 def make_album_key(artist, album_title, release_year):
@@ -19,29 +19,39 @@ def get_management_prefix(media_format):
     return 'ETC'
 
 
-def get_next_management_no(conn, media_format):
-    prefix = get_management_prefix(media_format)
-    counter_type = f'MANAGEMENT_{prefix}'
+def get_next_management_no(
+    conn,
+    media_format
+):
+    prefix = get_management_prefix(
+        media_format
+    )
+    counter_type = (
+        f'MANAGEMENT_{prefix}'
+    )
 
     row = conn.execute(
-        'SELECT last_number FROM number_counters WHERE counter_type = ?',
+        '''
+        INSERT INTO number_counters (
+            counter_type,
+            last_number
+        ) VALUES (?, 1)
+        ON CONFLICT(counter_type)
+        DO UPDATE SET
+            last_number =
+                number_counters.last_number + 1
+        RETURNING last_number
+        ''',
         (counter_type,)
     ).fetchone()
 
-    if row:
-        next_number = row['last_number'] + 1
-        conn.execute(
-            'UPDATE number_counters SET last_number = ? WHERE counter_type = ?',
-            (next_number, counter_type)
-        )
-    else:
-        next_number = 1
-        conn.execute(
-            'INSERT INTO number_counters ( counter_type, last_number ) VALUES (?, ?)',
-            (counter_type, next_number)
-        )
+    next_number = int(
+        row['last_number']
+    )
 
-    return f'{prefix}-{next_number:04d}'
+    return (
+        f'{prefix}-{next_number:04d}'
+    )
 
 
 def get_or_create_album_id(
