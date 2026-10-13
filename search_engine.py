@@ -797,99 +797,132 @@ def safe_json_decode(raw):
         pass
     return None
 
-def find_apple_artist_in_store(artist_name, store):
+def find_apple_artist_in_store(
+    artist_name,
+    store
+):
+    artist_name = str(
+        artist_name
+        or ''
+    ).strip()
+    store = str(
+        store
+        or 'KR'
+    ).strip().upper()
+
     if not artist_name:
         return None
 
-    target = normalize_text(artist_name)
-    cache_key = f'{store}|{target}'
-    cached = APPLE_ARTIST_CACHE.get(cache_key)
+    target = normalize_text(
+        artist_name
+    )
+    cache_key = (
+        f'{store}|{target}'
+    )
+    cached = APPLE_ARTIST_CACHE.get(
+        cache_key
+    )
 
-    if cached and time.time() - cached['time'] < APPLE_ARTIST_CACHE_SECONDS:
+    if (
+        cached
+        and time.time() - cached['time']
+        < APPLE_ARTIST_CACHE_SECONDS
+    ):
         return cached['data']
 
     best_candidate = None
-    best_score = 0
+    best_score = 0.0
+
     try:
-        response = APPLE_SESSION.get('https://itunes.apple.com/search', params={'term': artist_name, 'country': store, 'media': 'music', 'entity': 'musicArtist', 'attribute': 'artistTerm', 'limit': 30, 'explicit': 'Yes'}, timeout=10)
+        response = APPLE_SESSION.get(
+            'https://itunes.apple.com/search',
+            params={
+                'term': artist_name,
+                'country': store,
+                'media': 'music',
+                'entity': 'musicArtist',
+                'attribute': 'artistTerm',
+                'limit': 30,
+                'explicit': 'Yes',
+            },
+            timeout=10
+        )
         response.raise_for_status()
-        data = response.json()
-        for item in data.get('results', []):
-            result_name = item.get('artistName', '')
-            artist_id = item.get('artistId')
+
+        for item in response.json().get(
+            'results',
+            []
+        ):
+            result_name = str(
+                item.get(
+                    'artistName',
+                    ''
+                )
+                or ''
+            ).strip()
+            artist_id = item.get(
+                'artistId'
+            )
+
             if not artist_id:
                 continue
-            result_normalized = normalize_text(result_name)
-            if result_normalized == target:
-                result = {
-                    'artist_id': str(artist_id),
-                    'artist_name': result_name,
-                    'store': store
-                }
-                APPLE_ARTIST_CACHE[cache_key] = {
+
+            result = {
+                'artist_id': str(
+                    artist_id
+                ),
+                'artist_name': (
+                    result_name
+                ),
+                'store': store,
+            }
+
+            if (
+                normalize_text(
+                    result_name
+                )
+                == target
+            ):
+                APPLE_ARTIST_CACHE[
+                    cache_key
+                ] = {
                     'time': time.time(),
-                    'data': result
+                    'data': result,
                 }
                 return result
-            score = similarity(artist_name, result_name)
+
+            score = similarity(
+                artist_name,
+                result_name
+            )
+
             if score > best_score:
                 best_score = score
-                best_candidate = {'artist_id': str(artist_id), 'artist_name': result_name, 'store': store}
-    except Exception as e:
-        print(f'ARTIST SEARCH ERROR [{store}]:', e)
-    result = best_candidate if best_candidate and best_score >= 0.72 else None
-    APPLE_ARTIST_CACHE[cache_key] = {
+                best_candidate = result
+    except Exception as exc:
+        print(
+            f'ARTIST SEARCH ERROR [{store}]:',
+            exc
+        )
+
+    result = (
+        best_candidate
+        if (
+            best_candidate
+            and best_score >= 0.72
+        )
+        else None
+    )
+
+    APPLE_ARTIST_CACHE[
+        cache_key
+    ] = {
         'time': time.time(),
-        'data': result
+        'data': result,
     }
+
     return result
 
-def find_apple_artist_in_store(artist_name, store):
-    if not artist_name:
-        return None
-
-    target = normalize_text(artist_name)
-    cache_key = f'{store}|{target}'
-    cached = APPLE_ARTIST_CACHE.get(cache_key)
-
-    if cached and time.time() - cached['time'] < APPLE_ARTIST_CACHE_SECONDS:
-        return cached['data']
-
-    best_candidate = None
-    best_score = 0
-    try:
-        response = APPLE_SESSION.get('https://itunes.apple.com/search', params={'term': artist_name, 'country': store, 'media': 'music', 'entity': 'musicArtist', 'attribute': 'artistTerm', 'limit': 30, 'explicit': 'Yes'}, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        for item in data.get('results', []):
-            result_name = item.get('artistName', '')
-            artist_id = item.get('artistId')
-            if not artist_id:
-                continue
-            result_normalized = normalize_text(result_name)
-            if result_normalized == target:
-                result = {
-                    'artist_id': str(artist_id),
-                    'artist_name': result_name,
-                    'store': store
-                }
-                APPLE_ARTIST_CACHE[cache_key] = {
-                    'time': time.time(),
-                    'data': result
-                }
-                return result
-            score = similarity(artist_name, result_name)
-            if score > best_score:
-                best_score = score
-                best_candidate = {'artist_id': str(artist_id), 'artist_name': result_name, 'store': store}
-    except Exception as e:
-        print(f'ARTIST SEARCH ERROR [{store}]:', e)
-    result = best_candidate if best_candidate and best_score >= 0.72 else None
-    APPLE_ARTIST_CACHE[cache_key] = {
-        'time': time.time(),
-        'data': result
-    }
-    return result
 
 def _artist_profile_cache_is_fresh(row, max_age_seconds=86400):
     if not row:
