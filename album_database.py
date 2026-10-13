@@ -144,5 +144,24 @@ def init_db():
         'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
 
+    # Keep existing album rows aligned with the current genre taxonomy.
+    # Local import avoids coupling database setup to catalog at module import time.
+    from catalog import normalize_genres
+
+    genre_rows = conn.execute(
+        "SELECT id, genre FROM albums "
+        "WHERE genre IS NOT NULL AND TRIM(genre) != ''"
+    ).fetchall()
+
+    for row in genre_rows:
+        current_genre = str(row['genre'] or '').strip()
+        normalized_genre = normalize_genres(current_genre)
+
+        if normalized_genre != current_genre:
+            conn.execute(
+                'UPDATE albums SET genre = ? WHERE id = ?',
+                (normalized_genre, row['id'])
+            )
+
     conn.commit()
     conn.close()
