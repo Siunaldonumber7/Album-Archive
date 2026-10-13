@@ -11,13 +11,9 @@ from pagination import (
     build_pagination_pages,
 )
 from catalog import (
-    ALBUM_TYPES,
     split_genres,
     artist_credit_parts,
     split_artists,
-    artist_group_key,
-    artist_group_sort_key,
-    name_sort_key,
 )
 
 from cache_utils import BoundedCache
@@ -32,6 +28,18 @@ from media_service import configure_media, cover_thumbnail_url
 from admin_routes import register_admin_routes
 from album_routes import register_album_routes
 from search_engine import get_artist_profile_image
+from library_view import (
+    INDEX_SORT_SQL,
+    resolve_index_state,
+    build_index_where,
+    sort_index_rows,
+    build_artist_directory,
+    collect_artist_albums,
+    build_format_summary,
+    build_album_type_summary,
+    sort_artist_albums,
+    resolve_artist_sort,
+)
 
 app = Flask(__name__)
 
@@ -179,244 +187,144 @@ register_album_routes(app)
 
 @app.route('/')
 def index():
-    state_keys = (
-        'library_q',
-        'classification',
-        'media_format',
-        'album_type',
-        'genre',
-        'sort',
-    )
-    reset_filters = (
-        request.args.get('reset_filters', '').strip() == '1'
-    )
-    has_explicit_state = any(
-        key in request.args
-        for key in state_keys
+    state = resolve_index_state(
+        request.args,
+        session
     )
 
-    if reset_filters:
-        session.pop('album_index_state', None)
-        saved_state = {}
-    else:
-        saved_state = session.get('album_index_state', {})
-        if not isinstance(saved_state, dict):
-            saved_state = {}
+    library_q = state['library_q']
+    classification_filter = state['classification']
+    format_filter = state['media_format']
+    album_type_filter = state['album_type']
+    genre_filter = state['genre']
+    sort_order = state['sort']
 
-    def state_value(key, default=''):
-        if has_explicit_state:
-            return request.args.get(key, default)
-        return saved_state.get(key, default)
-
-    library_q = str(
-        state_value('library_q', '')
-        or ''
-    ).strip()
-    classification_filter = str(
-        state_value('classification', '')
-        or ''
-    ).strip()
-    format_filter = str(
-        state_value('media_format', '')
-        or ''
-    ).strip()
-    album_type_filter = str(
-        state_value('album_type', '')
-        or ''
-    ).strip()
-    genre_filter = str(
-        state_value('genre', '')
-        or ''
-    ).strip()
-    sort_order = str(
-        state_value('sort', 'release_desc')
-        or 'release_desc'
-    ).strip()
-    page = parse_page_number(request.args.get('page', '1'))
-
-    sort_sql_map = {
-        'release_desc': (
-            "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
-            "THEN 0 ELSE 1 END ASC, "
-            "CAST(release_year AS INTEGER) DESC, "
-            "album_title COLLATE NOCASE ASC, id DESC"
-        ),
-        'release_asc': (
-            "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
-            "THEN 0 ELSE 1 END ASC, "
-            "CAST(release_year AS INTEGER) ASC, "
-            "album_title COLLATE NOCASE ASC, id ASC"
-        ),
-        'price_desc': (
-            "CASE WHEN purchase_price IS NULL THEN 1 ELSE 0 END ASC, "
-            "purchase_price DESC, album_title COLLATE NOCASE ASC, id DESC"
-        ),
-        'price_asc': (
-            "CASE WHEN purchase_price IS NULL THEN 1 ELSE 0 END ASC, "
-            "purchase_price ASC, album_title COLLATE NOCASE ASC, id DESC"
-        ),
-    }
-
-    allowed_sorts = set(sort_sql_map) | {
-        'artist',
-        'title',
-    }
-
-    if sort_order not in allowed_sorts:
-        sort_order = 'release_desc'
-
-    if not reset_filters:
-        session['album_index_state'] = {
-            key: value
-            for key, value in {
-                'library_q': library_q,
-                'classification': classification_filter,
-                'media_format': format_filter,
-                'album_type': album_type_filter,
-                'genre': genre_filter,
-                'sort': sort_order,
-            }.items()
-            if value
-        }
-
+    page = parse_page_number(
+        request.args.get('page', '1')
+    )
     saved = request.args.get('saved', '')
-    bulk_saved = request.args.get('bulk_saved', '')
+    bulk_saved = request.args.get(
+        'bulk_saved',
+        ''
+    )
 
+    where_sql, params = build_index_where(
+        state
+    )
     conn = get_db()
-    conditions = ['is_primary_display = 1']
-    params = []
 
-    if library_q:
-        value = f'%{library_q}%'
-        conditions.append(
-            '( artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? )'
-        )
-        params.extend([value, value, value])
-
-    if classification_filter:
-        conditions.append('classification = ?')
-        params.append(classification_filter)
-
-    if format_filter == 'CD':
-        conditions.append("media_format = 'CD'")
-    elif format_filter == 'LP':
-        conditions.append("media_format = 'LP'")
-    elif format_filter == 'ETC':
-        conditions.append(
-            "media_format IN ( 'Casette', 'USB', '기타' )"
-        )
-
-    if album_type_filter in ALBUM_TYPES:
-        conditions.append('album_type = ?')
-        params.append(album_type_filter)
-
-    if genre_filter:
-        conditions.append(
-            "(',' || REPLACE(COALESCE(genre, ''), ', ', ',') || ',') LIKE ?"
-        )
-        params.append(f'%,{genre_filter},%')
-
-    where_sql = (
-        ' WHERE ' + ' AND '.join(conditions)
-        if conditions
-        else ''
-    )
-
-    filtered_album_count = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums' + where_sql,
-        params
-    ).fetchone()['count']
-
-    total_pages = max(
-        1,
-        (
-            filtered_album_count
-            + ALBUMS_PER_PAGE
-            - 1
-        ) // ALBUMS_PER_PAGE
-    )
-    page = min(page, total_pages)
-    offset = (page - 1) * ALBUMS_PER_PAGE
-
-    if sort_order in {'artist', 'title'}:
-        sorted_albums = conn.execute(
-            'SELECT * FROM albums' + where_sql,
+    try:
+        filtered_album_count = conn.execute(
+            'SELECT COUNT(*) AS count '
+            'FROM albums'
+            + where_sql,
             params
-        ).fetchall()
+        ).fetchone()['count']
 
-        if sort_order == 'artist':
-            sorted_albums = sorted(
-                sorted_albums,
-                key=lambda album: (
-                    name_sort_key(album['artist']),
-                    name_sort_key(album['album_title']),
-                    -(int(album['id'] or 0)),
-                )
-            )
-        else:
-            sorted_albums = sorted(
-                sorted_albums,
-                key=lambda album: (
-                    name_sort_key(album['album_title']),
-                    name_sort_key(album['artist']),
-                    -(int(album['id'] or 0)),
-                )
-            )
-
-        albums = sorted_albums[
-            offset:offset + ALBUMS_PER_PAGE
-        ]
-    else:
-        query = (
-            'SELECT * FROM albums'
-            + where_sql
-            + ' ORDER BY '
-            + sort_sql_map[sort_order]
-            + ' LIMIT ? OFFSET ?'
+        total_pages = max(
+            1,
+            (
+                filtered_album_count
+                + ALBUMS_PER_PAGE
+                - 1
+            ) // ALBUMS_PER_PAGE
         )
-        albums = conn.execute(
-            query,
-            params + [ALBUMS_PER_PAGE, offset]
+        page = min(
+            page,
+            total_pages
+        )
+        offset = (
+            page - 1
+        ) * ALBUMS_PER_PAGE
+
+        if sort_order in {
+            'artist',
+            'title',
+        }:
+            rows = conn.execute(
+                'SELECT * FROM albums'
+                + where_sql,
+                params
+            ).fetchall()
+            rows = sort_index_rows(
+                rows,
+                sort_order
+            )
+            albums = rows[
+                offset:
+                offset + ALBUMS_PER_PAGE
+            ]
+        else:
+            query = (
+                'SELECT * FROM albums'
+                + where_sql
+                + ' ORDER BY '
+                + INDEX_SORT_SQL[
+                    sort_order
+                ]
+                + ' LIMIT ? OFFSET ?'
+            )
+            albums = conn.execute(
+                query,
+                params + [
+                    ALBUMS_PER_PAGE,
+                    offset,
+                ]
+            ).fetchall()
+
+        total_album_count = conn.execute(
+            'SELECT COUNT(*) AS count '
+            'FROM albums '
+            'WHERE is_primary_display = 1'
+        ).fetchone()['count']
+
+        genre_rows = conn.execute(
+            "SELECT genre FROM albums "
+            "WHERE is_primary_display = 1 "
+            "AND genre IS NOT NULL "
+            "AND TRIM(genre) != ''"
         ).fetchall()
 
-    total_album_count = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums '
-        'WHERE is_primary_display = 1'
-    ).fetchone()['count']
-
-    genre_rows = conn.execute(
-        "SELECT genre FROM albums "
-        "WHERE is_primary_display = 1 "
-        "AND genre IS NOT NULL AND TRIM(genre) != ''"
-    ).fetchall()
-    genre_options = sorted(
-        {
-            genre
-            for row in genre_rows
-            for genre in split_genres(row['genre'])
-        },
-        key=str.casefold
-    )
-
-    conn.close()
+        genre_options = sorted(
+            {
+                genre
+                for row in genre_rows
+                for genre in split_genres(
+                    row['genre']
+                )
+            },
+            key=str.casefold
+        )
+    finally:
+        conn.close()
 
     return render_template(
         'index.html',
         albums=albums,
         library_q=library_q,
-        classification_filter=classification_filter,
+        classification_filter=(
+            classification_filter
+        ),
         format_filter=format_filter,
-        album_type_filter=album_type_filter,
+        album_type_filter=(
+            album_type_filter
+        ),
         genre_filter=genre_filter,
         genre_options=genre_options,
         sort_order=sort_order,
-        total_album_count=total_album_count,
-        filtered_album_count=filtered_album_count,
+        total_album_count=(
+            total_album_count
+        ),
+        filtered_album_count=(
+            filtered_album_count
+        ),
         page=page,
         total_pages=total_pages,
-        pagination_pages=build_pagination_pages(
-            page,
-            total_pages
+        pagination_pages=(
+            build_pagination_pages(
+                page,
+                total_pages
+            )
         ),
         saved=saved,
         bulk_saved=bulk_saved
@@ -451,186 +359,122 @@ def artist_profile_image(artist_name):
 
 @app.route('/artists')
 def artists_page():
-    query = request.args.get('q', '').strip()
+    query = request.args.get(
+        'q',
+        ''
+    ).strip()
 
     conn = get_db()
-    rows = conn.execute(
-        '''
-        SELECT artist, cover_url
-        FROM albums
-        WHERE is_primary_display = 1
-          AND artist IS NOT NULL
-          AND TRIM(artist) != ''
-        ORDER BY id DESC
-        '''
-    ).fetchall()
-    conn.close()
 
-    artist_map = {}
+    try:
+        rows = conn.execute(
+            '''
+            SELECT artist, cover_url
+            FROM albums
+            WHERE is_primary_display = 1
+              AND artist IS NOT NULL
+              AND TRIM(artist) != ''
+            ORDER BY id DESC
+            '''
+        ).fetchall()
+    finally:
+        conn.close()
 
-    for row in rows:
-        for artist_name in split_artists(row['artist']):
-            name = str(artist_name or '').strip()
-            if not name:
-                continue
-
-            key = name.casefold()
-            item = artist_map.get(key)
-
-            if item is None:
-                item = {
-                    'name': name,
-                    'count': 0,
-                    'cover_url': '',
-                }
-                artist_map[key] = item
-
-            item['count'] += 1
-
-            if not item['cover_url'] and row['cover_url']:
-                item['cover_url'] = row['cover_url']
-
-    total_artist_count = len(artist_map)
-    artists = list(artist_map.values())
-
-    if query:
-        query_key = query.casefold()
-        artists = [
-            item
-            for item in artists
-            if query_key in item['name'].casefold()
-        ]
-
-    artists.sort(
-        key=lambda item: (
-            artist_group_sort_key(
-                artist_group_key(item['name'])
-            ),
-            name_sort_key(item['name'])
-        )
+    directory = build_artist_directory(
+        rows,
+        query
     )
-
-    grouped = {}
-
-    for item in artists:
-        group = artist_group_key(item['name'])
-        grouped.setdefault(group, []).append(item)
-
-    grouped_artists = [
-        {
-            'key': group,
-            'anchor': (
-                'other'
-                if group == '#'
-                else 'group-' + str(ord(group[0]))
-            ),
-            'artists': grouped[group],
-        }
-        for group in sorted(
-            grouped,
-            key=artist_group_sort_key
-        )
-    ]
 
     return render_template(
         'artists.html',
-        grouped_artists=grouped_artists,
-        total_artist_count=total_artist_count,
-        filtered_artist_count=len(artists),
-        query=query
+        query=query,
+        **directory
     )
 
 
 @app.route('/artist/<path:artist_name>')
 def artist_page(artist_name):
-    artist_name = str(artist_name or '').strip()
-
-    allowed_sorts = {
-        'release_desc',
-        'release_asc',
-        'price_desc',
-        'price_asc',
-        'title',
-    }
-
-    requested_sort = request.args.get('sort')
-    if requested_sort is None:
-        sort_order = str(
-            session.get(
-                'album_artist_sort',
-                'release_desc'
-            )
-            or 'release_desc'
-        ).strip()
-    else:
-        sort_order = str(
-            requested_sort
-            or 'release_desc'
-        ).strip()
-
-    if sort_order not in allowed_sorts:
-        sort_order = 'release_desc'
-
-    session['album_artist_sort'] = sort_order
-
-    page = parse_page_number(request.args.get('page', '1'))
+    artist_name = str(
+        artist_name
+        or ''
+    ).strip()
 
     if not artist_name:
-        return redirect(url_for('index'))
+        return redirect(
+            url_for('index')
+        )
 
-    target_key = artist_name.casefold()
+    sort_order = resolve_artist_sort(
+        request.args,
+        session
+    )
+    page = parse_page_number(
+        request.args.get('page', '1')
+    )
+
     conn = get_db()
 
-    all_albums = conn.execute(
-        '''
-        SELECT *
-        FROM albums
-        WHERE is_primary_display = 1
-        ORDER BY
-            CASE
-                WHEN release_year GLOB '[0-9][0-9][0-9][0-9]'
-                THEN CAST(release_year AS INTEGER)
-                ELSE 0
-            END DESC,
-            album_title COLLATE NOCASE ASC,
-            id DESC
-        '''
-    ).fetchall()
+    try:
+        all_albums = conn.execute(
+            '''
+            SELECT *
+            FROM albums
+            WHERE is_primary_display = 1
+            ORDER BY
+                CASE
+                    WHEN release_year
+                        GLOB '[0-9][0-9][0-9][0-9]'
+                    THEN CAST(
+                        release_year
+                        AS INTEGER
+                    )
+                    ELSE 0
+                END DESC,
+                album_title COLLATE NOCASE ASC,
+                id DESC
+            '''
+        ).fetchall()
 
-    all_owned_copies = conn.execute(
-        '''
-        SELECT artist, media_format
-        FROM albums
-        WHERE artist IS NOT NULL
-          AND TRIM(artist) != ''
-        '''
-    ).fetchall()
+        all_owned_copies = conn.execute(
+            '''
+            SELECT artist, media_format
+            FROM albums
+            WHERE artist IS NOT NULL
+              AND TRIM(artist) != ''
+            '''
+        ).fetchall()
+    finally:
+        conn.close()
 
-    conn.close()
-
-    matched_albums = []
-    canonical_artist = ''
-
-    for album in all_albums:
-        for credit_name in split_artists(album['artist']):
-            if credit_name.casefold() == target_key:
-                matched_albums.append(album)
-                if not canonical_artist:
-                    canonical_artist = credit_name
-                break
+    (
+        matched_albums,
+        canonical_artist,
+        target_key,
+    ) = collect_artist_albums(
+        all_albums,
+        artist_name
+    )
 
     if not matched_albums:
         abort(404)
 
-    artist_profile_url = get_artist_profile_image(
-        canonical_artist
+    artist_profile_url = (
+        get_artist_profile_image(
+            canonical_artist
+        )
     )
 
     fallback_cover_url = next(
         (
-            str(album['cover_url'] or '').strip()
+            str(
+                album['cover_url']
+                or ''
+            ).strip()
             for album in matched_albums
-            if str(album['cover_url'] or '').strip()
+            if str(
+                album['cover_url']
+                or ''
+            ).strip()
         ),
         ''
     )
@@ -649,142 +493,25 @@ def artist_page(artist_name):
         )
     )
 
-    owned_count = len(matched_albums)
-
-    format_counts = {
-        'CD': 0,
-        'LP': 0,
-        'CASETTE': 0,
-        'ETC': 0,
-    }
-
-    for album in all_owned_copies:
-        artist_match = any(
-            credit_name.casefold() == target_key
-            for credit_name in split_artists(
-                album['artist']
-            )
+    owned_count = len(
+        matched_albums
+    )
+    (
+        format_counts,
+        format_summary,
+    ) = build_format_summary(
+        all_owned_copies,
+        target_key
+    )
+    album_type_summary = (
+        build_album_type_summary(
+            matched_albums
         )
-
-        if not artist_match:
-            continue
-
-        media_format = str(
-            album['media_format'] or ''
-        ).strip()
-        media_key = media_format.casefold()
-
-        if media_key == 'cd':
-            format_counts['CD'] += 1
-        elif media_key == 'lp':
-            format_counts['LP'] += 1
-        elif media_key in {
-            'casette',
-            'cassette',
-            '카세트',
-        }:
-            format_counts['CASETTE'] += 1
-        else:
-            format_counts['ETC'] += 1
-
-    format_summary = [
-        {
-            'name': name,
-            'count': format_counts[name]
-        }
-        for name in (
-            'CD',
-            'LP',
-            'CASETTE',
-            'ETC',
-        )
-        if format_counts[name] > 0
-    ]
-
-    type_order = [
-        '앨범',
-        'EP(미니)',
-        '싱글',
-        '믹스테잎',
-    ]
-    album_type_counts = {
-        type_name: 0
-        for type_name in type_order
-    }
-
-    for album in matched_albums:
-        album_type = (
-            str(album['album_type'] or '앨범').strip()
-            or '앨범'
-        )
-        if album_type in album_type_counts:
-            album_type_counts[album_type] += 1
-
-    album_type_summary = [
-        {
-            'name': type_name,
-            'count': album_type_counts[type_name]
-        }
-        for type_name in type_order
-        if album_type_counts[type_name] > 0
-    ]
-
-    def release_year_number(album):
-        value = str(album['release_year'] or '').strip()
-        return int(value) if value.isdigit() else None
-
-    def purchase_price_number(album):
-        value = album['purchase_price']
-        if value is None:
-            return None
-        try:
-            return int(value)
-        except Exception:
-            return None
-
-    if sort_order == 'release_asc':
-        matched_albums.sort(
-            key=lambda album: (
-                release_year_number(album) is None,
-                release_year_number(album) or 0,
-                name_sort_key(album['album_title']),
-                int(album['id'] or 0),
-            )
-        )
-    elif sort_order == 'price_desc':
-        matched_albums.sort(
-            key=lambda album: (
-                purchase_price_number(album) is None,
-                -(purchase_price_number(album) or 0),
-                name_sort_key(album['album_title']),
-                -(int(album['id'] or 0)),
-            )
-        )
-    elif sort_order == 'price_asc':
-        matched_albums.sort(
-            key=lambda album: (
-                purchase_price_number(album) is None,
-                purchase_price_number(album) or 0,
-                name_sort_key(album['album_title']),
-                -(int(album['id'] or 0)),
-            )
-        )
-    elif sort_order == 'title':
-        matched_albums.sort(
-            key=lambda album: (
-                name_sort_key(album['album_title']),
-                -(int(album['id'] or 0)),
-            )
-        )
-    else:
-        matched_albums.sort(
-            key=lambda album: (
-                release_year_number(album) is None,
-                -(release_year_number(album) or 0),
-                name_sort_key(album['album_title']),
-                -(int(album['id'] or 0)),
-            )
-        )
+    )
+    matched_albums = sort_artist_albums(
+        matched_albums,
+        sort_order
+    )
 
     total_pages = max(
         1,
@@ -794,32 +521,47 @@ def artist_page(artist_name):
             - 1
         ) // ALBUMS_PER_PAGE
     )
-    page = min(page, total_pages)
-    offset = (page - 1) * ALBUMS_PER_PAGE
+    page = min(
+        page,
+        total_pages
+    )
+    offset = (
+        page - 1
+    ) * ALBUMS_PER_PAGE
     albums = matched_albums[
-        offset:offset + ALBUMS_PER_PAGE
+        offset:
+        offset + ALBUMS_PER_PAGE
     ]
 
     return render_template(
         'artist.html',
         artist_name=canonical_artist,
         albums=albums,
-        artist_profile_url=artist_profile_url,
-        hero_background_url=hero_background_url,
-        hero_background_source=hero_background_source,
+        artist_profile_url=(
+            artist_profile_url
+        ),
+        hero_background_url=(
+            hero_background_url
+        ),
+        hero_background_source=(
+            hero_background_source
+        ),
         owned_count=owned_count,
         format_counts=format_counts,
         format_summary=format_summary,
-        album_type_summary=album_type_summary,
+        album_type_summary=(
+            album_type_summary
+        ),
         sort_order=sort_order,
         page=page,
         total_pages=total_pages,
-        pagination_pages=build_pagination_pages(
-            page,
-            total_pages
+        pagination_pages=(
+            build_pagination_pages(
+                page,
+                total_pages
+            )
         )
     )
-
 
 
 @app.route('/album/<int:album_row_id>')
