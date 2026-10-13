@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import render_template, request, redirect, url_for
 
-from album_database import get_db
+from album_database import get_db, get_genre_options, remember_genres
 from album_service import (
     make_album_key,
     get_next_management_no,
@@ -22,7 +22,32 @@ from search_engine import (
     clear_search_cache,
 )
 from track_service import clear_track_caches
-from bugs_genre_service import get_bugs_genre
+
+
+def _collect_genres(form, selected_name, new_name):
+    values = list(form.getlist(selected_name))
+    new_value = form.get(new_name, '').strip()
+
+    if new_value:
+        values.append(new_value)
+
+    return normalize_genres(values)
+
+
+def _genre_options_with_current(current=''):
+    options = get_genre_options()
+    seen = {value.casefold() for value in options}
+
+    from catalog import split_genres
+
+    for genre in split_genres(current):
+        key = genre.casefold()
+
+        if key not in seen:
+            seen.add(key)
+            options.append(genre)
+
+    return options
 
 
 def register_album_routes(app):
@@ -101,9 +126,7 @@ def add_album_page():
         searched = True
         apple_results = search_apple(artist, album)
 
-        # 자동 장르는 벅스만 사용한다.
-        # 검색 결과 단계에서는 아직 벅스를 호출하지 않으므로
-        # Apple Music 장르는 화면/폼에 전달하지 않는다.
+        # 장르는 사용자가 직접 관리하므로 Apple 장르는 자동 입력하지 않는다.
         apple_results = [
             {
                 **item,
@@ -113,6 +136,8 @@ def add_album_page():
             else item
             for item in apple_results
         ]
+
+    genre_options = get_genre_options()
 
     conn = get_db()
     total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
@@ -125,6 +150,7 @@ def add_album_page():
         searched=searched,
         apple_results=apple_results,
         total_album_count=total_album_count,
+        genre_options=genre_options,
         link_error=link_error,
         manual_error=manual_error,
         saved=saved,
@@ -152,11 +178,7 @@ def add_album_from_link():
     cover_url = metadata.get('cover', '')
     apple_artist_id = metadata.get('artist_id', '')
     album_type = metadata.get('album_type', '') or '앨범'
-    genre = get_bugs_genre(
-        artist,
-        album_title,
-        release_year
-    )
+    genre = ''
 
     album_key = make_album_key(
         artist,
@@ -204,7 +226,8 @@ def add_album_from_link():
         'register.html',
         album=selected,
         duplicate_count=duplicate_count,
-        duplicate_items=duplicate_items
+        duplicate_items=duplicate_items,
+        genre_options=get_genre_options()
     )
 
 def add_album_manual():
@@ -216,7 +239,7 @@ def add_album_manual():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genres(request.form.getlist('genre'))
+    genre = _collect_genres(request, 'genre', 'genre_new')
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
     purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
@@ -281,6 +304,8 @@ def add_album_manual():
             conn,
             media_format
         )
+
+        remember_genres(conn, genre)
 
         conn.execute(
             """INSERT INTO albums (
@@ -437,68 +462,14 @@ def register_bulk():
                 store
             )
 
-    # 선택한 앨범만 벅스 장르를 조회한다.
-    # Apple 검색 자체의 속도에는 영향을 주지 않도록 미리보기 단계에서만 실행한다.
-    valid_indexes = [
-        index
-        for index, item in enumerate(metadata_results)
-        if item
-    ]
+    # 장르는 사용자가 직접 입력하므로 Apple 자동 장르는 비운다.
+    for index, item in enumerate(metadata_results):
+        if not item:
+            continue
 
-    if valid_indexes:
-        # 벅스 조회가 실패하거나 예외가 나더라도 Apple 장르가 남지 않게
-        # 먼저 자동 장르를 비운다.
-        for index in valid_indexes:
-            item = dict(metadata_results[index])
-            item['genre'] = ''
-            metadata_results[index] = item
-
-        bugs_worker_count = min(
-            3,
-            len(valid_indexes)
-        )
-
-        print(
-            'BULK BUGS GENRE:',
-            len(valid_indexes),
-            'albums /',
-            bugs_worker_count,
-            'workers'
-        )
-
-        def enrich_bugs_genre(index):
-            item = metadata_results[index]
-
-            if not item:
-                return index, item
-
-            item = dict(item)
-            item['genre'] = get_bugs_genre(
-                item.get('artist', ''),
-                item.get('title', ''),
-                item.get('release_year', '')
-            )
-            return index, item
-
-        try:
-            with ThreadPoolExecutor(
-                max_workers=bugs_worker_count
-            ) as executor:
-                enriched_results = list(
-                    executor.map(
-                        enrich_bugs_genre,
-                        valid_indexes
-                    )
-                )
-
-            for index, item in enriched_results:
-                metadata_results[index] = item
-
-        except Exception as e:
-            print(
-                'BULK BUGS GENRE ERROR:',
-                e
-            )
+        item = dict(item)
+        item['genre'] = ''
+        metadata_results[index] = item
 
     albums = []
     conn = get_db()
@@ -548,7 +519,8 @@ def register_bulk():
         'bulk_register.html',
         albums=albums,
         search_artist=search_artist,
-        search_album=search_album
+        search_album=search_album,
+        genre_options=get_genre_options()
     )
 
 def save_bulk_albums():
@@ -591,8 +563,10 @@ def save_bulk_albums():
             classification = request.form.get(prefix + 'classification', '').strip()
             media_format = request.form.get(prefix + 'media_format', '').strip()
             album_type = request.form.get(prefix + 'album_type', '').strip()
-            genre = normalize_genres(
-                request.form.getlist(prefix + 'genre')
+            genre = _collect_genres(
+                request,
+                prefix + 'genre',
+                prefix + 'genre_new'
             )
             open_status = request.form.get(prefix + 'open_status', '').strip()
             signed = request.form.get(prefix + 'signed', '').strip()
@@ -650,6 +624,8 @@ def save_bulk_albums():
                 conn,
                 media_format
             )
+
+            remember_genres(conn, genre)
 
             conn.execute(
                 '''
@@ -721,11 +697,7 @@ def register():
     release_year = request.form.get('release_year', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     album_type = request.form.get('album_type', '').strip() or '앨범'
-    genre = get_bugs_genre(
-        artist,
-        album_title,
-        release_year
-    )
+    genre = ''
     album_key = make_album_key(artist, album_title, release_year)
     conn = get_db()
     existing = conn.execute("SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1", (album_key, apple_id, apple_id)).fetchone()
@@ -739,7 +711,13 @@ def register():
         preview_album_id = '신규 자동 생성'
     conn.close()
     selected = {'apple_id': apple_id, 'apple_artist_id': apple_artist_id, 'search_artist': search_artist, 'search_album': search_album, 'artist': artist, 'album_title': album_title, 'release_year': release_year, 'cover_url': cover_url, 'album_type': album_type, 'genre': genre, 'preview_album_id': preview_album_id}
-    return render_template('register.html', album=selected, duplicate_count=duplicate_count, duplicate_items=duplicate_items)
+    return render_template(
+        'register.html',
+        album=selected,
+        duplicate_count=duplicate_count,
+        duplicate_items=duplicate_items,
+        genre_options=get_genre_options()
+    )
 
 def save_album():
     apple_id = request.form.get('apple_id', '').strip()
@@ -750,7 +728,7 @@ def save_album():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genres(request.form.getlist('genre'))
+    genre = _collect_genres(request, 'genre', 'genre_new')
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -780,6 +758,7 @@ def save_album():
     learn_artist_alias(conn, search_artist, artist, apple_artist_id)
     album_id = get_or_create_album_id(conn, apple_id, artist, album_title, release_year, cover_url)
     management_no = get_next_management_no(conn, media_format)
+    remember_genres(conn, genre)
     if album_type not in ALBUM_TYPES:
         album_type = '앨범'
     conn.execute('INSERT INTO albums ( management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_collection_id, cover_url ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )', (management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_id, cover_url))
@@ -801,13 +780,18 @@ def edit_album(album_row_id):
     conn.close()
     if album is None:
         return redirect(url_for('manage_albums'))
-    return render_template('edit.html', album=album, updated=updated)
+    return render_template(
+        'edit.html',
+        album=album,
+        updated=updated,
+        genre_options=_genre_options_with_current(album['genre'] or '')
+    )
 
 def update_album(album_row_id):
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = normalize_genres(request.form.getlist('genre'))
+    genre = _collect_genres(request, 'genre', 'genre_new')
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -836,6 +820,7 @@ def update_album(album_row_id):
             new_cover_url = uploaded_cover_url
     if album_type not in ALBUM_TYPES:
         album_type = '앨범'
+    remember_genres(conn, genre)
     conn.execute('UPDATE albums SET classification = ?, media_format = ?, album_type = ?, genre = ?, artist = ?, album_title = ?, release_year = ?, open_status = ?, signed = ?, purchase_price = ?, memo = ?, cover_url = ? WHERE id = ?', (classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, new_cover_url, album_row_id))
     conn.commit()
     management_no = current['management_no']
