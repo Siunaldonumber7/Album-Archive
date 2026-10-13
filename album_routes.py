@@ -22,6 +22,7 @@ from search_engine import (
     clear_search_cache,
 )
 from track_service import clear_track_caches
+from bugs_genre_service import prefer_bugs_genre
 
 
 def register_album_routes(app):
@@ -138,7 +139,12 @@ def add_album_from_link():
     cover_url = metadata.get('cover', '')
     apple_artist_id = metadata.get('artist_id', '')
     album_type = metadata.get('album_type', '') or '앨범'
-    genre = metadata.get('genre', '')
+    genre = prefer_bugs_genre(
+        artist,
+        album_title,
+        release_year,
+        metadata.get('genre', '')
+    )
 
     album_key = make_album_key(
         artist,
@@ -419,6 +425,63 @@ def register_bulk():
                 store
             )
 
+    # 선택한 앨범만 벅스 장르를 조회한다.
+    # Apple 검색 자체의 속도에는 영향을 주지 않도록 미리보기 단계에서만 실행한다.
+    valid_indexes = [
+        index
+        for index, item in enumerate(metadata_results)
+        if item
+    ]
+
+    if valid_indexes:
+        bugs_worker_count = min(
+            3,
+            len(valid_indexes)
+        )
+
+        print(
+            'BULK BUGS GENRE:',
+            len(valid_indexes),
+            'albums /',
+            bugs_worker_count,
+            'workers'
+        )
+
+        def enrich_bugs_genre(index):
+            item = metadata_results[index]
+
+            if not item:
+                return index, item
+
+            item = dict(item)
+            item['genre'] = prefer_bugs_genre(
+                item.get('artist', ''),
+                item.get('title', ''),
+                item.get('release_year', ''),
+                item.get('genre', '')
+            )
+            return index, item
+
+        try:
+            with ThreadPoolExecutor(
+                max_workers=bugs_worker_count
+            ) as executor:
+                enriched_results = list(
+                    executor.map(
+                        enrich_bugs_genre,
+                        valid_indexes
+                    )
+                )
+
+            for index, item in enriched_results:
+                metadata_results[index] = item
+
+        except Exception as e:
+            print(
+                'BULK BUGS GENRE ERROR:',
+                e
+            )
+
     albums = []
     conn = get_db()
 
@@ -640,7 +703,12 @@ def register():
     release_year = request.form.get('release_year', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     album_type = request.form.get('album_type', '').strip() or '앨범'
-    genre = request.form.get('genre', '').strip()
+    genre = prefer_bugs_genre(
+        artist,
+        album_title,
+        release_year,
+        request.form.get('genre', '').strip()
+    )
     album_key = make_album_key(artist, album_title, release_year)
     conn = get_db()
     existing = conn.execute("SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1", (album_key, apple_id, apple_id)).fetchone()
