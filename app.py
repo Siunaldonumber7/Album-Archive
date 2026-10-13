@@ -12,9 +12,7 @@ from pagination import (
 )
 from catalog import (
     ALBUM_TYPES,
-    GENRE_OPTIONS,
     split_genres,
-    genre_choices,
     artist_credit_parts,
     split_artists,
     artist_group_key,
@@ -164,9 +162,7 @@ def add_security_headers(response):
 
     return response
 
-app.jinja_env.globals['genre_options_all'] = GENRE_OPTIONS
 app.jinja_env.globals['split_genres'] = split_genres
-app.jinja_env.globals['genre_choices'] = genre_choices
 app.jinja_env.globals['artist_credit_parts'] = artist_credit_parts
 app.jinja_env.globals['split_artists'] = split_artists
 app.jinja_env.globals['cover_thumbnail_url'] = cover_thumbnail_url
