@@ -1139,14 +1139,14 @@ h1 {
 
 <aside class="sidebar">
 
-<a class="brand" href="{{ url_for('index') }}" title="메인으로">
+<a class="brand" href="{{ url_for('index', reset_filters='1') }}" title="메인으로">
     <div class="brand-disc" aria-hidden="true"></div>
     <div class="brand-name">Album Archive</div>
 </a>
 
 <div class="nav-label">LIBRARY</div>
 
-<a href="{{ url_for('index') }}" class="nav-item active">
+<a href="{{ url_for('index', reset_filters='1') }}" class="nav-item active">
     <span class="nav-icon">▦</span>
     내 앨범
     <span class="nav-count">{{ total_album_count }}</span>
@@ -1235,7 +1235,7 @@ h1 {
     </form>
 </div>
 
-<a class="side-filter-reset js-filter-reset" href="{{ url_for('index') }}">필터 초기화</a>
+<a class="side-filter-reset js-filter-reset" href="{{ url_for('index', reset_filters='1') }}">필터 초기화</a>
 
 </div>
 
@@ -1377,7 +1377,7 @@ Album Archive
 
 <div class="filter-toolbar-head">
     <div class="filter-toolbar-title">필터 · 정렬</div>
-    <a class="filter-reset js-filter-reset" href="{{ url_for('index') }}">전체 초기화</a>
+    <a class="filter-reset js-filter-reset" href="{{ url_for('index', reset_filters='1') }}">전체 초기화</a>
 </div>
 
 <div class="filter-row">
@@ -1678,80 +1678,7 @@ Album Archive
 </div>
 
 
-<script>
-(() => {
-    const storageKey = 'albumArchiveIndexStateV1';
-    const indexPath = {{ url_for('index')|tojson }};
-    const stateKeys = [
-        'library_q',
-        'classification',
-        'media_format',
-        'album_type',
-        'genre',
-        'sort'
-    ];
 
-    if (window.location.pathname !== indexPath) {
-        return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const hasCurrentState = stateKeys.some(
-        key => params.has(key)
-    );
-
-    if (hasCurrentState) {
-        const state = {};
-
-        stateKeys.forEach(key => {
-            const value = (params.get(key) || '').trim();
-            if (value) {
-                state[key] = value;
-            }
-        });
-
-        if (Object.keys(state).length) {
-            localStorage.setItem(
-                storageKey,
-                JSON.stringify(state)
-            );
-        } else {
-            localStorage.removeItem(storageKey);
-        }
-    } else {
-        try {
-            const saved = JSON.parse(
-                localStorage.getItem(storageKey) || '{}'
-            );
-            const restored = new URLSearchParams();
-
-            stateKeys.forEach(key => {
-                const value = String(saved[key] || '').trim();
-                if (value) {
-                    restored.set(key, value);
-                }
-            });
-
-            if ([...restored.keys()].length) {
-                window.location.replace(
-                    indexPath + '?' + restored.toString()
-                );
-                return;
-            }
-        } catch (error) {
-            localStorage.removeItem(storageKey);
-        }
-    }
-
-    document
-        .querySelectorAll('.js-filter-reset')
-        .forEach(link => {
-            link.addEventListener('click', () => {
-                localStorage.removeItem(storageKey);
-            });
-        });
-})();
-</script>
 
 </body>
 
