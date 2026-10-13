@@ -213,16 +213,28 @@ def init_db():
                 row['genre']
             )
 
-    # Every album_id group must have exactly one public representative.
-    # Preserve the oldest selected representative when one already exists;
-    # otherwise choose the oldest row in the group. One set-based UPDATE is
-    # much cheaper than querying and updating every group separately.
+    # Repair only invalid groups. Healthy groups already have one public
+    # representative and should not generate needless writes on every boot.
     conn.execute(
         '''
-        UPDATE albums
-        SET is_primary_display = CASE
-            WHEN id = (
-                SELECT COALESCE(
+        WITH invalid_groups AS (
+            SELECT album_id
+            FROM albums
+            WHERE album_id IS NOT NULL
+              AND TRIM(album_id) != ''
+            GROUP BY album_id
+            HAVING SUM(
+                CASE
+                    WHEN is_primary_display = 1
+                    THEN 1
+                    ELSE 0
+                END
+            ) != 1
+        ),
+        selected_rows AS (
+            SELECT
+                candidate.album_id,
+                COALESCE(
                     MIN(
                         CASE
                             WHEN candidate.is_primary_display = 1
@@ -230,15 +242,26 @@ def init_db():
                         END
                     ),
                     MIN(candidate.id)
-                )
-                FROM albums AS candidate
-                WHERE candidate.album_id = albums.album_id
+                ) AS selected_id
+            FROM albums AS candidate
+            INNER JOIN invalid_groups
+                ON invalid_groups.album_id = candidate.album_id
+            GROUP BY candidate.album_id
+        )
+        UPDATE albums
+        SET is_primary_display = CASE
+            WHEN id = (
+                SELECT selected_id
+                FROM selected_rows
+                WHERE selected_rows.album_id = albums.album_id
             )
             THEN 1
             ELSE 0
         END
-        WHERE album_id IS NOT NULL
-          AND TRIM(album_id) != ''
+        WHERE album_id IN (
+            SELECT album_id
+            FROM invalid_groups
+        )
         '''
     )
 
@@ -283,8 +306,15 @@ def ensure_primary_display(
             ELSE 0
         END
         WHERE album_id = ?
+          AND (
+              SELECT COUNT(*)
+              FROM albums AS selected
+              WHERE selected.album_id = ?
+                AND selected.is_primary_display = 1
+          ) != 1
         ''',
         (
+            album_id,
             album_id,
             album_id,
         )
