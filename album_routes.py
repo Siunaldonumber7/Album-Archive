@@ -230,7 +230,7 @@ def add_album_manual():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = _collect_genres(request, 'genre', 'genre_new')
+    genre = _collect_genres(request.form, 'genre', 'genre_new')
     open_status = request.form.get('open_status', '').strip()
     signed = request.form.get('signed', '').strip()
     purchase_price_text = request.form.get('purchase_price', '').replace(',', '').strip()
@@ -566,7 +566,7 @@ def save_bulk_albums():
             media_format = request.form.get(prefix + 'media_format', '').strip()
             album_type = request.form.get(prefix + 'album_type', '').strip()
             genre = _collect_genres(
-                request,
+                request.form,
                 prefix + 'genre',
                 prefix + 'genre_new'
             )
@@ -736,7 +736,7 @@ def save_album():
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = _collect_genres(request, 'genre', 'genre_new')
+    genre = _collect_genres(request.form, 'genre', 'genre_new')
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
@@ -800,7 +800,7 @@ def update_album(album_row_id):
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
-    genre = _collect_genres(request, 'genre', 'genre_new')
+    genre = _collect_genres(request.form, 'genre', 'genre_new')
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
