@@ -310,7 +310,7 @@ table {
 
     border-collapse: collapse;
 
-    min-width: 1220px;
+    min-width: 1300px;
 }
 
 
@@ -395,6 +395,55 @@ td {
     font-size: 10px;
 
     font-weight: 700;
+}
+
+
+.type-badge {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    min-height: 22px;
+
+    padding:
+        0 8px;
+
+    border-radius: 999px;
+
+    background: #f1f1f4;
+
+    color: #55555b;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+
+.type-badge.mini {
+
+    background: #fff0f3;
+
+    color: #d72848;
+}
+
+
+.type-badge.single {
+
+    background: #eef5ff;
+
+    color: #2867c7;
+}
+
+
+.type-badge.mixtape {
+
+    background: #f3efff;
+
+    color: #7047b8;
 }
 
 
@@ -1040,6 +1089,10 @@ X
 </th>
 
 <th>
+종류
+</th>
+
+<th>
 년도
 </th>
 
@@ -1159,6 +1212,20 @@ X
 <span class="badge">
 
 {{ album.media_format }}
+
+</span>
+
+</td>
+
+
+
+<td>
+
+{% set type_label = '미니' if album.album_type == 'EP(미니)' else (album.album_type or '앨범') %}
+
+<span class="type-badge{% if album.album_type == 'EP(미니)' %} mini{% elif album.album_type == '싱글' %} single{% elif album.album_type == '믹스테잎' %} mixtape{% endif %}">
+
+{{ type_label }}
 
 </span>
 
