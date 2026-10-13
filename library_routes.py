@@ -8,8 +8,10 @@ from flask import (
     url_for,
 )
 
-from album_database import get_db
-from catalog import split_genres
+from album_database import (
+    get_db,
+    get_genre_options,
+)
 from library_view import (
     INDEX_SORT_SQL,
     build_album_type_summary,
@@ -164,22 +166,8 @@ def index():
             'WHERE is_primary_display = 1'
         ).fetchone()['count']
 
-        genre_rows = conn.execute(
-            "SELECT genre FROM albums "
-            "WHERE is_primary_display = 1 "
-            "AND genre IS NOT NULL "
-            "AND TRIM(genre) != ''"
-        ).fetchall()
-
-        genre_options = sorted(
-            {
-                genre
-                for row in genre_rows
-                for genre in split_genres(
-                    row['genre']
-                )
-            },
-            key=str.casefold
+        genre_options = get_genre_options(
+            conn
         )
     finally:
         conn.close()
