@@ -54,6 +54,60 @@ def get_next_management_no(
     )
 
 
+def find_existing_album_id(
+    conn,
+    apple_id='',
+    artist='',
+    album_title='',
+    release_year=''
+):
+    apple_id = str(
+        apple_id
+        or ''
+    ).strip()
+
+    if apple_id:
+        existing = conn.execute(
+            '''
+            SELECT album_id
+            FROM album_master
+            WHERE apple_collection_id = ?
+            LIMIT 1
+            ''',
+            (apple_id,)
+        ).fetchone()
+
+        if existing:
+            return str(
+                existing['album_id']
+                or ''
+            ).strip()
+
+    album_key = make_album_key(
+        artist,
+        album_title,
+        release_year
+    )
+
+    existing = conn.execute(
+        '''
+        SELECT album_id
+        FROM album_master
+        WHERE album_key = ?
+        LIMIT 1
+        ''',
+        (album_key,)
+    ).fetchone()
+
+    if not existing:
+        return ''
+
+    return str(
+        existing['album_id']
+        or ''
+    ).strip()
+
+
 def get_or_create_album_id(
     conn,
     apple_id,
@@ -73,32 +127,18 @@ def get_or_create_album_id(
         or ''
     ).strip()
 
-    existing = None
+    existing_album_id = (
+        find_existing_album_id(
+            conn,
+            apple_id=apple_id,
+            artist=artist,
+            album_title=album_title,
+            release_year=release_year
+        )
+    )
 
-    if apple_id:
-        existing = conn.execute(
-            '''
-            SELECT album_id
-            FROM album_master
-            WHERE apple_collection_id = ?
-            LIMIT 1
-            ''',
-            (apple_id,)
-        ).fetchone()
-
-    if existing is None:
-        existing = conn.execute(
-            '''
-            SELECT album_id
-            FROM album_master
-            WHERE album_key = ?
-            LIMIT 1
-            ''',
-            (album_key,)
-        ).fetchone()
-
-    if existing:
-        return existing['album_id']
+    if existing_album_id:
+        return existing_album_id
 
     cursor = conn.execute(
         'INSERT INTO album_master ( album_key, apple_collection_id, artist, album_title, release_year, cover_url ) VALUES (?, ?, ?, ?, ?, ?)',
