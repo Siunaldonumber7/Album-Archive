@@ -6,12 +6,13 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 
 import requests
 
-from album_database import get_db
+from album_database import get_db, get_artist_profile_cache, save_artist_profile_cache
 from cache_utils import BoundedCache
 from catalog import extract_apple_genre, normalize_apple_album_type
 
@@ -758,6 +759,321 @@ def find_apple_artist_in_store(artist_name, store):
         'data': result
     }
     return result
+
+def _artist_profile_cache_is_fresh(row, max_age_seconds=86400):
+    if not row:
+        return False
+
+    updated_at = str(row['updated_at'] or '').strip()
+
+    if not updated_at:
+        return False
+
+    try:
+        checked = datetime.strptime(
+            updated_at,
+            '%Y-%m-%d %H:%M:%S'
+        ).replace(tzinfo=timezone.utc)
+        age = (
+            datetime.now(timezone.utc) - checked
+        ).total_seconds()
+        return age < max_age_seconds
+    except Exception:
+        return False
+
+
+def _find_artist_artwork_in_apple_page(page, artist_id=''):
+    if not page:
+        return ''
+
+    parser = page.get('parser')
+    artist_id = str(artist_id or '').strip()
+    candidates = []
+
+    def add_candidate(url, priority):
+        url = normalize_apple_artwork_url(url)
+
+        if not url or not url.startswith('http'):
+            return
+
+        candidates.append((priority, url))
+
+    def inspect_object(value):
+        if not isinstance(value, dict):
+            return
+
+        object_type = str(
+            value.get('@type')
+            or value.get('type')
+            or ''
+        ).lower()
+
+        attrs = (
+            value.get('attributes')
+            if isinstance(value.get('attributes'), dict)
+            else {}
+        )
+
+        object_id = str(
+            value.get('id')
+            or attrs.get('id')
+            or ''
+        ).strip()
+
+        artwork = (
+            attrs.get('artwork')
+            if isinstance(attrs.get('artwork'), dict)
+            else {}
+        )
+
+        if artwork.get('url'):
+            priority = 0
+
+            if object_type in {
+                'artists',
+                'artist',
+                'musicgroup',
+                'person',
+            }:
+                priority += 50
+
+            if artist_id and object_id == artist_id:
+                priority += 100
+
+            add_candidate(
+                artwork.get('url'),
+                priority
+            )
+
+        if object_type in {
+            'musicgroup',
+            'person',
+            'artist',
+        }:
+            add_candidate(
+                extract_image_url(
+                    value.get('image')
+                ),
+                60
+            )
+
+    if parser:
+        for raw in (
+            parser.ld_json_scripts
+            + parser.serialized_scripts
+        ):
+            data = safe_json_decode(raw)
+
+            if not data:
+                continue
+
+            stack = [data]
+            safety = 0
+
+            while stack and safety < 100000:
+                value = stack.pop()
+                safety += 1
+
+                if isinstance(value, dict):
+                    inspect_object(value)
+                    stack.extend(value.values())
+                elif isinstance(value, list):
+                    stack.extend(value)
+
+        for key in (
+            'og:image',
+            'twitter:image',
+            'twitter:image:src',
+        ):
+            add_candidate(
+                parser.meta_values.get(key, ''),
+                20
+            )
+
+    if not candidates:
+        return ''
+
+    candidates.sort(
+        key=lambda item: item[0],
+        reverse=True
+    )
+
+    return candidates[0][1]
+
+
+def get_artist_profile_image(
+    artist_name,
+    apple_artist_id=''
+):
+    artist_name = str(artist_name or '').strip()
+
+    if not artist_name:
+        return ''
+
+    artist_key = normalize_text(artist_name)
+
+    if not artist_key:
+        return ''
+
+    cached = get_artist_profile_cache(
+        artist_key
+    )
+
+    if cached:
+        profile_url = str(
+            cached['profile_url'] or ''
+        ).strip()
+
+        if profile_url:
+            return profile_url
+
+        # 실패 결과는 하루 동안만 재사용해서
+        # 공개 페이지에서 반복 외부 호출이 발생하지 않게 한다.
+        if _artist_profile_cache_is_fresh(
+            cached
+        ):
+            return ''
+
+    resolved_id = str(
+        apple_artist_id or ''
+    ).strip()
+    preferred_store = 'KR'
+
+    if not resolved_id:
+        learned = find_learned_artist(
+            artist_name
+        )
+
+        if learned:
+            resolved_id = str(
+                learned.get('artist_id')
+                or ''
+            ).strip()
+
+    if not resolved_id:
+        for store in ('KR', 'US', 'JP', 'GB'):
+            result = find_apple_artist_in_store(
+                artist_name,
+                store
+            )
+
+            if result:
+                resolved_id = str(
+                    result.get('artist_id')
+                    or ''
+                ).strip()
+                preferred_store = str(
+                    result.get('store')
+                    or store
+                ).upper()
+                break
+
+    if not resolved_id:
+        save_artist_profile_cache(
+            artist_key,
+            artist_name,
+            '',
+            '',
+            'apple-miss'
+        )
+        return ''
+
+    stores = []
+    for store in (
+        preferred_store,
+        'KR',
+        'US',
+        'JP',
+        'GB',
+    ):
+        store = str(store or '').upper()
+
+        if (
+            store
+            and store not in stores
+        ):
+            stores.append(store)
+
+    for store in stores:
+        url = (
+            'https://music.apple.com/'
+            + store.lower()
+            + '/artist/x/'
+            + resolved_id
+            + '?l=ko'
+        )
+
+        try:
+            response = APPLE_SESSION.get(
+                url,
+                headers=APPLE_WEB_HEADERS,
+                timeout=(2.5, 4.5),
+                allow_redirects=True
+            )
+
+            if response.status_code != 200:
+                continue
+
+            html_text = response.content.decode(
+                'utf-8',
+                errors='replace'
+            )
+
+            if not html_text:
+                continue
+
+            page = {
+                'url': response.url,
+                'html': html_text,
+                'parser': parse_apple_music_html(
+                    html_text
+                )
+            }
+
+            profile_url = (
+                _find_artist_artwork_in_apple_page(
+                    page,
+                    resolved_id
+                )
+            )
+
+            if profile_url:
+                save_artist_profile_cache(
+                    artist_key,
+                    artist_name,
+                    resolved_id,
+                    profile_url,
+                    'apple'
+                )
+
+                print(
+                    'APPLE ARTIST PROFILE:',
+                    artist_name,
+                    resolved_id,
+                    store
+                )
+
+                return profile_url
+
+        except Exception as exc:
+            print(
+                'APPLE ARTIST PROFILE ERROR:',
+                artist_name,
+                resolved_id,
+                store,
+                exc
+            )
+
+    save_artist_profile_cache(
+        artist_key,
+        artist_name,
+        resolved_id,
+        '',
+        'apple-miss'
+    )
+
+    return ''
+
 
 def lookup_artist_albums(
     artist_id,
