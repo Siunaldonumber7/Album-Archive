@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import render_template, request, redirect, url_for
 
-from album_database import get_db, get_genre_options, remember_genres
+from album_database import get_db, get_genre_options, remember_genres, ensure_primary_display
 from album_service import (
     make_album_key,
     get_next_management_no,
@@ -344,6 +344,8 @@ def add_album_manual():
             )
         )
 
+        ensure_primary_display(conn, album_id)
+
         conn.commit()
 
     except Exception:
@@ -666,6 +668,8 @@ def save_bulk_albums():
                 )
             )
 
+            ensure_primary_display(conn, album_id)
+
             saved_management_numbers.append(management_no)
 
         conn.commit()
@@ -762,6 +766,7 @@ def save_album():
     if album_type not in ALBUM_TYPES:
         album_type = '앨범'
     conn.execute('INSERT INTO albums ( management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_collection_id, cover_url ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )', (management_no, album_id, classification, media_format, album_type, genre, artist, album_title, release_year, open_status, signed, purchase_price, memo, apple_id, cover_url))
+    ensure_primary_display(conn, album_id)
     conn.commit()
     conn.close()
     clear_search_cache()
@@ -859,6 +864,8 @@ def delete_album(album_row_id):
         'SELECT COUNT(*) AS count FROM albums WHERE album_id = ?',
         (album_id,)
     ).fetchone()['count']
+    if remaining > 0:
+        ensure_primary_display(conn, album_id)
     if remaining == 0:
         conn.execute('DELETE FROM album_tracks WHERE album_id = ?', (album_id,))
         conn.execute('DELETE FROM album_track_settings WHERE album_id = ?', (album_id,))
