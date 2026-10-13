@@ -11,6 +11,7 @@ from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
 
 from album_database import get_db, get_artist_profile_cache, save_artist_profile_cache
 from cache_utils import BoundedCache
@@ -18,6 +19,14 @@ from catalog import extract_apple_genre, normalize_apple_album_type
 
 
 APPLE_SESSION = requests.Session()
+APPLE_SESSION.mount(
+    'https://',
+    HTTPAdapter(
+        pool_connections=16,
+        pool_maxsize=32,
+        max_retries=0
+    )
+)
 APPLE_WEB_HEADERS = {
     'User-Agent': (
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
@@ -43,6 +52,14 @@ ARTIST_PROFILE_MEMORY_CACHE = BoundedCache(1000)
 ARTIST_PROFILE_MEMORY_SECONDS = 86400
 
 MUSICBRAINZ_SESSION = requests.Session()
+MUSICBRAINZ_SESSION.mount(
+    'https://',
+    HTTPAdapter(
+        pool_connections=4,
+        pool_maxsize=8,
+        max_retries=0
+    )
+)
 MUSICBRAINZ_SESSION.headers.update({
     'User-Agent': 'MyAlbumArchive/1.0 (personal music archive)',
     'Accept': 'application/json'
