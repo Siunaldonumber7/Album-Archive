@@ -26,7 +26,10 @@
 
 <main class="container">
 
-<section class="hero{% if hero_background_url %} has-visual{% endif %}{% if hero_background_source == 'profile' %} has-profile{% elif hero_background_source == 'cover' %} has-cover-fallback{% endif %}">
+<section
+    class="hero{% if hero_background_url %} has-visual{% endif %}{% if hero_background_source == 'profile' %} has-profile{% elif hero_background_source == 'cover' %} has-cover-fallback{% endif %}"
+    data-profile-src="{% if not artist_profile_url %}{{ artist_profile_proxy_url }}{% endif %}"
+>
 
     {% if hero_background_url %}
     <img
