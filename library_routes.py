@@ -172,6 +172,29 @@ def index():
     finally:
         conn.close()
 
+    canonical_args = {}
+
+    for key, value in (
+        ('library_q', library_q),
+        ('classification', classification_filter),
+        ('media_format', format_filter),
+        ('album_type', album_type_filter),
+        ('genre', genre_filter),
+    ):
+        if value:
+            canonical_args[key] = value
+
+    if sort_order != 'release_desc':
+        canonical_args['sort'] = sort_order
+
+    if page > 1:
+        canonical_args['page'] = page
+
+    canonical_url = url_for(
+        'index',
+        **canonical_args
+    )
+
     return render_template(
         'index.html',
         albums=albums,
@@ -201,7 +224,8 @@ def index():
             )
         ),
         saved=saved,
-        bulk_saved=bulk_saved
+        bulk_saved=bulk_saved,
+        canonical_url=canonical_url
     )
 
 
@@ -414,6 +438,20 @@ def artist_page(artist_name):
         offset + ALBUMS_PER_PAGE
     ]
 
+    canonical_args = {}
+
+    if sort_order != 'release_desc':
+        canonical_args['sort'] = sort_order
+
+    if page > 1:
+        canonical_args['page'] = page
+
+    canonical_url = url_for(
+        'artist_page',
+        artist_name=canonical_artist,
+        **canonical_args
+    )
+
     return render_template(
         'artist.html',
         artist_name=canonical_artist,
@@ -441,7 +479,8 @@ def artist_page(artist_name):
                 page,
                 total_pages
             )
-        )
+        ),
+        canonical_url=canonical_url
     )
 
 
