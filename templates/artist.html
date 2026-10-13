@@ -112,6 +112,48 @@ body {
     filter: saturate(.88) contrast(1.02) brightness(.72);
 }
 
+.hero.has-profile .hero-background-image {
+    object-position: center center;
+    transform: scale(1.10);
+    filter:
+        blur(14px)
+        saturate(.78)
+        contrast(1.06)
+        brightness(.46);
+    opacity: .78;
+}
+
+.hero-profile-image {
+    position: absolute;
+    z-index: 0;
+    top: -24%;
+    right: 270px;
+    width: min(58%, 760px);
+    height: 148%;
+    display: block;
+    object-fit: contain;
+    object-position: center center;
+    opacity: .92;
+    filter:
+        saturate(.92)
+        contrast(1.04)
+        brightness(.86);
+    -webkit-mask-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        #000 18%,
+        #000 82%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        #000 18%,
+        #000 82%,
+        transparent 100%
+    );
+}
+
 .hero.has-cover-fallback .hero-background-image {
     filter:
         blur(11px)
@@ -481,6 +523,13 @@ body {
         border-radius: 24px;
     }
 
+    .hero-profile-image {
+        right: 190px;
+        width: 62%;
+        height: 140%;
+        top: -20%;
+    }
+
     .hero-art {
         height: 170px;
     }
@@ -524,6 +573,26 @@ body {
         padding: 28px 22px 26px;
         display: block;
         border-radius: 22px;
+    }
+
+    .hero-profile-image {
+        top: -14%;
+        right: -16%;
+        width: 86%;
+        height: 128%;
+        opacity: .62;
+        -webkit-mask-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            #000 24%,
+            #000 100%
+        );
+        mask-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            #000 24%,
+            #000 100%
+        );
     }
 
     .hero-art {
@@ -601,6 +670,16 @@ body {
         decoding="async"
         aria-hidden="true"
     >
+    {% if hero_background_source == 'profile' %}
+    <img
+        class="hero-profile-image"
+        src="{{ hero_background_url }}"
+        alt=""
+        loading="eager"
+        decoding="async"
+        aria-hidden="true"
+    >
+    {% endif %}
     <div class="hero-shade" aria-hidden="true"></div>
     {% endif %}
 
