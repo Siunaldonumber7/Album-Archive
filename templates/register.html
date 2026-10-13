@@ -749,8 +749,11 @@ USB
 
 
 <div class="field full">
-<label>장르 <span style="color:#999;font-weight:500;">· 복수 선택 가능</span></label>
+<label>장르 <span style="color:#999;font-weight:500;">· 벅스 기준 · 복수 선택 가능</span></label>
 {% set selected_genres = split_genres(album.genre or '') %}
+{% if not selected_genres %}
+<div style="margin:0 0 9px;color:#999;font-size:12px;">벅스에서 장르를 찾지 못했습니다. 필요하면 직접 선택해 주세요.</div>
+{% endif %}
 <div class="genre-checks">
 {% for genre_name in genre_choices(album.genre or '') %}
 <label class="genre-choice">
