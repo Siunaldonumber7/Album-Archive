@@ -8,13 +8,26 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(
+        DB_NAME,
+        timeout=10
+    )
     conn.row_factory = sqlite3.Row
+    conn.execute(
+        'PRAGMA busy_timeout = 10000'
+    )
+    conn.execute(
+        'PRAGMA synchronous = NORMAL'
+    )
     return conn
 
 
 def init_db():
     conn = get_db()
+
+    conn.execute(
+        'PRAGMA journal_mode = WAL'
+    )
 
     conn.execute(
         'CREATE TABLE IF NOT EXISTS albums ( '
@@ -143,6 +156,21 @@ def init_db():
         'idx_albums_apple_collection_id '
         'ON albums (apple_collection_id)'
     )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_primary_display '
+        'ON albums (is_primary_display)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_album_primary '
+        'ON albums (album_id, is_primary_display, id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_album_master_apple_collection_id '
+        'ON album_master (apple_collection_id)'
+    )
 
     conn.execute(
         'CREATE TABLE IF NOT EXISTS album_track_settings ( '
@@ -168,35 +196,37 @@ def init_db():
     )
 
     # Every album_id group must have exactly one public representative.
-    album_groups = conn.execute(
-        'SELECT DISTINCT album_id FROM albums '
-        "WHERE album_id IS NOT NULL AND TRIM(album_id) != ''"
-    ).fetchall()
-
-    for group in album_groups:
-        album_id = group['album_id']
-        selected = conn.execute(
-            'SELECT id FROM albums '
-            'WHERE album_id = ? AND is_primary_display = 1 '
-            'ORDER BY id ASC LIMIT 1',
-            (album_id,)
-        ).fetchone()
-
-        if selected is None:
-            selected = conn.execute(
-                'SELECT id FROM albums '
-                'WHERE album_id = ? ORDER BY id ASC LIMIT 1',
-                (album_id,)
-            ).fetchone()
-
-        if selected is not None:
-            conn.execute(
-                'UPDATE albums '
-                'SET is_primary_display = CASE WHEN id = ? THEN 1 ELSE 0 END '
-                'WHERE album_id = ?',
-                (selected['id'], album_id)
+    # Preserve the oldest selected representative when one already exists;
+    # otherwise choose the oldest row in the group. One set-based UPDATE is
+    # much cheaper than querying and updating every group separately.
+    conn.execute(
+        '''
+        UPDATE albums
+        SET is_primary_display = CASE
+            WHEN id = (
+                SELECT COALESCE(
+                    MIN(
+                        CASE
+                            WHEN candidate.is_primary_display = 1
+                            THEN candidate.id
+                        END
+                    ),
+                    MIN(candidate.id)
+                )
+                FROM albums AS candidate
+                WHERE candidate.album_id = albums.album_id
             )
+            THEN 1
+            ELSE 0
+        END
+        WHERE album_id IS NOT NULL
+          AND TRIM(album_id) != ''
+        '''
+    )
 
+    conn.execute(
+        'PRAGMA optimize'
+    )
     conn.commit()
     conn.close()
 
