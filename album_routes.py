@@ -22,7 +22,7 @@ from search_engine import (
     clear_search_cache,
 )
 from track_service import clear_track_caches
-from bugs_genre_service import prefer_bugs_genre
+from bugs_genre_service import get_bugs_genre
 
 
 def register_album_routes(app):
@@ -101,6 +101,19 @@ def add_album_page():
         searched = True
         apple_results = search_apple(artist, album)
 
+        # 자동 장르는 벅스만 사용한다.
+        # 검색 결과 단계에서는 아직 벅스를 호출하지 않으므로
+        # Apple Music 장르는 화면/폼에 전달하지 않는다.
+        apple_results = [
+            {
+                **item,
+                'genre': ''
+            }
+            if isinstance(item, dict)
+            else item
+            for item in apple_results
+        ]
+
     conn = get_db()
     total_album_count = conn.execute('SELECT COUNT(*) AS count FROM albums').fetchone()['count']
     conn.close()
@@ -139,11 +152,10 @@ def add_album_from_link():
     cover_url = metadata.get('cover', '')
     apple_artist_id = metadata.get('artist_id', '')
     album_type = metadata.get('album_type', '') or '앨범'
-    genre = prefer_bugs_genre(
+    genre = get_bugs_genre(
         artist,
         album_title,
-        release_year,
-        metadata.get('genre', '')
+        release_year
     )
 
     album_key = make_album_key(
@@ -434,6 +446,13 @@ def register_bulk():
     ]
 
     if valid_indexes:
+        # 벅스 조회가 실패하거나 예외가 나더라도 Apple 장르가 남지 않게
+        # 먼저 자동 장르를 비운다.
+        for index in valid_indexes:
+            item = dict(metadata_results[index])
+            item['genre'] = ''
+            metadata_results[index] = item
+
         bugs_worker_count = min(
             3,
             len(valid_indexes)
@@ -454,11 +473,10 @@ def register_bulk():
                 return index, item
 
             item = dict(item)
-            item['genre'] = prefer_bugs_genre(
+            item['genre'] = get_bugs_genre(
                 item.get('artist', ''),
                 item.get('title', ''),
-                item.get('release_year', ''),
-                item.get('genre', '')
+                item.get('release_year', '')
             )
             return index, item
 
@@ -703,11 +721,10 @@ def register():
     release_year = request.form.get('release_year', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     album_type = request.form.get('album_type', '').strip() or '앨범'
-    genre = prefer_bugs_genre(
+    genre = get_bugs_genre(
         artist,
         album_title,
-        release_year,
-        request.form.get('genre', '').strip()
+        release_year
     )
     album_key = make_album_key(artist, album_title, release_year)
     conn = get_db()
