@@ -3,11 +3,17 @@ import tempfile
 import unittest
 
 import album_database
-from album_service import get_next_management_no
+from album_service import (
+    find_existing_album_id,
+    get_next_management_no,
+)
 from catalog import normalize_text
 from library_view import (
     build_index_where,
     resolve_index_state,
+)
+from media_service import (
+    local_cover_thumbnail_path,
 )
 
 
@@ -153,6 +159,76 @@ class DatabaseOptimizationTests(unittest.TestCase):
         self.assertEqual(first, 'CD-0001')
         self.assertEqual(second, 'CD-0002')
         self.assertEqual(lp_first, 'LP-0001')
+
+
+    def test_existing_album_lookup_uses_apple_id_then_key(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO album_master (
+                    album_id,
+                    album_key,
+                    apple_collection_id,
+                    artist,
+                    album_title,
+                    release_year
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    'ALB-9201',
+                    'artist|album|2026',
+                    '123456789',
+                    'Artist',
+                    'Album',
+                    '2026',
+                )
+            )
+            conn.commit()
+
+            by_apple = find_existing_album_id(
+                conn,
+                apple_id='123456789',
+                artist='Wrong',
+                album_title='Wrong',
+                release_year='1900'
+            )
+            by_key = find_existing_album_id(
+                conn,
+                artist='Artist',
+                album_title='Album',
+                release_year='2026'
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            by_apple,
+            'ALB-9201'
+        )
+        self.assertEqual(
+            by_key,
+            'ALB-9201'
+        )
+
+
+class MediaServiceTests(unittest.TestCase):
+
+    def test_thumbnail_names_do_not_collide_across_extensions(self):
+        jpg_path = local_cover_thumbnail_path(
+            'cover.jpg',
+            400
+        )
+        png_path = local_cover_thumbnail_path(
+            'cover.png',
+            400
+        )
+
+        self.assertNotEqual(
+            jpg_path,
+            png_path
+        )
 
 
 class LibraryViewTests(unittest.TestCase):
