@@ -686,8 +686,9 @@ body {
             &nbsp;·&nbsp;{{ album.album_type }}
         {% endif %}
 
-        {% if album.genre %}
-            &nbsp;·&nbsp;{{ album.genre }}
+        {% set display_genres = split_genres(album.genre or '') %}
+        {% if display_genres %}
+            &nbsp;·&nbsp;{{ display_genres|join(', ') }}
         {% endif %}
     </div>
 
