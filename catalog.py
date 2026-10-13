@@ -4,6 +4,21 @@ import re
 ALBUM_TYPES = ('앨범', 'EP(미니)', '싱글', '믹스테잎')
 
 
+def normalize_text(value):
+    if not value:
+        return ''
+
+    text = str(
+        value
+    ).casefold().strip()
+
+    return re.sub(
+        r'[^a-z0-9가-힣ぁ-んァ-ン一-龥]+',
+        '',
+        text
+    )
+
+
 def normalize_genre_name(value):
     """
     장르는 사용자가 만든 이름을 그대로 사용한다.
