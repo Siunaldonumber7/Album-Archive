@@ -145,35 +145,51 @@ def init_db():
     )
 
     conn.execute(
-        'CREATE TABLE IF NOT EXISTS bugs_genre_cache ( '
-        'cache_key TEXT PRIMARY KEY, '
-        'artist TEXT NOT NULL, '
-        'album_title TEXT NOT NULL, '
-        'release_year TEXT, '
-        'bugs_album_id TEXT, '
-        'raw_genre TEXT, '
-        'normalized_genre TEXT NOT NULL, '
-        'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
+        'CREATE TABLE IF NOT EXISTS genre_registry ( '
+        'name TEXT PRIMARY KEY COLLATE NOCASE, '
+        'created_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
-
-    # Keep existing album rows aligned with the current genre taxonomy.
-    # Local import avoids coupling database setup to catalog at module import time.
-    from catalog import normalize_genres
-
-    genre_rows = conn.execute(
-        "SELECT id, genre FROM albums "
-        "WHERE genre IS NOT NULL AND TRIM(genre) != ''"
-    ).fetchall()
-
-    for row in genre_rows:
-        current_genre = str(row['genre'] or '').strip()
-        normalized_genre = normalize_genres(current_genre)
-
-        if normalized_genre != current_genre:
-            conn.execute(
-                'UPDATE albums SET genre = ? WHERE id = ?',
-                (normalized_genre, row['id'])
-            )
 
     conn.commit()
     conn.close()
+
+
+
+def get_genre_options():
+    conn = get_db()
+
+    try:
+        rows = conn.execute(
+            'SELECT name FROM genre_registry '
+            'ORDER BY name COLLATE NOCASE ASC'
+        ).fetchall()
+        return [
+            str(row['name'] or '').strip()
+            for row in rows
+            if str(row['name'] or '').strip()
+        ]
+    finally:
+        conn.close()
+
+
+def remember_genres(conn, value):
+    seen = set()
+
+    for raw in str(value or '').split(','):
+        genre = str(raw or '').strip()
+
+        if not genre:
+            continue
+
+        key = genre.casefold()
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        conn.execute(
+            'INSERT OR IGNORE INTO genre_registry (name) '
+            'VALUES (?)',
+            (genre,)
+        )
