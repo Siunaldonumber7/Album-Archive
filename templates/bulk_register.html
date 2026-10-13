@@ -39,12 +39,16 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
 .field label{display:block;margin:0 0 5px;color:#888;font-size:10px;font-weight:800}
 .field select,.field input{width:100%}
 .genre-multi{height:92px!important;padding:5px!important}
+.field.album-title{grid-column:span 3}
+.field.album-title input{font-size:13px;font-weight:750}
+.common-genre{min-width:190px;max-width:260px;height:78px!important;padding:6px!important}
+.common-genre-new{min-width:210px}
 .field.memo{grid-column:span 6}
 .savebar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:22px;padding:18px 20px;border-radius:18px;background:#171719;color:#fff}
 .savebar strong{font-size:14px}
 .save{height:44px;padding:0 24px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:14px;font-weight:850;cursor:pointer}
-@media(max-width:1050px){.card{grid-template-columns:28px 82px 1fr}.cover{width:82px;height:82px}.fields{grid-column:2 / -1;grid-template-columns:repeat(3,1fr)}.field.memo{grid-column:span 3}}
-@media(max-width:650px){.wrap{padding:20px 14px 50px}h1{font-size:28px}.card{grid-template-columns:24px 70px 1fr;padding:12px;gap:10px}.cover{width:70px;height:70px}.include{margin-top:26px}.fields{grid-column:1 / -1;grid-template-columns:repeat(2,1fr)}.field.memo{grid-column:span 2}.common{top:7px}.savebar{align-items:flex-start;flex-direction:column}.save{width:100%}}
+@media(max-width:1050px){.card{grid-template-columns:28px 82px 1fr}.cover{width:82px;height:82px}.fields{grid-column:2 / -1;grid-template-columns:repeat(3,1fr)}.field.album-title{grid-column:span 3}.field.memo{grid-column:span 3}}
+@media(max-width:650px){.wrap{padding:20px 14px 50px}h1{font-size:28px}.card{grid-template-columns:24px 70px 1fr;padding:12px;gap:10px}.cover{width:70px;height:70px}.include{margin-top:26px}.fields{grid-column:1 / -1;grid-template-columns:repeat(2,1fr)}.field.album-title{grid-column:span 2}.field.memo{grid-column:span 2}.common{top:7px}.common-genre,.common-genre-new{width:100%;max-width:none}.savebar{align-items:flex-start;flex-direction:column}.save{width:100%}}
 </style>
 </head>
 <body>
@@ -80,6 +84,23 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
         <option value="X">사인 X</option>
         <option value="O">사인 O</option>
       </select>
+
+      {% if genre_options %}
+      <select id="commonGenres" class="common-genre" multiple title="공통 장르">
+        {% for genre_name in genre_options %}
+        <option value="{{ genre_name }}">{{ genre_name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+
+      <input
+        id="commonGenreNew"
+        class="common-genre-new"
+        type="text"
+        placeholder="공통 새 장르 · 쉼표로 복수 입력"
+        autocomplete="off"
+      >
+
       <input id="commonPrice" type="number" min="0" step="1" placeholder="공통 금액">
       <button class="apply" type="button" id="applyCommon">공통값 적용</button>
     </div>
@@ -114,9 +135,20 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           <input type="hidden" name="album_{{ i }}_apple_id" value="{{ album.apple_id }}">
           <input type="hidden" name="album_{{ i }}_artist_id" value="{{ album.artist_id }}">
           <input type="hidden" name="album_{{ i }}_artist" value="{{ album.artist }}">
-          <input type="hidden" name="album_{{ i }}_title" value="{{ album.title }}">
           <input type="hidden" name="album_{{ i }}_release_year" value="{{ album.release_year }}">
           <input type="hidden" name="album_{{ i }}_cover" value="{{ album.cover }}">
+
+          <div class="field album-title">
+            <label>앨범명 · 수정 가능</label>
+            <input
+              class="row-title"
+              type="text"
+              name="album_{{ i }}_title"
+              value="{{ album.title }}"
+              required
+              autocomplete="off"
+            >
+          </div>
 
           <div class="field">
             <label>분류</label>
@@ -147,7 +179,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
             {% set selected_genres = split_genres(album.genre or '') %}
 
             {% if genre_options %}
-            <select class="genre-multi" name="album_{{ i }}_genre" multiple>
+            <select class="genre-multi row-genres" name="album_{{ i }}_genre" multiple>
               {% for genre_name in genre_options %}
               <option value="{{ genre_name }}" {% if genre_name in selected_genres %}selected{% endif %}>{{ genre_name }}</option>
               {% endfor %}
@@ -158,6 +190,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
 
             <input
               type="text"
+              class="row-genre-new"
               name="album_{{ i }}_genre_new"
               placeholder="새 장르 · 쉼표로 복수 입력"
               autocomplete="off"
@@ -211,6 +244,11 @@ document.getElementById('applyCommon').addEventListener('click', () => {
   const openStatus = document.getElementById('commonOpen').value;
   const signed = document.getElementById('commonSigned').value;
   const price = document.getElementById('commonPrice').value;
+  const commonGenres = document.getElementById('commonGenres');
+  const genres = commonGenres
+    ? [...commonGenres.selectedOptions].map(option => option.value)
+    : [];
+  const newGenre = document.getElementById('commonGenreNew').value.trim();
 
   document.querySelectorAll('.card').forEach(card => {
     const include = card.querySelector('.include');
@@ -221,8 +259,30 @@ document.getElementById('applyCommon').addEventListener('click', () => {
     card.querySelector('.row-open').value = openStatus;
     card.querySelector('.row-signed').value = signed;
 
+    const rowGenres = card.querySelector('.row-genres');
+    if (rowGenres) {
+      [...rowGenres.options].forEach(option => {
+        option.selected = genres.includes(option.value);
+      });
+    }
+
+    const rowGenreNew = card.querySelector('.row-genre-new');
+    if (rowGenreNew) {
+      rowGenreNew.value = newGenre;
+    }
+
     if (price !== '') {
       card.querySelector('.row-price').value = price;
+    }
+  });
+});
+
+document.querySelectorAll('.row-title').forEach(input => {
+  input.addEventListener('input', () => {
+    const card = input.closest('.card');
+    const title = card ? card.querySelector('.meta .title') : null;
+    if (title) {
+      title.textContent = input.value.trim() || '제목 없음';
     }
   });
 });
