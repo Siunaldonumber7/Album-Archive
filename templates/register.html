@@ -749,7 +749,7 @@ USB
 
 
 <div class="field full">
-<label>장르 <span style="color:#999;font-weight:500;">· 직접 관리 · 복수 선택 가능</span></label>
+<label>장르 <span style="color:#999;font-weight:500;">· Apple 자동 + 직접 관리 · 복수 선택 가능</span></label>
 {% set selected_genres = split_genres(album.genre or '') %}
 
 {% if genre_options %}
@@ -767,7 +767,7 @@ USB
 {% endfor %}
 </div>
 {% else %}
-<div style="margin:0 0 9px;color:#999;font-size:12px;">아직 등록된 장르가 없습니다. 아래에서 첫 장르를 추가해 주세요.</div>
+<div style="margin:0 0 9px;color:#999;font-size:12px;">Apple Music 장르가 없으면 아래에서 직접 추가해 주세요.</div>
 {% endif %}
 
 <input
