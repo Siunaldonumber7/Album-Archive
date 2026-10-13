@@ -175,7 +175,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           </div>
 
           <div class="field">
-            <label>장르 · 직접 관리 · 복수 선택</label>
+            <label>장르 · Apple 자동 + 직접 관리 · 복수 선택</label>
             {% set selected_genres = split_genres(album.genre or '') %}
 
             {% if genre_options %}
@@ -185,7 +185,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
               {% endfor %}
             </select>
             {% else %}
-            <div style="margin:0 0 6px;color:#999;font-size:11px;">아직 등록된 장르가 없습니다.</div>
+            <div style="margin:0 0 6px;color:#999;font-size:11px;">Apple Music 장르 없음 · 직접 추가 가능</div>
             {% endif %}
 
             <input
