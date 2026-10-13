@@ -49,6 +49,7 @@ MUSICBRAINZ_SESSION.headers.update({
 })
 MUSICBRAINZ_CACHE = BoundedCache(300)
 MUSICBRAINZ_CACHE_SECONDS = 86400
+ARTIST_ALIAS_CACHE = BoundedCache(1000)
 MUSICBRAINZ_RATE_LOCK = threading.Lock()
 MUSICBRAINZ_LAST_REQUEST = 0.0
 
@@ -360,28 +361,141 @@ def search_musicbrainz_artist_on_apple(artist_name, album=''):
     return [], ''
 
 def find_learned_artist(artist_name):
-    if not artist_name:
-        return None
-    alias_key = normalize_text(artist_name)
-    conn = get_db()
-    result = conn.execute('SELECT canonical_name, apple_artist_id FROM artist_aliases WHERE alias_key = ? LIMIT 1', (alias_key,)).fetchone()
-    conn.close()
-    if not result:
-        return None
-    return {'artist_name': result['canonical_name'], 'artist_id': result['apple_artist_id']}
+    alias_key = normalize_text(
+        artist_name
+    )
 
-def learn_artist_alias(conn, search_artist, canonical_name, apple_artist_id):
-    if not canonical_name or not apple_artist_id:
+    if not alias_key:
+        return None
+
+    cached = ARTIST_ALIAS_CACHE.get(
+        alias_key
+    )
+
+    if cached is not None:
+        return (
+            cached
+            if cached is not False
+            else None
+        )
+
+    conn = get_db()
+
+    try:
+        result = conn.execute(
+            '''
+            SELECT
+                canonical_name,
+                apple_artist_id
+            FROM artist_aliases
+            WHERE alias_key = ?
+            LIMIT 1
+            ''',
+            (alias_key,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not result:
+        ARTIST_ALIAS_CACHE[
+            alias_key
+        ] = False
+        return None
+
+    value = {
+        'artist_name': (
+            result['canonical_name']
+            or ''
+        ),
+        'artist_id': (
+            result['apple_artist_id']
+            or ''
+        ),
+    }
+    ARTIST_ALIAS_CACHE[
+        alias_key
+    ] = value
+
+    return value
+
+
+def learn_artist_alias(
+    conn,
+    search_artist,
+    canonical_name,
+    apple_artist_id
+):
+    canonical_name = str(
+        canonical_name
+        or ''
+    ).strip()
+    apple_artist_id = str(
+        apple_artist_id
+        or ''
+    ).strip()
+
+    if (
+        not canonical_name
+        or not apple_artist_id
+    ):
         return
+
     aliases = []
+
     if search_artist:
-        aliases.append(search_artist.strip())
-    aliases.append(canonical_name.strip())
+        aliases.append(
+            str(search_artist).strip()
+        )
+
+    aliases.append(
+        canonical_name
+    )
+
+    cache_value = {
+        'artist_name': canonical_name,
+        'artist_id': apple_artist_id,
+    }
+
+    seen = set()
+
     for alias in aliases:
-        alias_key = normalize_text(alias)
-        if not alias_key:
+        alias_key = normalize_text(
+            alias
+        )
+
+        if (
+            not alias_key
+            or alias_key in seen
+        ):
             continue
-        conn.execute('INSERT INTO artist_aliases ( alias_key, alias_text, canonical_name, apple_artist_id ) VALUES (?, ?, ?, ?) ON CONFLICT(alias_key) DO UPDATE SET canonical_name = excluded.canonical_name, apple_artist_id = excluded.apple_artist_id', (alias_key, alias, canonical_name, apple_artist_id))
+
+        seen.add(alias_key)
+
+        conn.execute(
+            '''
+            INSERT INTO artist_aliases (
+                alias_key,
+                alias_text,
+                canonical_name,
+                apple_artist_id
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(alias_key)
+            DO UPDATE SET
+                alias_text = excluded.alias_text,
+                canonical_name = excluded.canonical_name,
+                apple_artist_id = excluded.apple_artist_id
+            ''',
+            (
+                alias_key,
+                alias,
+                canonical_name,
+                apple_artist_id,
+            )
+        )
+
+        ARTIST_ALIAS_CACHE[
+            alias_key
+        ] = cache_value
 
 def apple_high_res(url):
     if not url:
