@@ -112,45 +112,54 @@ body {
     filter: saturate(.88) contrast(1.02) brightness(.72);
 }
 
+.hero.has-profile {
+    background: #101418;
+}
+
 .hero.has-profile .hero-background-image {
+    inset: -34px;
+    width: calc(100% + 68px);
+    height: calc(100% + 68px);
     object-position: center center;
-    transform: scale(1.10);
+    transform: scale(1.14);
     filter:
-        blur(14px)
-        saturate(.78)
-        contrast(1.06)
-        brightness(.46);
-    opacity: .78;
+        blur(24px)
+        saturate(.72)
+        contrast(1.08)
+        brightness(.36);
+    opacity: .96;
 }
 
 .hero-profile-image {
     position: absolute;
     z-index: 0;
-    top: -24%;
-    right: 270px;
-    width: min(58%, 760px);
-    height: 148%;
+    top: -18%;
+    right: 230px;
+    width: min(64%, 880px);
+    height: 138%;
     display: block;
     object-fit: contain;
     object-position: center center;
-    opacity: .92;
+    opacity: .96;
     filter:
-        saturate(.92)
-        contrast(1.04)
-        brightness(.86);
-    -webkit-mask-image: linear-gradient(
-        90deg,
-        transparent 0%,
-        #000 18%,
-        #000 82%,
-        transparent 100%
+        saturate(.94)
+        contrast(1.05)
+        brightness(.84);
+    -webkit-mask-image: radial-gradient(
+        ellipse 63% 72% at 52% 50%,
+        #000 0%,
+        #000 43%,
+        rgba(0,0,0,.92) 58%,
+        rgba(0,0,0,.56) 70%,
+        transparent 86%
     );
-    mask-image: linear-gradient(
-        90deg,
-        transparent 0%,
-        #000 18%,
-        #000 82%,
-        transparent 100%
+    mask-image: radial-gradient(
+        ellipse 63% 72% at 52% 50%,
+        #000 0%,
+        #000 43%,
+        rgba(0,0,0,.92) 58%,
+        rgba(0,0,0,.56) 70%,
+        transparent 86%
     );
 }
 
@@ -169,17 +178,25 @@ body {
     inset: 0;
     pointer-events: none;
     background:
+        radial-gradient(
+            ellipse at 58% 48%,
+            transparent 0%,
+            rgba(4,7,10,.04) 38%,
+            rgba(4,7,10,.16) 72%,
+            rgba(4,7,10,.28) 100%
+        ),
         linear-gradient(
             90deg,
-            rgba(5,8,11,.88) 0%,
-            rgba(5,8,11,.73) 31%,
-            rgba(5,8,11,.46) 62%,
-            rgba(5,8,11,.30) 100%
+            rgba(5,8,11,.94) 0%,
+            rgba(5,8,11,.80) 27%,
+            rgba(5,8,11,.38) 52%,
+            rgba(5,8,11,.24) 72%,
+            rgba(5,8,11,.34) 100%
         ),
         linear-gradient(
             0deg,
-            rgba(0,0,0,.22),
-            transparent 60%
+            rgba(0,0,0,.24),
+            transparent 64%
         );
 }
 
@@ -312,6 +329,11 @@ body {
     right: 198px;
     transform: translateY(-50%) rotate(-13deg) scale(.84);
     opacity: .78;
+}
+
+.hero-cover:only-child {
+    width: 194px;
+    right: 34px;
 }
 
 .hero-cover:hover {
@@ -524,10 +546,10 @@ body {
     }
 
     .hero-profile-image {
-        right: 190px;
-        width: 62%;
-        height: 140%;
-        top: -20%;
+        right: 150px;
+        width: 68%;
+        height: 136%;
+        top: -18%;
     }
 
     .hero-art {
@@ -576,22 +598,24 @@ body {
     }
 
     .hero-profile-image {
-        top: -14%;
-        right: -16%;
-        width: 86%;
-        height: 128%;
-        opacity: .62;
-        -webkit-mask-image: linear-gradient(
-            90deg,
-            transparent 0%,
-            #000 24%,
-            #000 100%
+        top: -10%;
+        right: -18%;
+        width: 92%;
+        height: 124%;
+        opacity: .68;
+        -webkit-mask-image: radial-gradient(
+            ellipse 68% 76% at 58% 50%,
+            #000 0%,
+            #000 44%,
+            rgba(0,0,0,.78) 62%,
+            transparent 86%
         );
-        mask-image: linear-gradient(
-            90deg,
-            transparent 0%,
-            #000 24%,
-            #000 100%
+        mask-image: radial-gradient(
+            ellipse 68% 76% at 58% 50%,
+            #000 0%,
+            #000 44%,
+            rgba(0,0,0,.78) 62%,
+            transparent 86%
         );
     }
 
@@ -696,7 +720,7 @@ body {
                     <span class="summary-sep">·</span>
                     {% endif %}
                     <span class="summary-item">
-                        {{ item.name }}&nbsp;<strong>{{ item.count }}장</strong>
+                        {{ '미니' if item.name == 'EP(미니)' else item.name }}&nbsp;<strong>{{ item.count }}장</strong>
                     </span>
                 {% endfor %}
             </div>
