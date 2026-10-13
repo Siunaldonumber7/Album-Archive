@@ -16,6 +16,7 @@ from requests.adapters import HTTPAdapter
 from album_database import get_db, get_artist_profile_cache, save_artist_profile_cache
 from cache_utils import BoundedCache
 from catalog import (
+    apple_artwork_size,
     extract_apple_genre,
     normalize_apple_album_type,
     normalize_text,
@@ -516,14 +517,6 @@ def apple_high_res(url):
     if not url:
         return ''
     return url.replace('100x100bb', '1000x1000bb').replace('100x100-75', '1000x1000-75')
-
-def apple_artwork_size(url, size=400):
-    url = str(url or '').strip()
-    if not url:
-        return ''
-    url = re.sub(r'\d+x\d+bb', f'{size}x{size}bb', url)
-    url = re.sub(r'\d+x\d+-75', f'{size}x{size}-75', url)
-    return url
 
 def get_explicit_label(item):
     value = item.get('collectionExplicitness', '')
