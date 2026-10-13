@@ -31,6 +31,7 @@ from pagination import (
 )
 from search_engine import (
     get_artist_profile_image,
+    get_cached_artist_profile_image,
 )
 from track_service import (
     get_album_tracks,
@@ -64,6 +65,11 @@ def register_library_routes(app):
         '/album/<int:album_row_id>',
         endpoint='album_detail',
         view_func=album_detail
+    )
+    app.add_url_rule(
+        '/album/<int:album_row_id>/tracks-fragment',
+        endpoint='album_tracks_fragment',
+        view_func=album_tracks_fragment
     )
 
 
@@ -364,9 +370,13 @@ def artist_page(artist_name):
         abort(404)
 
     artist_profile_url = (
-        get_artist_profile_image(
+        get_cached_artist_profile_image(
             canonical_artist
         )
+    )
+    artist_profile_proxy_url = url_for(
+        'artist_profile_image',
+        artist_name=canonical_artist
     )
 
     fallback_cover_url = next(
@@ -459,6 +469,9 @@ def artist_page(artist_name):
         artist_profile_url=(
             artist_profile_url
         ),
+        artist_profile_proxy_url=(
+            artist_profile_proxy_url
+        ),
         hero_background_url=(
             hero_background_url
         ),
@@ -481,6 +494,70 @@ def artist_page(artist_name):
             )
         ),
         canonical_url=canonical_url
+    )
+
+
+def _load_album_tracks(
+    album_row_id
+):
+    conn = get_db()
+
+    try:
+        album = conn.execute(
+            'SELECT * FROM albums '
+            'WHERE id = ?',
+            (album_row_id,)
+        ).fetchone()
+
+        if album is None:
+            return None, [], False
+
+        manual_track_mode = (
+            has_manual_track_override(
+                conn,
+                album['album_id']
+            )
+        )
+
+        if manual_track_mode:
+            tracks = get_manual_album_tracks(
+                conn,
+                album['album_id']
+            )
+            return (
+                album,
+                tracks,
+                True,
+            )
+    finally:
+        conn.close()
+
+    track_data = get_album_tracks(
+        collection_id=(
+            album['apple_collection_id']
+            or ''
+        ),
+        artist=(
+            album['artist']
+            or ''
+        ),
+        album_title=(
+            album['album_title']
+            or ''
+        ),
+        release_year=(
+            album['release_year']
+            or ''
+        )
+    )
+
+    return (
+        album,
+        track_data.get(
+            'tracks',
+            []
+        ),
+        False,
     )
 
 
@@ -508,52 +585,35 @@ def album_detail(album_row_id):
             ''',
             (album['album_id'],)
         ).fetchall()
-
-        manual_track_mode = (
-            has_manual_track_override(
-                conn,
-                album['album_id']
-            )
-        )
-
-        if manual_track_mode:
-            tracks = get_manual_album_tracks(
-                conn,
-                album['album_id']
-            )
-            track_data = {
-                'tracks': tracks,
-                'store': 'MANUAL',
-                'resolved_by': 'manual_db',
-            }
-        else:
-            tracks = []
-            track_data = None
     finally:
         conn.close()
 
-    if not manual_track_mode:
-        track_data = get_album_tracks(
-            collection_id=(
-                album['apple_collection_id']
-                or ''
-            ),
-            artist=(
-                album['artist']
-                or ''
-            ),
-            album_title=(
-                album['album_title']
-                or ''
-            ),
-            release_year=(
-                album['release_year']
-                or ''
-            )
+    return render_template(
+        'detail.html',
+        album=album,
+        owned_copies=owned_copies,
+        owned_count=len(
+            owned_copies
+        ),
+        tracks_url=url_for(
+            'album_tracks_fragment',
+            album_row_id=album_row_id
         )
-        tracks = track_data.get(
-            'tracks',
-            []
+    )
+
+
+def album_tracks_fragment(album_row_id):
+    (
+        album,
+        tracks,
+        manual_track_mode,
+    ) = _load_album_tracks(
+        album_row_id
+    )
+
+    if album is None:
+        return Response(
+            status=404
         )
 
     total_discs = 0
@@ -570,39 +630,15 @@ def album_detail(album_row_id):
             for track in tracks
         )
 
-    print(
-        'DETAIL TRACK SOURCE:',
-        (
-            track_data.get(
-                'resolved_by',
-                ''
-            )
-            if track_data
-            else ''
-        ),
-        'COUNT:',
-        len(tracks),
-        'OWNED COPIES:',
-        len(owned_copies),
-        'MANUAL:',
-        manual_track_mode
-    )
-
-    return render_template(
-        'detail.html',
+    response = render_template(
+        '_track_list.html',
         album=album,
         tracks=tracks,
-        track_store=(
-            'MANUAL'
-            if manual_track_mode
-            else 'KR'
-        ),
         total_discs=total_discs,
-        owned_copies=owned_copies,
-        owned_count=len(
-            owned_copies
-        ),
         manual_track_mode=(
             manual_track_mode
         )
     )
+
+    return response
+
