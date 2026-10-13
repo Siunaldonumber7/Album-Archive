@@ -20,13 +20,12 @@ from cache_utils import BoundedCache
 from track_service import (
     has_manual_track_override,
     get_manual_album_tracks,
-    normalize_manual_duration,
     get_album_tracks,
-    clear_track_caches,
 )
 from media_service import configure_media, cover_thumbnail_url
 from admin_routes import register_admin_routes
 from album_routes import register_album_routes
+from track_routes import register_track_routes
 from search_engine import get_artist_profile_image
 from library_view import (
     INDEX_SORT_SQL,
@@ -183,6 +182,7 @@ register_admin_routes(
     LOGIN_ATTEMPTS
 )
 register_album_routes(app)
+register_track_routes(app)
 
 
 @app.route('/')
@@ -644,231 +644,6 @@ def album_detail(album_row_id):
         owned_copies=owned_copies,
         owned_count=len(owned_copies),
         manual_track_mode=manual_track_mode
-    )
-
-
-@app.route('/album/<int:album_row_id>/tracks')
-def edit_album_tracks(album_row_id):
-    track_saved = request.args.get('track_saved', '').strip()
-    track_reset = request.args.get('track_reset', '').strip()
-    conn = get_db()
-    album = conn.execute(
-        'SELECT * FROM albums WHERE id = ?',
-        (album_row_id,)
-    ).fetchone()
-
-    if album is None:
-        conn.close()
-        return redirect(url_for('index'))
-
-    manual_track_mode = has_manual_track_override(
-        conn,
-        album['album_id']
-    )
-
-    if manual_track_mode:
-        tracks = get_manual_album_tracks(
-            conn,
-            album['album_id']
-        )
-    else:
-        tracks = []
-
-    conn.close()
-
-    # 아직 수동 저장 전이면 Apple에서 불러온 현재 수록곡을 편집 초안으로 사용한다.
-    if not manual_track_mode:
-        track_data = get_album_tracks(
-            collection_id=album['apple_collection_id'] or '',
-            artist=album['artist'] or '',
-            album_title=album['album_title'] or '',
-            release_year=album['release_year'] or ''
-        )
-        tracks = track_data.get('tracks', [])
-
-    editor_tracks = []
-    for track in tracks:
-        editor_tracks.append({
-            'disc_number': int(track.get('disc_number', 1) or 1),
-            'track_number': int(track.get('track_number', 1) or 1),
-            'title': track.get('title', '') or '',
-            'artist': track.get('artist', '') or '',
-            'duration': track.get('duration', '') or ''
-        })
-
-    if not editor_tracks:
-        editor_tracks = [{
-            'disc_number': 1,
-            'track_number': 1,
-            'title': '',
-            'artist': '',
-            'duration': ''
-        }]
-
-    return render_template(
-        'track_edit.html',
-        album=album,
-        tracks=editor_tracks,
-        manual_track_mode=manual_track_mode,
-        track_saved=track_saved,
-        track_reset=track_reset
-    )
-
-
-@app.route('/album/<int:album_row_id>/tracks/save', methods=['POST'])
-def save_album_tracks(album_row_id):
-    conn = get_db()
-    album = conn.execute(
-        'SELECT * FROM albums WHERE id = ?',
-        (album_row_id,)
-    ).fetchone()
-
-    if album is None:
-        conn.close()
-        return redirect(url_for('index'))
-
-    disc_values = request.form.getlist('disc_number')
-    track_values = request.form.getlist('track_number')
-    title_values = request.form.getlist('title')
-    artist_values = request.form.getlist('track_artist')
-    duration_values = request.form.getlist('duration')
-
-    rows = []
-
-    for index, raw_title in enumerate(title_values):
-        title = str(raw_title or '').strip()
-        if not title:
-            continue
-
-        try:
-            disc_number = int(disc_values[index])
-        except Exception:
-            disc_number = 1
-        disc_number = max(1, disc_number)
-
-        try:
-            track_number = int(track_values[index])
-        except Exception:
-            track_number = index + 1
-        track_number = max(1, track_number)
-
-        artist = ''
-        if index < len(artist_values):
-            artist = str(artist_values[index] or '').strip()
-
-        duration = ''
-        if index < len(duration_values):
-            duration = normalize_manual_duration(
-                duration_values[index]
-            )
-
-        rows.append({
-            'disc_number': disc_number,
-            'track_number': track_number,
-            'title': title,
-            'artist': artist,
-            'duration': duration
-        })
-
-    rows.sort(
-        key=lambda item: (
-            item['disc_number'],
-            item['track_number'],
-            item['title'].lower()
-        )
-    )
-
-    try:
-        conn.execute(
-            'DELETE FROM album_tracks WHERE album_id = ?',
-            (album['album_id'],)
-        )
-
-        for row in rows:
-            conn.execute(
-                '''
-                INSERT INTO album_tracks (
-                    album_id,
-                    disc_number,
-                    track_number,
-                    title,
-                    artist,
-                    duration
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    album['album_id'],
-                    row['disc_number'],
-                    row['track_number'],
-                    row['title'],
-                    row['artist'],
-                    row['duration']
-                )
-            )
-
-        conn.execute(
-            '''
-            INSERT INTO album_track_settings (
-                album_id,
-                manual_override,
-                updated_at
-            ) VALUES (?, 1, CURRENT_TIMESTAMP)
-            ON CONFLICT(album_id) DO UPDATE SET
-                manual_override = 1,
-                updated_at = CURRENT_TIMESTAMP
-            ''',
-            (album['album_id'],)
-        )
-
-        conn.commit()
-
-    except Exception:
-        conn.rollback()
-        raise
-
-    finally:
-        conn.close()
-
-    return redirect(
-        url_for(
-            'edit_album_tracks',
-            album_row_id=album_row_id,
-            track_saved='1'
-        )
-    )
-
-
-@app.route('/album/<int:album_row_id>/tracks/reset', methods=['POST'])
-def reset_album_tracks(album_row_id):
-    conn = get_db()
-    album = conn.execute(
-        'SELECT * FROM albums WHERE id = ?',
-        (album_row_id,)
-    ).fetchone()
-
-    if album is None:
-        conn.close()
-        return redirect(url_for('index'))
-
-    conn.execute(
-        'DELETE FROM album_tracks WHERE album_id = ?',
-        (album['album_id'],)
-    )
-    conn.execute(
-        'DELETE FROM album_track_settings WHERE album_id = ?',
-        (album['album_id'],)
-    )
-    conn.commit()
-    conn.close()
-
-    clear_track_caches()
-
-    return redirect(
-        url_for(
-            'edit_album_tracks',
-            album_row_id=album_row_id,
-            track_reset='1'
-        )
     )
 
 
