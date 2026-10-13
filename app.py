@@ -31,6 +31,7 @@ from track_service import (
 from media_service import configure_media, cover_thumbnail_url
 from admin_routes import register_admin_routes
 from album_routes import register_album_routes
+from search_engine import get_artist_profile_image
 
 app = Flask(__name__)
 
@@ -516,6 +517,33 @@ def artist_page(artist_name):
     if not matched_albums:
         abort(404)
 
+    artist_profile_url = get_artist_profile_image(
+        canonical_artist
+    )
+
+    fallback_cover_url = next(
+        (
+            str(album['cover_url'] or '').strip()
+            for album in matched_albums
+            if str(album['cover_url'] or '').strip()
+        ),
+        ''
+    )
+
+    hero_background_url = (
+        artist_profile_url
+        or fallback_cover_url
+    )
+    hero_background_source = (
+        'profile'
+        if artist_profile_url
+        else (
+            'cover'
+            if fallback_cover_url
+            else ''
+        )
+    )
+
     owned_count = len(matched_albums)
 
     format_counts = {
@@ -671,6 +699,9 @@ def artist_page(artist_name):
         'artist.html',
         artist_name=canonical_artist,
         albums=albums,
+        artist_profile_url=artist_profile_url,
+        hero_background_url=hero_background_url,
+        hero_background_source=hero_background_source,
         owned_count=owned_count,
         format_counts=format_counts,
         format_summary=format_summary,
