@@ -1,8 +1,16 @@
-from flask import Flask, request, redirect, url_for, session, abort
+import hmac
 import os
 import secrets
-import hmac
 from datetime import timedelta
+
+from flask import (
+    Flask,
+    abort,
+    redirect,
+    request,
+    session,
+    url_for,
+)
 
 from album_database import DATA_DIR, init_db
 from catalog import (
@@ -93,14 +101,40 @@ ADMIN_ENDPOINTS = {
 
 
 def get_csrf_token():
-    token = session.get('_csrf_token')
+    token = session.get(
+        '_csrf_token'
+    )
+
     if not token:
         token = secrets.token_urlsafe(32)
         session['_csrf_token'] = token
+
     return token
 
 
-app.jinja_env.globals['csrf_token'] = get_csrf_token
+def has_valid_csrf():
+    expected = session.get(
+        '_csrf_token',
+        ''
+    )
+    received = request.form.get(
+        '_csrf_token',
+        ''
+    )
+
+    return bool(
+        expected
+        and received
+        and hmac.compare_digest(
+            expected,
+            received
+        )
+    )
+
+
+app.jinja_env.globals[
+    'csrf_token'
+] = get_csrf_token
 
 
 @app.before_request
@@ -108,39 +142,55 @@ def protect_admin_routes():
     endpoint = request.endpoint or ''
 
     if endpoint == 'admin_login':
-        if request.method == 'POST':
-            expected = session.get('_csrf_token', '')
-            received = request.form.get('_csrf_token', '')
-            if not expected or not received or not hmac.compare_digest(expected, received):
-                abort(400)
+        if (
+            request.method == 'POST'
+            and not has_valid_csrf()
+        ):
+            abort(400)
         return None
 
     if endpoint not in ADMIN_ENDPOINTS:
         return None
 
-    if not session.get('admin_authenticated'):
-        return redirect(url_for('admin_login'))
+    if not session.get(
+        'admin_authenticated'
+    ):
+        return redirect(
+            url_for('admin_login')
+        )
 
-    if request.method == 'POST':
-        expected = session.get('_csrf_token', '')
-        received = request.form.get('_csrf_token', '')
-        if not expected or not received or not hmac.compare_digest(expected, received):
-            abort(400)
+    if (
+        request.method == 'POST'
+        and not has_valid_csrf()
+    ):
+        abort(400)
 
     return None
 
 
 @app.after_request
 def add_security_headers(response):
-    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
-    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault(
+        'X-Content-Type-Options',
+        'nosniff'
+    )
+    response.headers.setdefault(
+        'X-Frame-Options',
+        'SAMEORIGIN'
+    )
+    response.headers.setdefault(
+        'Referrer-Policy',
+        'strict-origin-when-cross-origin'
+    )
     response.headers.setdefault(
         'Content-Security-Policy',
         "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
     )
 
-    forwarded_proto = request.headers.get('X-Forwarded-Proto', '').lower()
+    forwarded_proto = request.headers.get(
+        'X-Forwarded-Proto',
+        ''
+    ).lower()
     if request.is_secure or forwarded_proto == 'https':
         response.headers.setdefault(
             'Strict-Transport-Security',
