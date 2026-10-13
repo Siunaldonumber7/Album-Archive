@@ -341,6 +341,219 @@
         });
     }
 
+    function initArtistDetailProfile() {
+        if (
+            body.dataset.page
+            !== 'artist-detail'
+        ) {
+            return;
+        }
+
+        const hero = document.querySelector(
+            '.hero[data-profile-src]'
+        );
+
+        if (!hero) {
+            return;
+        }
+
+        const profileSrc = (
+            hero.dataset.profileSrc
+            || ''
+        ).trim();
+
+        if (!profileSrc) {
+            return;
+        }
+
+        const probe = new Image();
+        probe.decoding = 'async';
+
+        try {
+            probe.fetchPriority = 'low';
+        } catch (error) {
+            // Older browsers simply ignore fetch priority.
+        }
+
+        probe.addEventListener(
+            'load',
+            () => {
+                let background = hero.querySelector(
+                    '.hero-background-image'
+                );
+
+                if (!background) {
+                    background = document.createElement(
+                        'img'
+                    );
+                    background.className =
+                        'hero-background-image';
+                    background.alt = '';
+                    background.setAttribute(
+                        'aria-hidden',
+                        'true'
+                    );
+                    background.decoding = 'async';
+                    hero.prepend(background);
+                }
+
+                background.src = profileSrc;
+
+                let portrait = hero.querySelector(
+                    '.hero-profile-image'
+                );
+
+                if (!portrait) {
+                    portrait = document.createElement(
+                        'img'
+                    );
+                    portrait.className =
+                        'hero-profile-image';
+                    portrait.alt = '';
+                    portrait.setAttribute(
+                        'aria-hidden',
+                        'true'
+                    );
+                    portrait.decoding = 'async';
+
+                    background.insertAdjacentElement(
+                        'afterend',
+                        portrait
+                    );
+                }
+
+                portrait.src = profileSrc;
+
+                if (
+                    !hero.querySelector(
+                        '.hero-shade'
+                    )
+                ) {
+                    const shade = document.createElement(
+                        'div'
+                    );
+                    shade.className = 'hero-shade';
+                    shade.setAttribute(
+                        'aria-hidden',
+                        'true'
+                    );
+                    portrait.insertAdjacentElement(
+                        'afterend',
+                        shade
+                    );
+                }
+
+                hero.classList.add(
+                    'has-visual',
+                    'has-profile'
+                );
+                hero.classList.remove(
+                    'has-cover-fallback'
+                );
+                hero.dataset.profileSrc = '';
+            }
+        );
+
+        probe.src = profileSrc;
+    }
+
+
+    function initAlbumTrackLoader() {
+        if (
+            body.dataset.page
+            !== 'album-detail'
+        ) {
+            return;
+        }
+
+        const target = document.querySelector(
+            '#track-section[data-tracks-url]'
+        );
+
+        if (!target) {
+            return;
+        }
+
+        const tracksUrl = (
+            target.dataset.tracksUrl
+            || ''
+        ).trim();
+
+        if (!tracksUrl) {
+            return;
+        }
+
+        const loadTracks = async () => {
+            try {
+                const response = await fetch(
+                    tracksUrl,
+                    {
+                        headers: {
+                            'X-Requested-With':
+                                'AlbumArchiveTracks'
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        'Track request failed: '
+                        + response.status
+                    );
+                }
+
+                target.innerHTML = (
+                    await response.text()
+                );
+            } catch (error) {
+                target.innerHTML = [
+                    '<div class="section-head">',
+                    '<h2 class="section-title">트랙리스트</h2>',
+                    '</div>',
+                    '<section class="track-panel">',
+                    '<div class="empty-tracks">',
+                    '수록곡을 불러오지 못했습니다. ',
+                    '<button type="button" class="js-track-retry">',
+                    '다시 시도',
+                    '</button>',
+                    '</div>',
+                    '</section>'
+                ].join('');
+            }
+        };
+
+        target.addEventListener(
+            'click',
+            (event) => {
+                const retry = event.target.closest(
+                    '.js-track-retry'
+                );
+
+                if (!retry) {
+                    return;
+                }
+
+                target.innerHTML = [
+                    '<div class="section-head">',
+                    '<h2 class="section-title">트랙리스트</h2>',
+                    '</div>',
+                    '<section class="track-panel">',
+                    '<div class="track-loading">',
+                    '수록곡 불러오는 중',
+                    '</div>',
+                    '</section>'
+                ].join('');
+
+                loadTracks();
+            }
+        );
+
+        window.requestAnimationFrame(
+            loadTracks
+        );
+    }
+
+
     function initArtistProfileImages() {
         if (
             body.dataset.page
@@ -437,5 +650,7 @@
     syncCanonicalUrl();
     initIndexFilters();
     initArtistDetailFilters();
+    initArtistDetailProfile();
     initArtistProfileImages();
+    initAlbumTrackLoader();
 })();
