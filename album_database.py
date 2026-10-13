@@ -144,6 +144,18 @@ def init_db():
         'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
 
+    conn.execute(
+        'CREATE TABLE IF NOT EXISTS bugs_genre_cache ( '
+        'cache_key TEXT PRIMARY KEY, '
+        'artist TEXT NOT NULL, '
+        'album_title TEXT NOT NULL, '
+        'release_year TEXT, '
+        'bugs_album_id TEXT, '
+        'raw_genre TEXT, '
+        'normalized_genre TEXT NOT NULL, '
+        'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
+    )
+
     # Keep existing album rows aligned with the current genre taxonomy.
     # Local import avoids coupling database setup to catalog at module import time.
     from catalog import normalize_genres
