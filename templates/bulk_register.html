@@ -143,8 +143,11 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           </div>
 
           <div class="field">
-            <label>장르 · 복수 선택 (⌘/Ctrl+클릭)</label>
+            <label>장르 · 벅스 기준 · 복수 선택 (⌘/Ctrl+클릭)</label>
             {% set selected_genres = split_genres(album.genre or '') %}
+            {% if not selected_genres %}
+            <div style="margin:0 0 6px;color:#999;font-size:11px;">벅스 장르 매칭 없음 · 직접 선택 가능</div>
+            {% endif %}
             <select class="genre-multi" name="album_{{ i }}_genre" multiple>
               {% for genre_name in genre_choices(album.genre or '') %}
               <option value="{{ genre_name }}" {% if genre_name in selected_genres %}selected{% endif %}>{{ genre_name }}</option>
