@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for
 
 from album_database import get_db, get_genre_options, remember_genres, ensure_primary_display
 from album_service import (
-    make_album_key,
+    find_existing_album_id,
     get_next_management_no,
     get_or_create_album_id,
 )
@@ -150,6 +150,75 @@ def _genre_options_with_current(current=''):
     return options
 
 
+def _duplicate_info(
+    conn,
+    apple_id,
+    artist,
+    album_title,
+    release_year,
+    include_items=False
+):
+    album_id = find_existing_album_id(
+        conn,
+        apple_id=apple_id,
+        artist=artist,
+        album_title=album_title,
+        release_year=release_year
+    )
+
+    if not album_id:
+        return {
+            'album_id': '',
+            'count': 0,
+            'items': [],
+        }
+
+    if include_items:
+        items = conn.execute(
+            '''
+            SELECT
+                id,
+                management_no,
+                album_id,
+                media_format,
+                artist,
+                album_title,
+                release_year,
+                open_status,
+                signed,
+                purchase_price
+            FROM albums
+            WHERE album_id = ?
+            ORDER BY id ASC
+            ''',
+            (album_id,)
+        ).fetchall()
+
+        return {
+            'album_id': album_id,
+            'count': len(items),
+            'items': items,
+        }
+
+    count = conn.execute(
+        '''
+        SELECT COUNT(*) AS count
+        FROM albums
+        WHERE album_id = ?
+        ''',
+        (album_id,)
+    ).fetchone()['count']
+
+    return {
+        'album_id': album_id,
+        'count': int(
+            count
+            or 0
+        ),
+        'items': [],
+    }
+
+
 def register_album_routes(app):
     app.add_url_rule(
         '/add',
@@ -271,33 +340,26 @@ def add_album_from_link():
         metadata.get('genre', '')
     )
 
-    album_key = make_album_key(
-        artist,
-        album_title,
-        release_year
-    )
-
     conn = get_db()
 
-    existing = conn.execute(
-        "SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1",
-        (album_key, apple_id, apple_id)
-    ).fetchone()
+    try:
+        duplicate = _duplicate_info(
+            conn,
+            apple_id,
+            artist,
+            album_title,
+            release_year,
+            include_items=True
+        )
+    finally:
+        conn.close()
 
-    duplicate_items = []
-    duplicate_count = 0
-
-    if existing:
-        preview_album_id = existing['album_id']
-        duplicate_items = conn.execute(
-            'SELECT id, management_no, album_id, media_format, artist, album_title, release_year, open_status, signed, purchase_price FROM albums WHERE album_id = ? ORDER BY id ASC',
-            (preview_album_id,)
-        ).fetchall()
-        duplicate_count = len(duplicate_items)
-    else:
-        preview_album_id = '신규 자동 생성'
-
-    conn.close()
+    duplicate_items = duplicate['items']
+    duplicate_count = duplicate['count']
+    preview_album_id = (
+        duplicate['album_id']
+        or '신규 자동 생성'
+    )
 
     selected = {
         'apple_id': apple_id,
@@ -567,24 +629,25 @@ def register_bulk():
             if not item:
                 continue
 
-            album_key = make_album_key(
-                item.get('artist', ''),
-                item.get('title', ''),
-                item.get('release_year', '')
+            duplicate = _duplicate_info(
+                conn,
+                apple_id,
+                item.get(
+                    'artist',
+                    ''
+                ),
+                item.get(
+                    'title',
+                    ''
+                ),
+                item.get(
+                    'release_year',
+                    ''
+                )
             )
-
-            existing = conn.execute(
-                "SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1",
-                (album_key, apple_id, apple_id)
-            ).fetchone()
-
-            duplicate_count = 0
-
-            if existing:
-                duplicate_count = conn.execute(
-                    'SELECT COUNT(*) AS count FROM albums WHERE album_id = ?',
-                    (existing['album_id'],)
-                ).fetchone()['count']
+            duplicate_count = (
+                duplicate['count']
+            )
 
             item['classification'] = (
                 '한국'
@@ -797,19 +860,40 @@ def register():
     genre = normalize_genres(
         request.form.get('genre', '').strip()
     )
-    album_key = make_album_key(artist, album_title, release_year)
     conn = get_db()
-    existing = conn.execute("SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1", (album_key, apple_id, apple_id)).fetchone()
-    duplicate_items = []
-    duplicate_count = 0
-    if existing:
-        preview_album_id = existing['album_id']
-        duplicate_items = conn.execute('SELECT id, management_no, album_id, media_format, artist, album_title, release_year, open_status, signed, purchase_price FROM albums WHERE album_id = ? ORDER BY id ASC', (preview_album_id,)).fetchall()
-        duplicate_count = len(duplicate_items)
-    else:
-        preview_album_id = '신규 자동 생성'
-    conn.close()
-    selected = {'apple_id': apple_id, 'apple_artist_id': apple_artist_id, 'search_artist': search_artist, 'search_album': search_album, 'artist': artist, 'album_title': album_title, 'release_year': release_year, 'cover_url': cover_url, 'album_type': album_type, 'genre': genre, 'preview_album_id': preview_album_id}
+
+    try:
+        duplicate = _duplicate_info(
+            conn,
+            apple_id,
+            artist,
+            album_title,
+            release_year,
+            include_items=True
+        )
+    finally:
+        conn.close()
+
+    duplicate_items = duplicate['items']
+    duplicate_count = duplicate['count']
+    preview_album_id = (
+        duplicate['album_id']
+        or '신규 자동 생성'
+    )
+
+    selected = {
+        'apple_id': apple_id,
+        'apple_artist_id': apple_artist_id,
+        'search_artist': search_artist,
+        'search_album': search_album,
+        'artist': artist,
+        'album_title': album_title,
+        'release_year': release_year,
+        'cover_url': cover_url,
+        'album_type': album_type,
+        'genre': genre,
+        'preview_album_id': preview_album_id,
+    }
     return render_template(
         'register.html',
         album=selected,
