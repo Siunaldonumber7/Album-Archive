@@ -7,6 +7,38 @@
         return;
     }
 
+    function syncCanonicalUrl() {
+        const canonicalUrl = (
+            body.dataset.canonicalUrl
+            || ''
+        ).trim();
+
+        if (!canonicalUrl) {
+            return;
+        }
+
+        const current = new URL(
+            window.location.href
+        );
+        const canonical = new URL(
+            canonicalUrl,
+            window.location.href
+        );
+
+        if (
+            current.pathname === canonical.pathname
+            && current.search === canonical.search
+        ) {
+            return;
+        }
+
+        window.history.replaceState(
+            { albumArchiveCanonical: true },
+            '',
+            canonical.href
+        );
+    }
+
     function buildFormUrl(form) {
         const url = new URL(
             form.action || window.location.href,
@@ -402,6 +434,7 @@
         images.forEach(loadImage);
     }
 
+    syncCanonicalUrl();
     initIndexFilters();
     initArtistDetailFilters();
     initArtistProfileImages();
