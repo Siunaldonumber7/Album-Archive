@@ -8,7 +8,7 @@ from album_service import (
     get_next_management_no,
     get_or_create_album_id,
 )
-from catalog import ALBUM_TYPES, normalize_genres
+from catalog import ALBUM_TYPES, normalize_genres, split_genres
 from media_service import (
     allowed_image_file,
     save_uploaded_cover,
@@ -37,8 +37,6 @@ def _collect_genres(form, selected_name, new_name):
 def _genre_options_with_current(current=''):
     options = get_genre_options()
     seen = {value.casefold() for value in options}
-
-    from catalog import split_genres
 
     for genre in split_genres(current):
         key = genre.casefold()
@@ -126,17 +124,6 @@ def add_album_page():
         searched = True
         apple_results = search_apple(artist, album)
 
-        # 장르는 사용자가 직접 관리하므로 Apple 장르는 자동 입력하지 않는다.
-        apple_results = [
-            {
-                **item,
-                'genre': ''
-            }
-            if isinstance(item, dict)
-            else item
-            for item in apple_results
-        ]
-
     genre_options = get_genre_options()
 
     conn = get_db()
@@ -178,7 +165,9 @@ def add_album_from_link():
     cover_url = metadata.get('cover', '')
     apple_artist_id = metadata.get('artist_id', '')
     album_type = metadata.get('album_type', '') or '앨범'
-    genre = ''
+    genre = normalize_genres(
+        metadata.get('genre', '')
+    )
 
     album_key = make_album_key(
         artist,
@@ -227,7 +216,9 @@ def add_album_from_link():
         album=selected,
         duplicate_count=duplicate_count,
         duplicate_items=duplicate_items,
-        genre_options=get_genre_options()
+        genre_options=_genre_options_with_current(
+            genre
+        )
     )
 
 def add_album_manual():
@@ -464,15 +455,6 @@ def register_bulk():
                 store
             )
 
-    # 장르는 사용자가 직접 입력하므로 Apple 자동 장르는 비운다.
-    for index, item in enumerate(metadata_results):
-        if not item:
-            continue
-
-        item = dict(item)
-        item['genre'] = ''
-        metadata_results[index] = item
-
     albums = []
     conn = get_db()
 
@@ -517,12 +499,30 @@ def register_bulk():
     if not albums:
         return redirect(url_for('add_album_page'))
 
+    genre_options = get_genre_options()
+    genre_seen = {
+        value.casefold()
+        for value in genre_options
+    }
+
+    for item in albums:
+        for genre_name in split_genres(
+            item.get('genre', '')
+        ):
+            key = genre_name.casefold()
+
+            if key not in genre_seen:
+                genre_seen.add(key)
+                genre_options.append(
+                    genre_name
+                )
+
     return render_template(
         'bulk_register.html',
         albums=albums,
         search_artist=search_artist,
         search_album=search_album,
-        genre_options=get_genre_options()
+        genre_options=genre_options
     )
 
 def save_bulk_albums():
@@ -701,7 +701,9 @@ def register():
     release_year = request.form.get('release_year', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     album_type = request.form.get('album_type', '').strip() or '앨범'
-    genre = ''
+    genre = normalize_genres(
+        request.form.get('genre', '').strip()
+    )
     album_key = make_album_key(artist, album_title, release_year)
     conn = get_db()
     existing = conn.execute("SELECT album_id FROM album_master WHERE album_key = ? OR ( ? != '' AND apple_collection_id = ? ) LIMIT 1", (album_key, apple_id, apple_id)).fetchone()
@@ -720,7 +722,9 @@ def register():
         album=selected,
         duplicate_count=duplicate_count,
         duplicate_items=duplicate_items,
-        genre_options=get_genre_options()
+        genre_options=_genre_options_with_current(
+            genre
+        )
     )
 
 def save_album():
