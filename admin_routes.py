@@ -322,22 +322,24 @@ def manage_albums():
         ) * ALBUMS_PER_PAGE
 
         query = (
-        'SELECT albums.*, '
-        'COALESCE(copies.copy_count, 1) AS copy_count '
-        'FROM albums '
-        'LEFT JOIN ( '
-        '    SELECT album_id, COUNT(*) AS copy_count '
-        '    FROM albums '
-        '    GROUP BY album_id '
-        ') AS copies '
-        'ON copies.album_id = albums.album_id'
-        + where_sql
-        + (
-            f" ORDER BY {sort_columns[sort_by]} "
-            f"{sort_order.upper()}, albums.id DESC"
+            'SELECT albums.*, '
+            'COALESCE(copies.copy_count, 1) AS copy_count '
+            'FROM albums '
+            'LEFT JOIN ( '
+            '    SELECT '
+            '        album_id AS copy_album_id, '
+            '        COUNT(*) AS copy_count '
+            '    FROM albums '
+            '    GROUP BY album_id '
+            ') AS copies '
+            'ON copies.copy_album_id = albums.album_id'
+            + where_sql
+            + (
+                f" ORDER BY {sort_columns[sort_by]} "
+                f"{sort_order.upper()}, albums.id DESC"
+            )
+            + ' LIMIT ? OFFSET ?'
         )
-        + ' LIMIT ? OFFSET ?'
-    )
         albums = conn.execute(
             query,
             params + [
