@@ -39,6 +39,8 @@ APPLE_ARTIST_CACHE = BoundedCache(500)
 APPLE_ARTIST_CACHE_SECONDS = 86400
 ARTIST_ALBUM_CACHE = BoundedCache(150)
 ARTIST_ALBUM_CACHE_SECONDS = 21600
+ARTIST_PROFILE_MEMORY_CACHE = BoundedCache(1000)
+ARTIST_PROFILE_MEMORY_SECONDS = 86400
 
 MUSICBRAINZ_SESSION = requests.Session()
 MUSICBRAINZ_SESSION.headers.update({
@@ -782,6 +784,38 @@ def _artist_profile_cache_is_fresh(row, max_age_seconds=86400):
         return False
 
 
+def _get_artist_profile_memory(artist_key):
+    cached = ARTIST_PROFILE_MEMORY_CACHE.get(
+        artist_key
+    )
+
+    if cached is None:
+        return None
+
+    if (
+        time.time() - cached['time']
+        >= ARTIST_PROFILE_MEMORY_SECONDS
+    ):
+        return None
+
+    return cached['url']
+
+
+def _save_artist_profile_memory(
+    artist_key,
+    profile_url
+):
+    ARTIST_PROFILE_MEMORY_CACHE[
+        artist_key
+    ] = {
+        'time': time.time(),
+        'url': str(
+            profile_url
+            or ''
+        ).strip(),
+    }
+
+
 def _find_artist_artwork_in_apple_page(page, artist_id=''):
     if not page:
         return ''
@@ -915,6 +949,15 @@ def get_artist_profile_image(
     if not artist_key:
         return ''
 
+    memory_profile_url = (
+        _get_artist_profile_memory(
+            artist_key
+        )
+    )
+
+    if memory_profile_url is not None:
+        return memory_profile_url
+
     cached = get_artist_profile_cache(
         artist_key
     )
@@ -925,6 +968,10 @@ def get_artist_profile_image(
         ).strip()
 
         if profile_url:
+            _save_artist_profile_memory(
+                artist_key,
+                profile_url
+            )
             return profile_url
 
         # 실패 결과는 하루 동안만 재사용해서
@@ -932,6 +979,10 @@ def get_artist_profile_image(
         if _artist_profile_cache_is_fresh(
             cached
         ):
+            _save_artist_profile_memory(
+                artist_key,
+                ''
+            )
             return ''
 
     resolved_id = str(
@@ -960,6 +1011,10 @@ def get_artist_profile_image(
             '',
             '',
             'apple-id-missing'
+        )
+        _save_artist_profile_memory(
+            artist_key,
+            ''
         )
         return ''
 
@@ -1029,6 +1084,10 @@ def get_artist_profile_image(
                     profile_url,
                     'apple'
                 )
+                _save_artist_profile_memory(
+                    artist_key,
+                    profile_url
+                )
 
                 print(
                     'APPLE ARTIST PROFILE:',
@@ -1054,6 +1113,10 @@ def get_artist_profile_image(
         resolved_id,
         '',
         'apple-miss'
+    )
+    _save_artist_profile_memory(
+        artist_key,
+        ''
     )
 
     return ''
