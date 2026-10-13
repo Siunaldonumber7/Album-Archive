@@ -166,6 +166,7 @@ def admin_dashboard():
                 management_no,
                 artist,
                 album_title,
+                album_type,
                 cover_url
             FROM albums
             ORDER BY id DESC
