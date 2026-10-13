@@ -88,6 +88,7 @@ configure_media(app)
 ADMIN_ENDPOINTS = {
     'admin_dashboard',
     'manage_albums',
+    'set_main_album',
     'add_album_page',
     'add_album_from_link',
     'add_album_manual',
@@ -219,7 +220,7 @@ def index():
     bulk_saved = request.args.get('bulk_saved', '')
 
     conn = get_db()
-    conditions = []
+    conditions = ['is_primary_display = 1']
     params = []
 
     if library_q:
@@ -316,11 +317,14 @@ def index():
         ).fetchall()
 
     total_album_count = conn.execute(
-        'SELECT COUNT(*) AS count FROM albums'
+        'SELECT COUNT(*) AS count FROM albums '
+        'WHERE is_primary_display = 1'
     ).fetchone()['count']
 
     genre_rows = conn.execute(
-        "SELECT genre FROM albums WHERE genre IS NOT NULL AND TRIM(genre) != ''"
+        "SELECT genre FROM albums "
+        "WHERE is_primary_display = 1 "
+        "AND genre IS NOT NULL AND TRIM(genre) != ''"
     ).fetchall()
     genre_options = sorted(
         {
@@ -365,7 +369,8 @@ def artists_page():
         '''
         SELECT artist, cover_url
         FROM albums
-        WHERE artist IS NOT NULL
+        WHERE is_primary_display = 1
+          AND artist IS NOT NULL
           AND TRIM(artist) != ''
         ORDER BY id DESC
         '''
@@ -474,6 +479,7 @@ def artist_page(artist_name):
         '''
         SELECT *
         FROM albums
+        WHERE is_primary_display = 1
         ORDER BY
             CASE
                 WHEN release_year GLOB '[0-9][0-9][0-9][0-9]'
