@@ -119,6 +119,22 @@ def index():
             params
         ).fetchone()['count']
 
+        if (
+            library_q
+            and filtered_album_count == 0
+            and has_album_search(conn)
+        ):
+            where_sql, params = build_index_where(
+                state,
+                use_fts=False
+            )
+            filtered_album_count = conn.execute(
+                'SELECT COUNT(*) AS count '
+                'FROM albums'
+                + where_sql,
+                params
+            ).fetchone()['count']
+
         total_pages = max(
             1,
             (
