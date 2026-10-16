@@ -220,22 +220,10 @@ def build_index_where(
                 '  FROM album_search'
                 '  WHERE album_search MATCH ?'
                 ' )'
-                ' OR barcode LIKE ?'
-                ' OR catalog_no LIKE ?'
-                ' OR release_country LIKE ?'
-                ' OR edition LIKE ?'
-                ' OR purchase_store LIKE ?'
-                ' OR storage_location LIKE ?'
                 ')'
             )
             params.extend([
                 fts_query,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
             ])
         else:
             conditions.append(
@@ -255,12 +243,6 @@ def build_index_where(
                 ' )'
             )
             params.extend([
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
                 value,
                 value,
                 value,
