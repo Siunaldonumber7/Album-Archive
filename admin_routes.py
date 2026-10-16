@@ -638,6 +638,183 @@ def admin_database():
             )
             '''
         ).fetchone()['count']
+
+        release_date_rows = conn.execute(
+            '''
+            SELECT
+                id,
+                management_no,
+                album_id,
+                artist,
+                album_title,
+                release_year,
+                apple_collection_id
+            FROM albums
+            WHERE release_date IS NULL
+               OR TRIM(release_date) = ''
+            ORDER BY
+                artist COLLATE NOCASE,
+                album_title COLLATE NOCASE,
+                id
+            '''
+        ).fetchall()
+
+        apple_id_rows = conn.execute(
+            '''
+            SELECT
+                id,
+                management_no,
+                album_id,
+                artist,
+                album_title
+            FROM albums
+            WHERE apple_collection_id IS NULL
+               OR TRIM(apple_collection_id) = ''
+            ORDER BY
+                artist COLLATE NOCASE,
+                album_title COLLATE NOCASE,
+                id
+            '''
+        ).fetchall()
+
+        cover_rows = conn.execute(
+            '''
+            SELECT
+                id,
+                management_no,
+                album_id,
+                artist,
+                album_title
+            FROM albums
+            WHERE cover_url IS NULL
+               OR TRIM(cover_url) = ''
+            ORDER BY
+                artist COLLATE NOCASE,
+                album_title COLLATE NOCASE,
+                id
+            '''
+        ).fetchall()
+
+        identity_rows = conn.execute(
+            '''
+            SELECT
+                album_id,
+                MIN(id) AS id,
+                MIN(management_no) AS management_no,
+                MIN(artist) AS artist,
+                MIN(album_title) AS album_title,
+                COUNT(*) AS copy_count,
+                COUNT(DISTINCT COALESCE(classification, ''))
+                    AS classification_count,
+                COUNT(DISTINCT COALESCE(album_type, ''))
+                    AS album_type_count,
+                COUNT(DISTINCT COALESCE(genre, ''))
+                    AS genre_count,
+                COUNT(DISTINCT COALESCE(artist, ''))
+                    AS artist_count,
+                COUNT(DISTINCT COALESCE(album_title, ''))
+                    AS album_title_count,
+                COUNT(DISTINCT COALESCE(release_year, ''))
+                    AS release_year_count,
+                COUNT(DISTINCT COALESCE(release_date, ''))
+                    AS release_date_count
+            FROM albums
+            WHERE album_id IS NOT NULL
+              AND TRIM(album_id) != ''
+            GROUP BY album_id
+            HAVING
+                classification_count > 1
+                OR album_type_count > 1
+                OR genre_count > 1
+                OR artist_count > 1
+                OR album_title_count > 1
+                OR release_year_count > 1
+                OR release_date_count > 1
+            ORDER BY album_id
+            '''
+        ).fetchall()
+
+        master_rows = conn.execute(
+            '''
+            SELECT
+                albums.id,
+                albums.management_no,
+                albums.album_id,
+                albums.artist AS album_artist,
+                albums.album_title AS album_title,
+                albums.release_year AS album_release_year,
+                albums.release_date AS album_release_date,
+                album_master.artist AS master_artist,
+                album_master.album_title AS master_album_title,
+                album_master.release_year AS master_release_year,
+                album_master.release_date AS master_release_date
+            FROM album_master
+            INNER JOIN albums
+                ON albums.album_id =
+                    album_master.album_id
+               AND albums.is_primary_display = 1
+            WHERE
+                COALESCE(album_master.artist, '')
+                    != COALESCE(albums.artist, '')
+                OR COALESCE(album_master.album_title, '')
+                    != COALESCE(albums.album_title, '')
+                OR COALESCE(album_master.release_year, '')
+                    != COALESCE(albums.release_year, '')
+                OR COALESCE(album_master.release_date, '')
+                    != COALESCE(albums.release_date, '')
+            ORDER BY albums.album_id
+            '''
+        ).fetchall()
+
+        disconnected_master_rows = conn.execute(
+            '''
+            SELECT
+                album_id,
+                artist,
+                album_title
+            FROM album_master
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_master.album_id
+            )
+            ORDER BY album_id
+            '''
+        ).fetchall()
+
+        disconnected_artist_rows = conn.execute(
+            '''
+            SELECT
+                album_row_id,
+                artist_name
+            FROM album_artist_map
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.id =
+                    album_artist_map.album_row_id
+            )
+            ORDER BY album_row_id, artist_name
+            '''
+        ).fetchall()
+
+        disconnected_track_rows = conn.execute(
+            '''
+            SELECT
+                album_id,
+                store,
+                resolved_by
+            FROM album_track_cache
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_track_cache.album_id
+            )
+            ORDER BY album_id
+            '''
+        ).fetchall()
     finally:
         conn.close()
 
@@ -712,9 +889,232 @@ def admin_database():
         ),
     }
 
+    release_date_issues = [
+        {
+            'id': row['id'],
+            'management_no': row['management_no'],
+            'album_id': row['album_id'],
+            'artist': row['artist'],
+            'album_title': row['album_title'],
+            'detail': (
+                'Apple ID 있음 · 자동 발매일 확인 대상'
+                if str(
+                    row['apple_collection_id']
+                    or ''
+                ).strip()
+                else 'Apple ID 없음 · 발매일 직접 입력 필요'
+            ),
+        }
+        for row in release_date_rows
+    ]
+
+    apple_id_issues = [
+        {
+            'id': row['id'],
+            'management_no': row['management_no'],
+            'album_id': row['album_id'],
+            'artist': row['artist'],
+            'album_title': row['album_title'],
+            'detail': 'Apple Music 연결 정보가 없습니다.',
+        }
+        for row in apple_id_rows
+    ]
+
+    cover_issues = [
+        {
+            'id': row['id'],
+            'management_no': row['management_no'],
+            'album_id': row['album_id'],
+            'artist': row['artist'],
+            'album_title': row['album_title'],
+            'detail': '표시할 커버 이미지가 없습니다.',
+        }
+        for row in cover_rows
+    ]
+
+    identity_issues = []
+
+    identity_fields = (
+        ('classification_count', '분류'),
+        ('album_type_count', '앨범 종류'),
+        ('genre_count', '장르'),
+        ('artist_count', '아티스트'),
+        ('album_title_count', '앨범명'),
+        ('release_year_count', '발매년도'),
+        ('release_date_count', '발매일'),
+    )
+
+    for row in identity_rows:
+        different_fields = [
+            label
+            for key, label in identity_fields
+            if int(
+                row[key]
+                or 0
+            ) > 1
+        ]
+        identity_issues.append({
+            'id': row['id'],
+            'management_no': row['management_no'],
+            'album_id': row['album_id'],
+            'artist': row['artist'],
+            'album_title': row['album_title'],
+            'detail': (
+                f"{row['copy_count']}개 보유본에서 "
+                + ', '.join(different_fields)
+                + ' 정보가 서로 다릅니다.'
+            ),
+        })
+
+    master_issues = []
+
+    for row in master_rows:
+        differences = []
+
+        for label, master_key, album_key in (
+            (
+                '아티스트',
+                'master_artist',
+                'album_artist',
+            ),
+            (
+                '앨범명',
+                'master_album_title',
+                'album_title',
+            ),
+            (
+                '발매년도',
+                'master_release_year',
+                'album_release_year',
+            ),
+            (
+                '발매일',
+                'master_release_date',
+                'album_release_date',
+            ),
+        ):
+            master_value = str(
+                row[master_key]
+                or ''
+            )
+            album_value = str(
+                row[album_key]
+                or ''
+            )
+
+            if master_value != album_value:
+                differences.append(
+                    f'{label}: '
+                    f'{master_value or "(없음)"}'
+                    f' → {album_value or "(없음)"}'
+                )
+
+        master_issues.append({
+            'id': row['id'],
+            'management_no': row['management_no'],
+            'album_id': row['album_id'],
+            'artist': row['album_artist'],
+            'album_title': row['album_title'],
+            'detail': ' / '.join(differences),
+        })
+
+    disconnected_issues = []
+
+    for row in disconnected_master_rows:
+        disconnected_issues.append({
+            'id': None,
+            'management_no': '-',
+            'album_id': row['album_id'],
+            'artist': row['artist'],
+            'album_title': row['album_title'],
+            'detail': (
+                '실제 보유 앨범은 없고 '
+                '앨범 기본정보만 남아 있습니다.'
+            ),
+        })
+
+    for row in disconnected_artist_rows:
+        disconnected_issues.append({
+            'id': None,
+            'management_no': '-',
+            'album_id': '-',
+            'artist': row['artist_name'],
+            'album_title': '-',
+            'detail': (
+                '삭제된 앨범 행을 가리키는 '
+                f"아티스트 연결정보입니다. "
+                f"(row {row['album_row_id']})"
+            ),
+        })
+
+    for row in disconnected_track_rows:
+        disconnected_issues.append({
+            'id': None,
+            'management_no': '-',
+            'album_id': row['album_id'],
+            'artist': '-',
+            'album_title': '-',
+            'detail': (
+                '실제 앨범은 없고 '
+                '수록곡 캐시만 남아 있습니다.'
+            ),
+        })
+
+    issue_groups = [
+        {
+            'key': 'release-date',
+            'title': '발매일 없음',
+            'description':
+                '정확한 발매일이 저장되지 않은 보유본입니다.',
+            'items': release_date_issues,
+            'important': False,
+        },
+        {
+            'key': 'apple-id',
+            'title': 'Apple ID 없음',
+            'description':
+                'Apple Music과 연결되지 않은 보유본입니다. 직접 등록 음반이면 정상일 수 있습니다.',
+            'items': apple_id_issues,
+            'important': False,
+        },
+        {
+            'key': 'cover',
+            'title': '커버 없음',
+            'description':
+                '커버 이미지가 없는 보유본입니다.',
+            'items': cover_issues,
+            'important': False,
+        },
+        {
+            'key': 'identity',
+            'title': '공통정보 불일치',
+            'description':
+                '같은 album_id로 묶인 보유본 사이에서 공통정보가 서로 다릅니다.',
+            'items': identity_issues,
+            'important': True,
+        },
+        {
+            'key': 'master',
+            'title': 'Master 정보 불일치',
+            'description':
+                '앨범 기본정보와 현재 대표 보유본의 정보가 서로 다릅니다.',
+            'items': master_issues,
+            'important': True,
+        },
+        {
+            'key': 'disconnected',
+            'title': '연결 끊긴 데이터',
+            'description':
+                '삭제된 앨범을 가리키는 연결정보 또는 캐시가 남아 있습니다.',
+            'items': disconnected_issues,
+            'important': True,
+        },
+    ]
+
     return render_template(
         'database_admin.html',
         stats=stats,
+        issue_groups=issue_groups,
         backups=_list_backups(),
         created=created,
         cleaned=cleaned,
