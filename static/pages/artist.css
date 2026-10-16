@@ -55,18 +55,19 @@ body {
 }
 
 .container {
-    max-width: 1540px;
+    width: 100%;
+    max-width: 1880px;
     margin: 0 auto;
-    padding: 20px 34px 86px;
+    padding: 18px 26px 86px;
 }
 
 .hero {
-    min-height: 340px;
+    min-height: 360px;
     margin-bottom: 48px;
-    padding: 44px 44px 38px;
+    padding: 44px 54px 38px;
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) 420px;
     align-items: center;
     gap: 38px;
     overflow: hidden;
@@ -121,33 +122,36 @@ body {
 .hero-profile-image {
     position: absolute;
     z-index: 0;
-    top: -22%;
-    right: 210px;
-    width: min(66%, 940px);
-    height: 150%;
+    top: 0;
+    bottom: 0;
+    left: 30%;
+    width: 48%;
+    height: 100%;
     display: block;
     object-fit: contain;
     object-position: center center;
-    opacity: .96;
+    opacity: .98;
     filter:
         saturate(.94)
         contrast(1.05)
-        brightness(.84);
-    -webkit-mask-image: radial-gradient(
-        ellipse 63% 72% at 52% 50%,
-        #000 0%,
-        #000 43%,
-        rgba(0,0,0,.92) 58%,
-        rgba(0,0,0,.56) 70%,
-        transparent 86%
+        brightness(.86);
+    -webkit-mask-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0,0,0,.72) 10%,
+        #000 22%,
+        #000 78%,
+        rgba(0,0,0,.72) 90%,
+        transparent 100%
     );
-    mask-image: radial-gradient(
-        ellipse 63% 72% at 52% 50%,
-        #000 0%,
-        #000 43%,
-        rgba(0,0,0,.92) 58%,
-        rgba(0,0,0,.56) 70%,
-        transparent 86%
+    mask-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0,0,0,.72) 10%,
+        #000 22%,
+        #000 78%,
+        rgba(0,0,0,.72) 90%,
+        transparent 100%
     );
 }
 
@@ -524,7 +528,7 @@ body {
 
 @media(min-width:1600px) {
     .hero {
-        min-height: 370px;
+        min-height: 390px;
         border-radius: 32px;
     }
 
@@ -533,27 +537,28 @@ body {
     }
 
     .hero-profile-image {
-        right: 220px;
-        width: min(67%, 980px);
-        height: 154%;
-        top: -24%;
+        top: 0;
+        bottom: 0;
+        left: 30%;
+        width: 46%;
+        height: 100%;
     }
 
     .hero-art {
-        height: 238px;
+        height: 258px;
     }
 
     .hero-cover {
-        width: 198px;
-        right: 42px;
+        width: 212px;
+        right: 44px;
     }
 
     .hero-cover.art-2 {
-        right: 136px;
+        right: 146px;
     }
 
     .hero-cover.art-3 {
-        right: 226px;
+        right: 244px;
     }
 }
 
@@ -572,10 +577,11 @@ body {
     }
 
     .hero-profile-image {
-        right: 150px;
-        width: 68%;
-        height: 136%;
-        top: -18%;
+        top: 0;
+        bottom: 0;
+        left: 28%;
+        width: 54%;
+        height: 100%;
     }
 
     .hero-art {
