@@ -10,6 +10,7 @@ from album_service import (
     find_existing_album_id,
     get_next_management_no,
 )
+from album_routes import _normalize_release_date
 from catalog import normalize_text
 from library_view import (
     build_index_where,
@@ -573,6 +574,28 @@ class MediaServiceTests(unittest.TestCase):
         self.assertNotEqual(
             first_path,
             second_path
+        )
+
+
+class AlbumRouteHelperTests(unittest.TestCase):
+
+    def test_normalize_release_date_accepts_real_iso_date(self):
+        self.assertEqual(
+            _normalize_release_date(
+                '2016-02-25'
+            ),
+            '2016-02-25'
+        )
+
+    def test_normalize_release_date_rejects_invalid_date(self):
+        self.assertIsNone(
+            _normalize_release_date(
+                '2016-02-31'
+            )
+        )
+        self.assertEqual(
+            _normalize_release_date(''),
+            ''
         )
 
 
