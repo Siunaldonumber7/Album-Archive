@@ -53,6 +53,13 @@ def init_db():
         'open_status TEXT, '
         'signed TEXT, '
         'purchase_price INTEGER, '
+        'barcode TEXT, '
+        'catalog_no TEXT, '
+        'release_country TEXT, '
+        'edition TEXT, '
+        'purchase_date TEXT, '
+        'purchase_store TEXT, '
+        'storage_location TEXT, '
         'memo TEXT, '
         'apple_collection_id TEXT, '
         'cover_url TEXT, '
@@ -80,6 +87,21 @@ def init_db():
         conn.execute(
             'ALTER TABLE albums ADD COLUMN release_date TEXT'
         )
+
+    for column_name in (
+        'barcode',
+        'catalog_no',
+        'release_country',
+        'edition',
+        'purchase_date',
+        'purchase_store',
+        'storage_location',
+    ):
+        if column_name not in existing_columns:
+            conn.execute(
+                f'ALTER TABLE albums '
+                f'ADD COLUMN {column_name} TEXT'
+            )
 
     if 'is_primary_display' not in existing_columns:
         conn.execute(
@@ -238,6 +260,21 @@ def init_db():
         'CREATE INDEX IF NOT EXISTS '
         'idx_albums_artist '
         'ON albums (artist)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_barcode '
+        'ON albums (barcode)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_catalog_no '
+        'ON albums (catalog_no)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_storage_location '
+        'ON albums (storage_location)'
     )
     conn.execute(
         'CREATE INDEX IF NOT EXISTS '
