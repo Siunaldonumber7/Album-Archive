@@ -24,7 +24,10 @@ from search_engine import (
     learn_artist_alias,
     clear_search_cache,
 )
-from track_service import clear_track_caches
+from track_service import (
+    clear_album_track_cache,
+    clear_track_caches,
+)
 
 
 CLASSIFICATIONS = frozenset({
@@ -1341,6 +1344,28 @@ def update_album(album_row_id):
             release_date,
             new_cover_url
         )
+
+        conn.execute(
+            '''
+            UPDATE albums
+            SET
+                release_year = ?,
+                release_date = ?
+            WHERE album_id = ?
+              AND id != ?
+            ''',
+            (
+                release_year,
+                release_date,
+                current['album_id'],
+                album_row_id,
+            )
+        )
+
+        clear_album_track_cache(
+            current['album_id'],
+            conn=conn
+        )
         conn.commit()
 
         management_no = (
@@ -1448,6 +1473,10 @@ def delete_album(album_row_id):
                 'album_track_settings '
                 'WHERE album_id = ?',
                 (album_id,)
+            )
+            clear_album_track_cache(
+                album_id,
+                conn=conn
             )
             delete_album_master_if_orphan(
                 conn,
