@@ -111,7 +111,10 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     <div class="section-head">
       <div>
         <h2>문제 항목 상세</h2>
-        <p>숫자로만 표시하지 않고 실제 어떤 앨범과 데이터가 점검 대상인지 보여줍니다.</p>
+        <p>수정 후 저장하면 다시 점검하여 해결된 항목은 자동으로 목록에서 사라집니다.</p>
+      </div>
+      <div class="actions">
+        <a class="download" href="{{ url_for('admin_database') }}#issue-details">다시 점검</a>
       </div>
     </div>
 
@@ -153,7 +156,7 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
                   {% if item.id %}
                   <a
                     class="issue-edit"
-                    href="{{ url_for('edit_album', album_row_id=item.id) }}"
+                    href="{{ url_for('edit_album', album_row_id=item.id, return_to='database') }}"
                   >수정</a>
                   {% else %}
                   <span class="meta">자동 정리 대상</span>
