@@ -348,6 +348,69 @@ def sync_album_master_metadata(
         )
 
 
+def sync_album_group_identity(
+    conn,
+    album_id,
+    classification,
+    album_type,
+    genre,
+    artist,
+    album_title,
+    release_year='',
+    release_date=''
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    if not album_id:
+        return []
+
+    conn.execute(
+        '''
+        UPDATE albums
+        SET
+            classification = ?,
+            album_type = ?,
+            genre = ?,
+            artist = ?,
+            album_title = ?,
+            release_year = ?,
+            release_date = ?
+        WHERE album_id = ?
+        ''',
+        (
+            classification,
+            album_type,
+            genre,
+            artist,
+            album_title,
+            release_year,
+            str(
+                release_date
+                or ''
+            ).strip(),
+            album_id,
+        )
+    )
+
+    rows = conn.execute(
+        '''
+        SELECT id
+        FROM albums
+        WHERE album_id = ?
+        ORDER BY id
+        ''',
+        (album_id,)
+    ).fetchall()
+
+    return [
+        row['id']
+        for row in rows
+    ]
+
+
 def delete_album_master_if_orphan(
     conn,
     album_id
