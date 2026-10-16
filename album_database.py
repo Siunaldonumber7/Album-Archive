@@ -189,6 +189,19 @@ def init_db():
         'ON album_tracks (album_id)'
     )
     conn.execute(
+        'CREATE TABLE IF NOT EXISTS album_track_cache ( '
+        'album_id TEXT PRIMARY KEY, '
+        'tracks_json TEXT NOT NULL, '
+        'store TEXT, '
+        'resolved_by TEXT, '
+        'updated_at INTEGER NOT NULL DEFAULT 0 )'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_album_track_cache_updated_at '
+        'ON album_track_cache (updated_at)'
+    )
+    conn.execute(
         'CREATE INDEX IF NOT EXISTS '
         'idx_albums_album_id '
         'ON albums (album_id)'
