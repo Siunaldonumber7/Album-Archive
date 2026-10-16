@@ -44,7 +44,7 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     <div>
       <a class="back" href="{{ url_for('admin_dashboard') }}">‹ 관리자 메뉴</a>
       <h1>DB 점검 · 백업</h1>
-      <div class="sub">컬렉션 데이터 상태, 캐시, 고아 데이터와 백업 파일을 한곳에서 확인합니다.</div>
+      <div class="sub">컬렉션 데이터 상태, 캐시, 정리 대상 데이터와 백업 파일을 한곳에서 확인합니다.</div>
     </div>
   </div>
 
@@ -53,7 +53,7 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
   {% elif created %}
   <div class="notice">✓ 백업 생성 완료 · {{ created }}</div>
   {% elif cleaned %}
-  <div class="notice">✓ 고아 데이터 {{ cleaned }}건 정리 완료</div>
+  <div class="notice">✓ 정리 대상 데이터 {{ cleaned }}건 정리 완료</div>
   {% endif %}
 
   <section class="grid">
@@ -65,8 +65,8 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     <div class="stat"><div class="label">중복 보유 그룹</div><div class="value">{{ stats.duplicate_groups }}</div></div>
     <div class="stat{% if stats.identity_mismatch_groups %} warn{% endif %}"><div class="label">공통정보 불일치 그룹</div><div class="value">{{ stats.identity_mismatch_groups }}</div></div>
     <div class="stat{% if stats.master_mismatch_groups %} warn{% endif %}"><div class="label">Master 불일치</div><div class="value">{{ stats.master_mismatch_groups }}</div></div>
-    <div class="stat{% if stats.orphan_masters %} warn{% endif %}"><div class="label">고아 album_master</div><div class="value">{{ stats.orphan_masters }}</div></div>
-    <div class="stat{% if stats.orphan_artist_map %} warn{% endif %}"><div class="label">고아 아티스트 매핑</div><div class="value">{{ stats.orphan_artist_map }}</div></div>
+    <div class="stat{% if stats.orphan_masters %} warn{% endif %}"><div class="label">연결 끊긴 앨범 정보</div><div class="value">{{ stats.orphan_masters }}</div></div>
+    <div class="stat{% if stats.orphan_artist_map %} warn{% endif %}"><div class="label">연결 끊긴 아티스트 정보</div><div class="value">{{ stats.orphan_artist_map }}</div></div>
     <div class="stat"><div class="label">수록곡 영구 캐시</div><div class="value">{{ stats.track_cache_count }}</div></div>
     <div class="stat"><div class="label">DB 파일 크기</div><div class="value">{{ stats.db_size }}</div></div>
   </section>
@@ -80,12 +80,12 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
       <div class="actions">
         <form method="POST" action="{{ url_for('cleanup_database') }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <button class="secondary" type="submit">고아 데이터 정리</button>
+          <button class="secondary" type="submit">정리 대상 데이터 정리</button>
         </form>
       </div>
     </div>
     <div class="meta">
-      고아 트랙 캐시 {{ stats.orphan_track_cache }}건 · 공통정보 불일치와 Master 불일치는 자동 수정하지 않고 검토 대상으로만 표시합니다.
+      연결 끊긴 수록곡 캐시 {{ stats.orphan_track_cache }}건 · 공통정보 불일치와 Master 불일치는 자동 수정하지 않고 검토 대상으로만 표시합니다.
     </div>
   </section>
 
