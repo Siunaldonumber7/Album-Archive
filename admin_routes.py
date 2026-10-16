@@ -1,10 +1,28 @@
 import hmac
+import os
 import secrets
+import sqlite3
+import tarfile
+import tempfile
 import time
+from datetime import datetime
 
-from flask import render_template, request, redirect, url_for, session
+from flask import (
+    abort,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
 
-from album_database import get_db, set_primary_display
+from album_database import (
+    DATA_DIR,
+    DB_NAME,
+    get_db,
+    set_primary_display,
+)
 from pagination import (
     ALBUMS_PER_PAGE,
     parse_page_number,
@@ -48,6 +66,28 @@ def register_admin_routes(app, admin_pin, login_attempts):
         '/manage/main/<int:album_row_id>',
         endpoint='set_main_album',
         view_func=set_main_album,
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/admin/database',
+        endpoint='admin_database',
+        view_func=admin_database
+    )
+    app.add_url_rule(
+        '/admin/database/backup',
+        endpoint='create_database_backup',
+        view_func=create_database_backup,
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/admin/database/backup/<path:filename>',
+        endpoint='download_database_backup',
+        view_func=download_database_backup
+    )
+    app.add_url_rule(
+        '/admin/database/cleanup',
+        endpoint='cleanup_database',
+        view_func=cleanup_database,
         methods=['POST']
     )
 
@@ -181,6 +221,525 @@ def admin_dashboard():
         stats=stats,
         recent_albums=recent_albums
     )
+
+
+def _backup_directory():
+    path = os.path.join(
+        DATA_DIR,
+        'backups'
+    )
+    os.makedirs(
+        path,
+        exist_ok=True
+    )
+    return path
+
+
+def _format_file_size(value):
+    size = float(
+        value
+        or 0
+    )
+
+    for unit in (
+        'B',
+        'KB',
+        'MB',
+        'GB',
+    ):
+        if (
+            size < 1024
+            or unit == 'GB'
+        ):
+            if unit == 'B':
+                return f'{int(size)} {unit}'
+            return f'{size:.1f} {unit}'
+        size /= 1024
+
+    return f'{size:.1f} GB'
+
+
+def _list_backups():
+    backup_dir = (
+        _backup_directory()
+    )
+    items = []
+
+    try:
+        filenames = os.listdir(
+            backup_dir
+        )
+    except OSError:
+        filenames = []
+
+    for filename in filenames:
+        if (
+            not filename.startswith(
+                'album-archive-'
+            )
+            or not filename.endswith(
+                '.tar.gz'
+            )
+        ):
+            continue
+
+        path = os.path.join(
+            backup_dir,
+            filename
+        )
+
+        if not os.path.isfile(path):
+            continue
+
+        stat = os.stat(path)
+        items.append({
+            'filename': filename,
+            'size': _format_file_size(
+                stat.st_size
+            ),
+            'created_at': datetime.fromtimestamp(
+                stat.st_mtime
+            ).strftime(
+                '%Y-%m-%d %H:%M:%S'
+            ),
+        })
+
+    items.sort(
+        key=lambda item:
+            item['filename'],
+        reverse=True
+    )
+    return items[:20]
+
+
+def admin_database():
+    created = request.args.get(
+        'created',
+        ''
+    ).strip()
+    cleaned = request.args.get(
+        'cleaned',
+        ''
+    ).strip()
+
+    conn = get_db()
+
+    try:
+        stats_row = conn.execute(
+            '''
+            SELECT
+                COUNT(*) AS total,
+                SUM(
+                    CASE
+                        WHEN release_date IS NULL
+                          OR TRIM(release_date) = ''
+                        THEN 1 ELSE 0
+                    END
+                ) AS release_date_missing,
+                SUM(
+                    CASE
+                        WHEN (
+                            release_date IS NULL
+                            OR TRIM(release_date) = ''
+                        )
+                        AND apple_collection_id
+                            IS NOT NULL
+                        AND TRIM(
+                            apple_collection_id
+                        ) != ''
+                        THEN 1 ELSE 0
+                    END
+                ) AS apple_date_missing,
+                SUM(
+                    CASE
+                        WHEN apple_collection_id
+                            IS NULL
+                          OR TRIM(
+                            apple_collection_id
+                          ) = ''
+                        THEN 1 ELSE 0
+                    END
+                ) AS apple_id_missing,
+                SUM(
+                    CASE
+                        WHEN cover_url IS NULL
+                          OR TRIM(cover_url) = ''
+                        THEN 1 ELSE 0
+                    END
+                ) AS cover_missing
+            FROM albums
+            '''
+        ).fetchone()
+
+        duplicate_groups = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM (
+                SELECT album_id
+                FROM albums
+                GROUP BY album_id
+                HAVING COUNT(*) > 1
+            )
+            '''
+        ).fetchone()['count']
+
+        orphan_masters = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM album_master
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_master.album_id
+            )
+            '''
+        ).fetchone()['count']
+
+        orphan_artist_map = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM album_artist_map
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.id =
+                    album_artist_map.album_row_id
+            )
+            '''
+        ).fetchone()['count']
+
+        track_cache_count = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM album_track_cache
+            '''
+        ).fetchone()['count']
+
+        orphan_track_cache = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM album_track_cache
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_track_cache.album_id
+            )
+            '''
+        ).fetchone()['count']
+    finally:
+        conn.close()
+
+    db_size = 0
+
+    try:
+        db_size = os.path.getsize(
+            DB_NAME
+        )
+    except OSError:
+        pass
+
+    stats = {
+        'total': int(
+            stats_row['total']
+            or 0
+        ),
+        'release_date_missing': int(
+            stats_row[
+                'release_date_missing'
+            ]
+            or 0
+        ),
+        'apple_date_missing': int(
+            stats_row[
+                'apple_date_missing'
+            ]
+            or 0
+        ),
+        'apple_id_missing': int(
+            stats_row[
+                'apple_id_missing'
+            ]
+            or 0
+        ),
+        'cover_missing': int(
+            stats_row[
+                'cover_missing'
+            ]
+            or 0
+        ),
+        'duplicate_groups': int(
+            duplicate_groups
+            or 0
+        ),
+        'orphan_masters': int(
+            orphan_masters
+            or 0
+        ),
+        'orphan_artist_map': int(
+            orphan_artist_map
+            or 0
+        ),
+        'track_cache_count': int(
+            track_cache_count
+            or 0
+        ),
+        'orphan_track_cache': int(
+            orphan_track_cache
+            or 0
+        ),
+        'db_size': _format_file_size(
+            db_size
+        ),
+    }
+
+    return render_template(
+        'database_admin.html',
+        stats=stats,
+        backups=_list_backups(),
+        created=created,
+        cleaned=cleaned
+    )
+
+
+def create_database_backup():
+    backup_dir = (
+        _backup_directory()
+    )
+    stamp = datetime.now().strftime(
+        '%Y%m%d-%H%M%S'
+    )
+    filename = (
+        f'album-archive-{stamp}.tar.gz'
+    )
+    archive_path = os.path.join(
+        backup_dir,
+        filename
+    )
+
+    snapshot_handle = (
+        tempfile.NamedTemporaryFile(
+            prefix='album-db-',
+            suffix='.db',
+            dir=backup_dir,
+            delete=False
+        )
+    )
+    snapshot_path = (
+        snapshot_handle.name
+    )
+    snapshot_handle.close()
+
+    source = get_db()
+    target = sqlite3.connect(
+        snapshot_path
+    )
+
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+
+    upload_dir = os.path.join(
+        DATA_DIR,
+        'uploads'
+    )
+
+    try:
+        with tarfile.open(
+            archive_path,
+            'w:gz'
+        ) as archive:
+            archive.add(
+                snapshot_path,
+                arcname='albums.db'
+            )
+
+            if os.path.isdir(
+                upload_dir
+            ):
+                for root, dirs, files in os.walk(
+                    upload_dir
+                ):
+                    dirs[:] = [
+                        name
+                        for name in dirs
+                        if name != '.thumbs'
+                    ]
+
+                    for name in files:
+                        source_path = os.path.join(
+                            root,
+                            name
+                        )
+                        relative = os.path.relpath(
+                            source_path,
+                            DATA_DIR
+                        )
+                        archive.add(
+                            source_path,
+                            arcname=relative,
+                            recursive=False
+                        )
+    finally:
+        try:
+            os.remove(
+                snapshot_path
+            )
+        except OSError:
+            pass
+
+    return redirect(
+        url_for(
+            'admin_database',
+            created=filename
+        )
+    )
+
+
+def download_database_backup(
+    filename
+):
+    safe_name = os.path.basename(
+        str(
+            filename
+            or ''
+        )
+    )
+
+    if (
+        safe_name != filename
+        or not safe_name.startswith(
+            'album-archive-'
+        )
+        or not safe_name.endswith(
+            '.tar.gz'
+        )
+    ):
+        abort(404)
+
+    path = os.path.join(
+        _backup_directory(),
+        safe_name
+    )
+
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=safe_name
+    )
+
+
+def cleanup_database():
+    conn = get_db()
+
+    try:
+        orphan_masters = conn.execute(
+            '''
+            DELETE FROM album_master
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_master.album_id
+            )
+            '''
+        ).rowcount
+
+        orphan_artist_map = conn.execute(
+            '''
+            DELETE FROM album_artist_map
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.id =
+                    album_artist_map.album_row_id
+            )
+            '''
+        ).rowcount
+
+        orphan_track_cache = conn.execute(
+            '''
+            DELETE FROM album_track_cache
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_track_cache.album_id
+            )
+            '''
+        ).rowcount
+
+        conn.execute(
+            '''
+            DELETE FROM album_tracks
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_tracks.album_id
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            DELETE FROM album_track_settings
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM albums
+                WHERE albums.album_id =
+                    album_track_settings.album_id
+            )
+            '''
+        )
+        conn.execute(
+            'PRAGMA optimize'
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    cleaned_count = (
+        max(
+            int(
+                orphan_masters
+                or 0
+            ),
+            0
+        )
+        + max(
+            int(
+                orphan_artist_map
+                or 0
+            ),
+            0
+        )
+        + max(
+            int(
+                orphan_track_cache
+                or 0
+            ),
+            0
+        )
+    )
+
+    return redirect(
+        url_for(
+            'admin_database',
+            cleaned=str(
+                cleaned_count
+            )
+        )
+    )
+
 
 def set_main_album(album_row_id):
     conn = get_db()
