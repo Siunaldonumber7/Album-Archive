@@ -1,6 +1,8 @@
 import os
 import sqlite3
 
+from catalog import split_artists
+
 
 DB_NAME = os.environ.get('ALBUM_DB_PATH', 'albums.db')
 DATA_DIR = os.path.dirname(os.path.abspath(DB_NAME))
@@ -284,6 +286,37 @@ def init_db():
         'source TEXT, '
         'updated_at TEXT DEFAULT CURRENT_TIMESTAMP )'
     )
+    conn.execute(
+        'CREATE TABLE IF NOT EXISTS album_artist_map ( '
+        'album_row_id INTEGER NOT NULL, '
+        'artist_key TEXT NOT NULL, '
+        'artist_name TEXT NOT NULL, '
+        'PRIMARY KEY (album_row_id, artist_key) )'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_album_artist_map_artist_key '
+        'ON album_artist_map (artist_key, album_row_id)'
+    )
+
+    unmapped_artist_rows = conn.execute(
+        '''
+        SELECT
+            albums.id,
+            albums.artist
+        FROM albums
+        LEFT JOIN album_artist_map
+            ON album_artist_map.album_row_id = albums.id
+        WHERE album_artist_map.album_row_id IS NULL
+        '''
+    ).fetchall()
+
+    for row in unmapped_artist_rows:
+        sync_album_artist_map(
+            conn,
+            row['id'],
+            row['artist']
+        )
 
     genre_registry_count = conn.execute(
         'SELECT COUNT(*) AS count '
@@ -361,6 +394,56 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+
+def sync_album_artist_map(
+    conn,
+    album_row_id,
+    artist_value
+):
+    conn.execute(
+        '''
+        DELETE FROM album_artist_map
+        WHERE album_row_id = ?
+        ''',
+        (album_row_id,)
+    )
+
+    seen = set()
+
+    for artist_name in split_artists(
+        artist_value
+    ):
+        artist_name = str(
+            artist_name
+            or ''
+        ).strip()
+
+        if not artist_name:
+            continue
+
+        artist_key = (
+            artist_name.casefold()
+        )
+
+        if artist_key in seen:
+            continue
+
+        seen.add(artist_key)
+        conn.execute(
+            '''
+            INSERT OR IGNORE INTO album_artist_map (
+                album_row_id,
+                artist_key,
+                artist_name
+            ) VALUES (?, ?, ?)
+            ''',
+            (
+                album_row_id,
+                artist_key,
+                artist_name,
+            )
+        )
 
 
 def ensure_primary_display(
