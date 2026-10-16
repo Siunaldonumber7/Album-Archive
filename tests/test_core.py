@@ -5,10 +5,13 @@ import unittest
 import album_database
 import release_date_backfill
 import media_service
+import track_service
 from PIL import Image
 from album_service import (
+    delete_album_master_if_orphan,
     find_existing_album_id,
     get_next_management_no,
+    sync_album_master_metadata,
 )
 from album_routes import _normalize_release_date
 from catalog import normalize_text
@@ -37,6 +40,217 @@ class DatabaseOptimizationTests(unittest.TestCase):
     def tearDown(self):
         album_database.DB_NAME = self.old_db_name
         self.temp_dir.cleanup()
+
+    def test_artist_map_backfills_and_splits_credits(self):
+        conn = album_database.get_db()
+
+        try:
+            cursor = conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title
+                ) VALUES (?, ?, ?, ?)
+                ''',
+                (
+                    'CD-9401',
+                    'ALB-9401',
+                    'Artist A & Artist B',
+                    'Mapped Album',
+                )
+            )
+            row_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+
+        album_database.init_db()
+        conn = album_database.get_db()
+
+        try:
+            rows = conn.execute(
+                '''
+                SELECT artist_key, artist_name
+                FROM album_artist_map
+                WHERE album_row_id = ?
+                ORDER BY artist_name
+                ''',
+                (row_id,)
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            [
+                (
+                    row['artist_key'],
+                    row['artist_name'],
+                )
+                for row in rows
+            ],
+            [
+                ('artist a', 'Artist A'),
+                ('artist b', 'Artist B'),
+            ]
+        )
+
+    def test_master_metadata_sync_and_orphan_cleanup(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO album_master (
+                    album_id,
+                    album_key,
+                    artist,
+                    album_title,
+                    release_year
+                ) VALUES (?, ?, ?, ?, ?)
+                ''',
+                (
+                    'ALB-9402',
+                    'old|title|2020',
+                    'Old',
+                    'Title',
+                    '2020',
+                )
+            )
+            conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title
+                ) VALUES (?, ?, ?, ?)
+                ''',
+                (
+                    'CD-9402',
+                    'ALB-9402',
+                    'Old',
+                    'Title',
+                )
+            )
+
+            sync_album_master_metadata(
+                conn,
+                'ALB-9402',
+                'New Artist',
+                'New Title',
+                '2024',
+                '2024-08-09',
+                '/static/uploads/new.jpg'
+            )
+
+            master = conn.execute(
+                '''
+                SELECT
+                    artist,
+                    album_title,
+                    release_year,
+                    release_date,
+                    cover_url
+                FROM album_master
+                WHERE album_id = ?
+                ''',
+                ('ALB-9402',)
+            ).fetchone()
+
+            conn.execute(
+                '''
+                DELETE FROM albums
+                WHERE album_id = ?
+                ''',
+                ('ALB-9402',)
+            )
+            removed = (
+                delete_album_master_if_orphan(
+                    conn,
+                    'ALB-9402'
+                )
+            )
+            conn.commit()
+
+            remaining = conn.execute(
+                '''
+                SELECT COUNT(*) AS count
+                FROM album_master
+                WHERE album_id = ?
+                ''',
+                ('ALB-9402',)
+            ).fetchone()['count']
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            master['artist'],
+            'New Artist'
+        )
+        self.assertEqual(
+            master['album_title'],
+            'New Title'
+        )
+        self.assertEqual(
+            master['release_date'],
+            '2024-08-09'
+        )
+        self.assertTrue(removed)
+        self.assertEqual(remaining, 0)
+
+    def test_persistent_track_cache_survives_memory_clear(self):
+        result = {
+            'tracks': [
+                {
+                    'id': '1',
+                    'title': 'Track One',
+                    'artist': 'Artist',
+                    'album_name': 'Album',
+                    'duration_ms': 180000,
+                    'duration': '3:00',
+                    'disc_number': 1,
+                    'track_number': 1,
+                }
+            ],
+            'store': 'KR',
+            'resolved_by': 'test',
+        }
+
+        track_service._save_persistent_track_cache(
+            'ALB-9403',
+            result
+        )
+        track_service.TRACK_CACHE.clear()
+
+        cached = (
+            track_service
+            ._load_persistent_track_cache(
+                'ALB-9403'
+            )
+        )
+
+        self.assertIsNotNone(cached)
+        self.assertEqual(
+            cached['tracks'][0]['title'],
+            'Track One'
+        )
+        self.assertEqual(
+            cached['resolved_by'],
+            'test'
+        )
+
+        track_service.clear_album_track_cache(
+            'ALB-9403'
+        )
+
+        self.assertIsNone(
+            track_service
+            ._load_persistent_track_cache(
+                'ALB-9403'
+            )
+        )
 
     def test_primary_display_is_repaired_in_one_group(self):
         conn = album_database.get_db()
