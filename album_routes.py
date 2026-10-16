@@ -15,6 +15,7 @@ from album_service import (
     find_existing_album_id,
     get_next_management_no,
     get_or_create_album_id,
+    sync_album_group_identity,
     sync_album_master_metadata,
 )
 from catalog import ALBUM_TYPES, normalize_genres, split_genres
@@ -1469,6 +1470,11 @@ def update_album(album_row_id):
             )
         )
 
+        master_cover_url = (
+            new_cover_url
+            if current['is_primary_display']
+            else None
+        )
         sync_album_master_metadata(
             conn,
             current['album_id'],
@@ -1476,30 +1482,27 @@ def update_album(album_row_id):
             album_title,
             release_year,
             release_date,
-            new_cover_url
-        )
-        sync_album_artist_map(
-            conn,
-            album_row_id,
-            artist
+            master_cover_url
         )
 
-        conn.execute(
-            '''
-            UPDATE albums
-            SET
-                release_year = ?,
-                release_date = ?
-            WHERE album_id = ?
-              AND id != ?
-            ''',
-            (
-                release_year,
-                release_date,
-                current['album_id'],
-                album_row_id,
-            )
+        group_row_ids = sync_album_group_identity(
+            conn,
+            current['album_id'],
+            choices['classification'],
+            choices['album_type'],
+            genre,
+            artist,
+            album_title,
+            release_year,
+            release_date
         )
+
+        for group_row_id in group_row_ids:
+            sync_album_artist_map(
+                conn,
+                group_row_id,
+                artist
+            )
 
         clear_album_track_cache(
             current['album_id'],
