@@ -548,6 +548,10 @@ def _load_album_tracks(
         release_year=(
             album['release_year']
             or ''
+        ),
+        album_id=(
+            album['album_id']
+            or ''
         )
     )
 
