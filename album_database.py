@@ -244,6 +244,24 @@ def init_db():
         'ON albums (release_date)'
     )
     conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS
+        idx_albums_primary_release_order
+        ON albums (
+            is_primary_display,
+            CASE
+                WHEN release_date
+                    GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                THEN release_date
+                WHEN release_year
+                    GLOB '[0-9][0-9][0-9][0-9]'
+                THEN release_year || '-00-00'
+                ELSE ''
+            END
+        )
+        '''
+    )
+    conn.execute(
         'CREATE INDEX IF NOT EXISTS '
         'idx_albums_apple_collection_id '
         'ON albums (apple_collection_id)'
@@ -262,6 +280,18 @@ def init_db():
         'CREATE INDEX IF NOT EXISTS '
         'idx_album_master_apple_collection_id '
         'ON album_master (apple_collection_id)'
+    )
+
+    conn.execute(
+        'CREATE TABLE IF NOT EXISTS release_date_checks ( '
+        'collection_id TEXT PRIMARY KEY, '
+        'checked_at INTEGER NOT NULL DEFAULT 0, '
+        'found INTEGER NOT NULL DEFAULT 0 )'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_release_date_checks_checked_at '
+        'ON release_date_checks (checked_at)'
     )
 
     conn.execute(
