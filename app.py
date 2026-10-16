@@ -95,6 +95,10 @@ configure_media(app)
 
 ADMIN_ENDPOINTS = {
     'admin_dashboard',
+    'admin_database',
+    'create_database_backup',
+    'download_database_backup',
+    'cleanup_database',
     'manage_albums',
     'set_main_album',
     'add_album_page',
