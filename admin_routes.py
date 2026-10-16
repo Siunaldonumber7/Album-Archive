@@ -1022,10 +1022,23 @@ def manage_albums():
     if library_q:
         value = f'%{library_q}%'
         conditions.append(
-            '( management_no LIKE ? OR album_id LIKE ? OR artist LIKE ? OR album_title LIKE ? OR release_year LIKE ? OR memo LIKE ? )'
+            '('
+            ' management_no LIKE ?'
+            ' OR album_id LIKE ?'
+            ' OR artist LIKE ?'
+            ' OR album_title LIKE ?'
+            ' OR release_year LIKE ?'
+            ' OR memo LIKE ?'
+            ' OR barcode LIKE ?'
+            ' OR catalog_no LIKE ?'
+            ' OR release_country LIKE ?'
+            ' OR edition LIKE ?'
+            ' OR purchase_store LIKE ?'
+            ' OR storage_location LIKE ?'
+            ')'
         )
         params.extend(
-            [value, value, value, value, value, value]
+            [value] * 12
         )
 
     if classification_filter:
