@@ -829,6 +829,62 @@ O
 </div>
 
 
+<div>
+<label>바코드</label>
+<input
+    name="barcode"
+    value="{{ album.barcode or '' }}"
+>
+</div>
+
+<div>
+<label>카탈로그 번호</label>
+<input
+    name="catalog_no"
+    value="{{ album.catalog_no or '' }}"
+>
+</div>
+
+<div>
+<label>발매국</label>
+<input
+    name="release_country"
+    value="{{ album.release_country or '' }}"
+>
+</div>
+
+<div>
+<label>구매일</label>
+<input
+    type="date"
+    name="purchase_date"
+    value="{{ album.purchase_date or '' }}"
+>
+</div>
+
+<div>
+<label>구매처</label>
+<input
+    name="purchase_store"
+    value="{{ album.purchase_store or '' }}"
+>
+</div>
+
+<div>
+<label>보관 위치</label>
+<input
+    name="storage_location"
+    value="{{ album.storage_location or '' }}"
+>
+</div>
+
+<div class="full">
+<label>에디션 / 판본</label>
+<input
+    name="edition"
+    value="{{ album.edition or '' }}"
+>
+</div>
 
 
 
