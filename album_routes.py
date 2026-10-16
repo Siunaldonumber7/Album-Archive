@@ -1256,6 +1256,13 @@ def edit_album(album_row_id):
         'error',
         ''
     ).strip()
+    return_to = request.args.get(
+        'return_to',
+        ''
+    ).strip()
+
+    if return_to != 'database':
+        return_to = ''
 
     conn = get_db()
 
@@ -1278,6 +1285,7 @@ def edit_album(album_row_id):
         album=album,
         updated=updated,
         error=error,
+        return_to=return_to,
         genre_options=(
             _genre_options_with_current(
                 album['genre']
@@ -1288,6 +1296,14 @@ def edit_album(album_row_id):
 
 
 def update_album(album_row_id):
+    return_to = request.form.get(
+        'return_to',
+        ''
+    ).strip()
+
+    if return_to != 'database':
+        return_to = ''
+
     artist = request.form.get(
         'artist',
         ''
@@ -1312,7 +1328,8 @@ def update_album(album_row_id):
             url_for(
                 'edit_album',
                 album_row_id=album_row_id,
-                error='발매일 형식이 올바르지 않습니다.'
+                error='발매일 형식이 올바르지 않습니다.',
+                return_to=return_to
             )
         )
 
@@ -1550,6 +1567,14 @@ def update_album(album_row_id):
         )
 
     clear_track_caches()
+
+    if return_to == 'database':
+        return redirect(
+            url_for(
+                'admin_database'
+            )
+            + '#issue-details'
+        )
 
     return redirect(
         url_for(
