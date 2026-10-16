@@ -106,6 +106,7 @@ ADMIN_ENDPOINTS = {
     'admin_dashboard',
     'admin_database',
     'create_database_backup',
+    'export_database_csv',
     'download_database_backup',
     'cleanup_database',
     'restore_database_backup',
