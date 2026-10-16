@@ -644,6 +644,20 @@ class DatabaseOptimizationTests(unittest.TestCase):
             master_columns
         )
 
+        for column_name in (
+            'barcode',
+            'catalog_no',
+            'release_country',
+            'edition',
+            'purchase_date',
+            'purchase_store',
+            'storage_location',
+        ):
+            self.assertIn(
+                column_name,
+                album_columns
+            )
+
 
     def test_existing_album_lookup_uses_apple_id_then_key(self):
         conn = album_database.get_db()
@@ -909,7 +923,15 @@ class LibraryViewTests(unittest.TestCase):
         )
         self.assertEqual(
             params,
-            ['B* AND Free*']
+            [
+                'B* AND Free*',
+                '%B-Free%',
+                '%B-Free%',
+                '%B-Free%',
+                '%B-Free%',
+                '%B-Free%',
+                '%B-Free%',
+            ]
         )
 
     def test_index_where_keeps_supported_filters(self):
@@ -932,6 +954,12 @@ class LibraryViewTests(unittest.TestCase):
         self.assertEqual(
             params,
             [
+                '%free%',
+                '%free%',
+                '%free%',
+                '%free%',
+                '%free%',
+                '%free%',
                 '%free%',
                 '%free%',
                 '%free%',
