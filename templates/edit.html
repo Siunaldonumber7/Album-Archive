@@ -342,14 +342,14 @@ textarea {
 
 
 <a
-    href="{{ url_for(
-        'manage_albums'
-    ) }}"
+    href="{% if return_to == 'database' %}{{ url_for('admin_database') }}#issue-details{% else %}{{ url_for('manage_albums') }}{% endif %}"
     class="back"
 >
-
+{% if return_to == 'database' %}
+‹ DB 점검으로 돌아가기
+{% else %}
 ‹ 앨범 관리로 돌아가기
-
+{% endif %}
 </a>
 
 
@@ -469,6 +469,9 @@ textarea {
     ) }}"
 >
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+{% if return_to %}
+<input type="hidden" name="return_to" value="{{ return_to }}">
+{% endif %}
 
 
 <input
