@@ -13,6 +13,7 @@ from catalog import normalize_text
 from library_view import (
     build_index_where,
     resolve_index_state,
+    sort_artist_albums,
 )
 from media_service import (
     generate_cover_thumbnails,
@@ -209,6 +210,35 @@ class DatabaseOptimizationTests(unittest.TestCase):
         self.assertEqual(
             next_number,
             'CD-0100'
+        )
+
+
+    def test_release_date_columns_exist_after_migration(self):
+        conn = album_database.get_db()
+
+        try:
+            album_columns = {
+                row['name']
+                for row in conn.execute(
+                    'PRAGMA table_info(albums)'
+                ).fetchall()
+            }
+            master_columns = {
+                row['name']
+                for row in conn.execute(
+                    'PRAGMA table_info(album_master)'
+                ).fetchall()
+            }
+        finally:
+            conn.close()
+
+        self.assertIn(
+            'release_date',
+            album_columns
+        )
+        self.assertIn(
+            'release_date',
+            master_columns
         )
 
 
@@ -473,6 +503,50 @@ class LibraryViewTests(unittest.TestCase):
         self.assertEqual(
             normalize_text('비 프리'),
             '비프리'
+        )
+
+
+    def test_release_sort_uses_month_and_day(self):
+        rows = [
+            {
+                'id': 1,
+                'album_title': 'January',
+                'release_year': '2026',
+                'release_date': '2026-01-10',
+                'purchase_price': None,
+            },
+            {
+                'id': 2,
+                'album_title': 'November',
+                'release_year': '2026',
+                'release_date': '2026-11-03',
+                'purchase_price': None,
+            },
+            {
+                'id': 3,
+                'album_title': 'Unknown month',
+                'release_year': '2026',
+                'release_date': '',
+                'purchase_price': None,
+            },
+        ]
+
+        newest = sort_artist_albums(
+            rows,
+            'release_desc'
+        )
+        oldest = sort_artist_albums(
+            rows,
+            'release_asc'
+        )
+
+        self.assertEqual(
+            [row['id'] for row in newest],
+            [2, 1, 3]
+        )
+        self.assertEqual(
+            [row['id'] for row in oldest],
+            [3, 1, 2]
         )
 
 
