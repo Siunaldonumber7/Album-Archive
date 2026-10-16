@@ -95,10 +95,13 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
         <h2>백업</h2>
         <p>SQLite 일관성 스냅샷 + 직접 업로드한 원본 커버를 묶습니다. 썸네일은 다시 만들 수 있어 제외합니다.</p>
       </div>
-      <form method="POST" action="{{ url_for('create_database_backup') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="primary" type="submit">지금 백업 만들기</button>
-      </form>
+      <div class="actions">
+        <a class="download" href="{{ url_for('export_database_csv') }}">CSV 내보내기</a>
+        <form method="POST" action="{{ url_for('create_database_backup') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="primary" type="submit">지금 백업 만들기</button>
+        </form>
+      </div>
     </div>
 
     <div class="backups">
