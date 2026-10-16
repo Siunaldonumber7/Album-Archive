@@ -298,6 +298,21 @@ textarea {
     cursor: pointer;
 }
 
+.status {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #edf9f0;
+    color: #23833d;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.status.error {
+    background: #fff0f1;
+    color: #b52c3b;
+}
+
 
 @media(max-width:760px) {
 
@@ -437,6 +452,12 @@ textarea {
     href="{{ url_for('edit_album_tracks', album_row_id=album.id) }}"
 >트랙리스트 수정</a>
 </div>
+
+{% if error %}
+<div class="status error">{{ error }}</div>
+{% elif updated %}
+<div class="status">✓ {{ updated }} 수정 완료</div>
+{% endif %}
 
 
 <form
@@ -674,8 +695,29 @@ textarea {
 
 
 <input
+    id="editReleaseYear"
     name="release_year"
     value="{{ album.release_year or '' }}"
+>
+
+
+</div>
+
+
+
+<div>
+
+
+<label>
+발매일
+</label>
+
+
+<input
+    id="editReleaseDate"
+    type="date"
+    name="release_date"
+    value="{{ album.release_date or '' }}"
 >
 
 
@@ -902,6 +944,33 @@ function previewFile() {
     );
 }
 
+
+
+const editReleaseDate =
+    document.getElementById(
+        "editReleaseDate"
+    );
+
+const editReleaseYear =
+    document.getElementById(
+        "editReleaseYear"
+    );
+
+editReleaseDate?.addEventListener(
+    "change",
+    () => {
+        if (
+            editReleaseDate.value
+            && editReleaseYear
+        ) {
+            editReleaseYear.value =
+                editReleaseDate.value.slice(
+                    0,
+                    4
+                );
+        }
+    }
+);
 
 
 function removeCover() {
