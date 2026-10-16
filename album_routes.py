@@ -575,10 +575,17 @@ def add_album_manual():
                 open_status,
                 signed,
                 purchase_price,
+                barcode,
+                catalog_no,
+                release_country,
+                edition,
+                purchase_date,
+                purchase_store,
+                storage_location,
                 memo,
                 apple_collection_id,
                 cover_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 management_no,
                 album_id,
@@ -593,6 +600,13 @@ def add_album_manual():
                 open_status,
                 signed,
                 purchase_price,
+                physical['barcode'],
+                physical['catalog_no'],
+                physical['release_country'],
+                physical['edition'],
+                physical['purchase_date'],
+                physical['purchase_store'],
+                physical['storage_location'],
                 memo,
                 '',
                 cover_url
@@ -913,10 +927,17 @@ def save_bulk_albums():
                     open_status,
                     signed,
                     purchase_price,
+                    barcode,
+                    catalog_no,
+                    release_country,
+                    edition,
+                    purchase_date,
+                    purchase_store,
+                    storage_location,
                     memo,
                     apple_collection_id,
                     cover_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     management_no,
@@ -932,6 +953,13 @@ def save_bulk_albums():
                     open_status,
                     signed,
                     purchase_price,
+                    physical['barcode'],
+                    physical['catalog_no'],
+                    physical['release_country'],
+                    physical['edition'],
+                    physical['purchase_date'],
+                    physical['purchase_store'],
+                    physical['storage_location'],
                     memo,
                     apple_id,
                     cover_url
@@ -1079,10 +1107,6 @@ def save_album():
         request.form
     )
 
-    physical = _collect_physical_metadata(
-        request.form
-    )
-
     if not artist or not album_title:
         return redirect(
             url_for('add_album_page')
@@ -1156,10 +1180,17 @@ def save_album():
                 open_status,
                 signed,
                 purchase_price,
+                barcode,
+                catalog_no,
+                release_country,
+                edition,
+                purchase_date,
+                purchase_store,
+                storage_location,
                 memo,
                 apple_collection_id,
                 cover_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 management_no,
@@ -1175,6 +1206,13 @@ def save_album():
                 choices['open_status'],
                 choices['signed'],
                 purchase_price,
+                physical['barcode'],
+                physical['catalog_no'],
+                physical['release_country'],
+                physical['edition'],
+                physical['purchase_date'],
+                physical['purchase_store'],
+                physical['storage_location'],
                 memo,
                 apple_id,
                 cover_url,
@@ -1295,6 +1333,9 @@ def update_album(album_row_id):
             ''
         )
     )
+    physical = _collect_physical_metadata(
+        request.form
+    )
 
     choices = _normalize_album_choices(
         request.form.get(
@@ -1392,6 +1433,13 @@ def update_album(album_row_id):
                 open_status = ?,
                 signed = ?,
                 purchase_price = ?,
+                barcode = ?,
+                catalog_no = ?,
+                release_country = ?,
+                edition = ?,
+                purchase_date = ?,
+                purchase_store = ?,
+                storage_location = ?,
                 memo = ?,
                 cover_url = ?
             WHERE id = ?
@@ -1408,6 +1456,13 @@ def update_album(album_row_id):
                 choices['open_status'],
                 choices['signed'],
                 purchase_price,
+                physical['barcode'],
+                physical['catalog_no'],
+                physical['release_country'],
+                physical['edition'],
+                physical['purchase_date'],
+                physical['purchase_store'],
+                physical['storage_location'],
                 memo,
                 new_cover_url,
                 album_row_id,
