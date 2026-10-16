@@ -21,6 +21,12 @@ def get_db():
     conn.execute(
         'PRAGMA synchronous = NORMAL'
     )
+    conn.execute(
+        'PRAGMA temp_store = MEMORY'
+    )
+    conn.execute(
+        'PRAGMA cache_size = -8192'
+    )
     return conn
 
 
