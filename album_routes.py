@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 
 from flask import render_template, request, redirect, url_for
 
@@ -110,6 +111,25 @@ def _normalize_album_choices(
             'X'
         ),
     }
+
+
+def _normalize_release_date(value):
+    text = str(
+        value
+        or ''
+    ).strip()
+
+    if not text:
+        return ''
+
+    try:
+        parsed = date.fromisoformat(
+            text
+        )
+    except ValueError:
+        return None
+
+    return parsed.isoformat()
 
 
 def _parse_purchase_price(value):
@@ -394,7 +414,24 @@ def add_album_manual():
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
-    release_date = ''
+    release_date = _normalize_release_date(
+        request.form.get(
+            'release_date',
+            ''
+        )
+    )
+
+    if release_date is None:
+        return redirect(
+            url_for(
+                'add_album_page',
+                manual_error='발매일 형식이 올바르지 않습니다.'
+            )
+        )
+
+    if release_date:
+        release_year = release_date[:4]
+
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
@@ -455,7 +492,8 @@ def add_album_manual():
             artist,
             album_title,
             release_year,
-            cover_url
+            cover_url,
+            release_date
         )
 
         management_no = get_next_management_no(
