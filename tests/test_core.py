@@ -1113,6 +1113,10 @@ class AdminDatabasePageTests(unittest.TestCase):
             '발매일 없음',
             html
         )
+        self.assertIn(
+            'return_to=database',
+            html
+        )
 
 
 class AlbumRouteIntegrationTests(unittest.TestCase):
