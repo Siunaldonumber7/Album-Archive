@@ -234,12 +234,6 @@ def build_index_where(
                 ' OR album_title LIKE ?'
                 ' OR release_year LIKE ?'
                 ' OR memo LIKE ?'
-                ' OR barcode LIKE ?'
-                ' OR catalog_no LIKE ?'
-                ' OR release_country LIKE ?'
-                ' OR edition LIKE ?'
-                ' OR purchase_store LIKE ?'
-                ' OR storage_location LIKE ?'
                 ' )'
             )
             params.extend([
