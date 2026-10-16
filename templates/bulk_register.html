@@ -136,6 +136,7 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
           <input type="hidden" name="album_{{ i }}_artist_id" value="{{ album.artist_id }}">
           <input type="hidden" name="album_{{ i }}_artist" value="{{ album.artist }}">
           <input type="hidden" name="album_{{ i }}_release_year" value="{{ album.release_year }}">
+          <input type="hidden" name="album_{{ i }}_release_date" value="{{ album.release_date or '' }}">
           <input type="hidden" name="album_{{ i }}_cover" value="{{ album.cover }}">
 
           <div class="field album-title">
