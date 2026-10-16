@@ -18,7 +18,6 @@ from library_view import (
     build_artist_directory,
     build_format_summary,
     build_index_where,
-    collect_artist_albums,
     resolve_artist_sort,
     resolve_index_state,
     sort_artist_albums,
@@ -280,12 +279,16 @@ def artists_page():
     try:
         rows = conn.execute(
             '''
-            SELECT artist, cover_url
-            FROM albums
-            WHERE is_primary_display = 1
-              AND artist IS NOT NULL
-              AND TRIM(artist) != ''
-            ORDER BY id DESC
+            SELECT
+                album_artist_map.artist_name
+                    AS artist,
+                albums.cover_url
+            FROM album_artist_map
+            INNER JOIN albums
+                ON albums.id =
+                    album_artist_map.album_row_id
+            WHERE albums.is_primary_display = 1
+            ORDER BY albums.id DESC
             '''
         ).fetchall()
     finally:
@@ -322,52 +325,67 @@ def artist_page(artist_name):
         request.args.get('page', '1')
     )
 
+    target_key = (
+        artist_name.casefold()
+    )
     conn = get_db()
 
     try:
-        all_albums = conn.execute(
+        matched_albums = conn.execute(
             '''
-            SELECT *
-            FROM albums
-            WHERE is_primary_display = 1
+            SELECT
+                albums.*,
+                album_artist_map.artist_name
+                    AS matched_artist_name
+            FROM album_artist_map
+            INNER JOIN albums
+                ON albums.id =
+                    album_artist_map.album_row_id
+            WHERE albums.is_primary_display = 1
+              AND album_artist_map.artist_key = ?
             ORDER BY
                 CASE
-                    WHEN release_date
+                    WHEN albums.release_date
                         GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-                    THEN release_date
-                    WHEN release_year
+                    THEN albums.release_date
+                    WHEN albums.release_year
                         GLOB '[0-9][0-9][0-9][0-9]'
-                    THEN release_year || '-00-00'
+                    THEN albums.release_year
+                        || '-00-00'
                     ELSE ''
                 END DESC,
-                album_title
+                albums.album_title
                     COLLATE NOCASE ASC,
-                id DESC
-            '''
+                albums.id DESC
+            ''',
+            (target_key,)
         ).fetchall()
 
         all_owned_copies = conn.execute(
             '''
-            SELECT artist, media_format
-            FROM albums
-            WHERE artist IS NOT NULL
-              AND TRIM(artist) != ''
-            '''
+            SELECT
+                albums.artist,
+                albums.media_format
+            FROM album_artist_map
+            INNER JOIN albums
+                ON albums.id =
+                    album_artist_map.album_row_id
+            WHERE album_artist_map.artist_key = ?
+            ''',
+            (target_key,)
         ).fetchall()
     finally:
         conn.close()
 
-    (
-        matched_albums,
-        canonical_artist,
-        target_key,
-    ) = collect_artist_albums(
-        all_albums,
-        artist_name
-    )
-
     if not matched_albums:
         abort(404)
+
+    canonical_artist = str(
+        matched_albums[0][
+            'matched_artist_name'
+        ]
+        or artist_name
+    ).strip()
 
     artist_profile_url = (
         get_cached_artist_profile_image(
