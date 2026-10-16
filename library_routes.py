@@ -332,13 +332,13 @@ def artist_page(artist_name):
             WHERE is_primary_display = 1
             ORDER BY
                 CASE
+                    WHEN release_date
+                        GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                    THEN release_date
                     WHEN release_year
                         GLOB '[0-9][0-9][0-9][0-9]'
-                    THEN CAST(
-                        release_year
-                        AS INTEGER
-                    )
-                    ELSE 0
+                    THEN release_year || '-00-00'
+                    ELSE ''
                 END DESC,
                 album_title
                     COLLATE NOCASE ASC,
