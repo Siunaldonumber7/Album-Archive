@@ -11,6 +11,7 @@ from flask import (
 from album_database import (
     get_db,
     get_genre_options,
+    has_album_search,
 )
 from library_view import (
     INDEX_SORT_SQL,
@@ -101,12 +102,16 @@ def index():
         ''
     )
 
-    where_sql, params = build_index_where(
-        state
-    )
     conn = get_db()
 
     try:
+        where_sql, params = build_index_where(
+            state,
+            use_fts=has_album_search(
+                conn
+            )
+        )
+
         filtered_album_count = conn.execute(
             'SELECT COUNT(*) AS count '
             'FROM albums'
