@@ -231,3 +231,155 @@ def get_or_create_album_id(
     )
 
     return album_id
+
+
+
+def sync_album_master_metadata(
+    conn,
+    album_id,
+    artist,
+    album_title,
+    release_year='',
+    release_date='',
+    cover_url=None
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    if not album_id:
+        return
+
+    album_key = make_album_key(
+        artist,
+        album_title,
+        release_year
+    )
+    release_date = str(
+        release_date
+        or ''
+    ).strip()
+
+    existing = conn.execute(
+        '''
+        SELECT id
+        FROM album_master
+        WHERE album_id = ?
+        LIMIT 1
+        ''',
+        (album_id,)
+    ).fetchone()
+
+    if existing is None:
+        conn.execute(
+            '''
+            INSERT INTO album_master (
+                album_id,
+                album_key,
+                artist,
+                album_title,
+                release_year,
+                release_date,
+                cover_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                album_id,
+                album_key,
+                artist,
+                album_title,
+                release_year,
+                release_date,
+                str(
+                    cover_url
+                    or ''
+                ).strip(),
+            )
+        )
+        return
+
+    if cover_url is None:
+        conn.execute(
+            '''
+            UPDATE album_master
+            SET
+                album_key = ?,
+                artist = ?,
+                album_title = ?,
+                release_year = ?,
+                release_date = ?
+            WHERE album_id = ?
+            ''',
+            (
+                album_key,
+                artist,
+                album_title,
+                release_year,
+                release_date,
+                album_id,
+            )
+        )
+    else:
+        conn.execute(
+            '''
+            UPDATE album_master
+            SET
+                album_key = ?,
+                artist = ?,
+                album_title = ?,
+                release_year = ?,
+                release_date = ?,
+                cover_url = ?
+            WHERE album_id = ?
+            ''',
+            (
+                album_key,
+                artist,
+                album_title,
+                release_year,
+                release_date,
+                str(
+                    cover_url
+                    or ''
+                ).strip(),
+                album_id,
+            )
+        )
+
+
+def delete_album_master_if_orphan(
+    conn,
+    album_id
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    if not album_id:
+        return False
+
+    remaining = conn.execute(
+        '''
+        SELECT COUNT(*) AS count
+        FROM albums
+        WHERE album_id = ?
+        ''',
+        (album_id,)
+    ).fetchone()['count']
+
+    if int(
+        remaining
+        or 0
+    ) > 0:
+        return False
+
+    conn.execute(
+        '''
+        DELETE FROM album_master
+        WHERE album_id = ?
+        ''',
+        (album_id,)
+    )
+    return True
