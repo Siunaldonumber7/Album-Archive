@@ -63,6 +63,8 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     <div class="stat"><div class="label">Apple ID 없음</div><div class="value">{{ stats.apple_id_missing }}</div></div>
     <div class="stat{% if stats.cover_missing %} warn{% endif %}"><div class="label">커버 없음</div><div class="value">{{ stats.cover_missing }}</div></div>
     <div class="stat"><div class="label">중복 보유 그룹</div><div class="value">{{ stats.duplicate_groups }}</div></div>
+    <div class="stat{% if stats.identity_mismatch_groups %} warn{% endif %}"><div class="label">공통정보 불일치 그룹</div><div class="value">{{ stats.identity_mismatch_groups }}</div></div>
+    <div class="stat{% if stats.master_mismatch_groups %} warn{% endif %}"><div class="label">Master 불일치</div><div class="value">{{ stats.master_mismatch_groups }}</div></div>
     <div class="stat{% if stats.orphan_masters %} warn{% endif %}"><div class="label">고아 album_master</div><div class="value">{{ stats.orphan_masters }}</div></div>
     <div class="stat{% if stats.orphan_artist_map %} warn{% endif %}"><div class="label">고아 아티스트 매핑</div><div class="value">{{ stats.orphan_artist_map }}</div></div>
     <div class="stat"><div class="label">수록곡 영구 캐시</div><div class="value">{{ stats.track_cache_count }}</div></div>
@@ -83,7 +85,7 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
       </div>
     </div>
     <div class="meta">
-      고아 트랙 캐시 {{ stats.orphan_track_cache }}건 · 정상 데이터와 실제 앨범 행은 삭제하지 않습니다.
+      고아 트랙 캐시 {{ stats.orphan_track_cache }}건 · 공통정보 불일치와 Master 불일치는 자동 수정하지 않고 검토 대상으로만 표시합니다.
     </div>
   </section>
 
