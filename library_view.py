@@ -210,27 +210,54 @@ def build_index_where(
             else ''
         )
 
+        value = f'%{library_q}%'
+
         if fts_query:
             conditions.append(
-                'id IN ('
-                ' SELECT rowid'
-                ' FROM album_search'
-                ' WHERE album_search MATCH ?'
+                '('
+                ' id IN ('
+                '  SELECT rowid'
+                '  FROM album_search'
+                '  WHERE album_search MATCH ?'
+                ' )'
+                ' OR barcode LIKE ?'
+                ' OR catalog_no LIKE ?'
+                ' OR release_country LIKE ?'
+                ' OR edition LIKE ?'
+                ' OR purchase_store LIKE ?'
+                ' OR storage_location LIKE ?'
                 ')'
             )
-            params.append(
-                fts_query
-            )
+            params.extend([
+                fts_query,
+                value,
+                value,
+                value,
+                value,
+                value,
+                value,
+            ])
         else:
-            value = f'%{library_q}%'
             conditions.append(
                 '('
                 ' artist LIKE ?'
                 ' OR album_title LIKE ?'
                 ' OR release_year LIKE ?'
+                ' OR barcode LIKE ?'
+                ' OR catalog_no LIKE ?'
+                ' OR release_country LIKE ?'
+                ' OR edition LIKE ?'
+                ' OR purchase_store LIKE ?'
+                ' OR storage_location LIKE ?'
                 ' )'
             )
             params.extend([
+                value,
+                value,
+                value,
+                value,
+                value,
+                value,
                 value,
                 value,
                 value,
