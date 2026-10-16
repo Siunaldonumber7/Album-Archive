@@ -3,7 +3,13 @@ from datetime import date
 
 from flask import render_template, request, redirect, url_for
 
-from album_database import get_db, get_genre_options, remember_genres, ensure_primary_display
+from album_database import (
+    ensure_primary_display,
+    get_db,
+    get_genre_options,
+    remember_genres,
+    sync_album_artist_map,
+)
 from album_service import (
     delete_album_master_if_orphan,
     find_existing_album_id,
@@ -508,7 +514,7 @@ def add_album_manual():
 
         remember_genres(conn, genre)
 
-        conn.execute(
+        cursor = conn.execute(
             """INSERT INTO albums (
                 management_no,
                 album_id,
@@ -547,6 +553,11 @@ def add_album_manual():
             )
         )
 
+        sync_album_artist_map(
+            conn,
+            cursor.lastrowid,
+            artist
+        )
         ensure_primary_display(conn, album_id)
 
         conn.commit()
@@ -836,7 +847,7 @@ def save_bulk_albums():
 
             remember_genres(conn, genre)
 
-            conn.execute(
+            cursor = conn.execute(
                 '''
                 INSERT INTO albums (
                     management_no,
@@ -877,6 +888,11 @@ def save_bulk_albums():
                 )
             )
 
+            sync_album_artist_map(
+                conn,
+                cursor.lastrowid,
+                artist
+            )
             ensure_primary_display(conn, album_id)
 
             saved_management_numbers.append(management_no)
@@ -1066,7 +1082,7 @@ def save_album():
             genre
         )
 
-        conn.execute(
+        cursor = conn.execute(
             '''
             INSERT INTO albums (
                 management_no,
@@ -1107,6 +1123,11 @@ def save_album():
             )
         )
 
+        sync_album_artist_map(
+            conn,
+            cursor.lastrowid,
+            artist
+        )
         ensure_primary_display(
             conn,
             album_id
@@ -1344,6 +1365,11 @@ def update_album(album_row_id):
             release_date,
             new_cover_url
         )
+        sync_album_artist_map(
+            conn,
+            album_row_id,
+            artist
+        )
 
         conn.execute(
             '''
@@ -1448,6 +1474,11 @@ def delete_album(album_row_id):
             'DELETE FROM albums '
             'WHERE id = ?',
             (album_row_id,)
+        )
+        sync_album_artist_map(
+            conn,
+            album_row_id,
+            ''
         )
 
         remaining = conn.execute(
