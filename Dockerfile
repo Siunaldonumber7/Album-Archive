@@ -16,4 +16,4 @@ RUN mkdir -p /app/static /data
 
 EXPOSE 5001
 
-CMD ["sh", "-c", "mkdir -p /data/uploads && rm -rf /app/static/uploads && ln -s /data/uploads /app/static/uploads && python -c 'from album_database import init_db; init_db()' && python -c 'from release_date_backfill import backfill_release_dates; backfill_release_dates()' && python -c 'from media_service import prewarm_thumbnail_directory; prewarm_thumbnail_directory(\"/data/uploads\")' && exec gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 1 --threads 4 --keep-alive 10 --timeout 120 app:app"]
+CMD ["sh", "-c", "mkdir -p /data/uploads && rm -rf /app/static/uploads && ln -s /data/uploads /app/static/uploads && python -c 'from album_database import init_db; init_db()' && python -c 'from release_date_backfill import backfill_release_dates; backfill_release_dates()' && exec gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 1 --threads 4 --keep-alive 10 --timeout 120 app:app"]
