@@ -2016,7 +2016,14 @@ def merge_album_search_results(
             item.get('score', 0),
             1 if item.get('explicit') == 'Explicit' else 0,
             1 if item.get('store') == 'KR' else 0,
-            item.get('release_year', '')
+            item.get(
+                'release_date',
+                ''
+            )
+            or item.get(
+                'release_year',
+                ''
+            )
         ),
         reverse=True
     )
