@@ -1066,7 +1066,7 @@ def admin_database():
             'title': '발매일 없음',
             'description':
                 '정확한 발매일이 저장되지 않은 보유본입니다.',
-            'items': release_date_issues,
+            'rows': release_date_issues,
             'important': False,
         },
         {
@@ -1074,7 +1074,7 @@ def admin_database():
             'title': 'Apple ID 없음',
             'description':
                 'Apple Music과 연결되지 않은 보유본입니다. 직접 등록 음반이면 정상일 수 있습니다.',
-            'items': apple_id_issues,
+            'rows': apple_id_issues,
             'important': False,
         },
         {
@@ -1082,7 +1082,7 @@ def admin_database():
             'title': '커버 없음',
             'description':
                 '커버 이미지가 없는 보유본입니다.',
-            'items': cover_issues,
+            'rows': cover_issues,
             'important': False,
         },
         {
@@ -1090,7 +1090,7 @@ def admin_database():
             'title': '공통정보 불일치',
             'description':
                 '같은 album_id로 묶인 보유본 사이에서 공통정보가 서로 다릅니다.',
-            'items': identity_issues,
+            'rows': identity_issues,
             'important': True,
         },
         {
@@ -1098,7 +1098,7 @@ def admin_database():
             'title': 'Master 정보 불일치',
             'description':
                 '앨범 기본정보와 현재 대표 보유본의 정보가 서로 다릅니다.',
-            'items': master_issues,
+            'rows': master_issues,
             'important': True,
         },
         {
@@ -1106,7 +1106,7 @@ def admin_database():
             'title': '연결 끊긴 데이터',
             'description':
                 '삭제된 앨범을 가리키는 연결정보 또는 캐시가 남아 있습니다.',
-            'items': disconnected_issues,
+            'rows': disconnected_issues,
             'important': True,
         },
     ]
