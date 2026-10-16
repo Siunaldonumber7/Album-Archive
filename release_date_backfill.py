@@ -1,3 +1,5 @@
+import time
+
 from album_database import get_db
 from search_engine import APPLE_SESSION
 
@@ -9,6 +11,7 @@ STORES = (
     'GB',
 )
 BATCH_SIZE = 50
+MISSING_RETRY_SECONDS = 30 * 24 * 3600
 
 
 def _clean_release_date(value):
@@ -70,7 +73,7 @@ def _lookup_batch(
             store,
             exc
         )
-        return {}
+        return None
 
     result = {}
 
@@ -109,22 +112,37 @@ def backfill_release_dates():
     conn = get_db()
 
     try:
+        retry_cutoff = (
+            int(time.time())
+            - MISSING_RETRY_SECONDS
+        )
         rows = conn.execute(
             '''
-            SELECT DISTINCT apple_collection_id
+            SELECT DISTINCT
+                albums.apple_collection_id
             FROM albums
-            WHERE apple_collection_id
+            LEFT JOIN release_date_checks
+                ON release_date_checks.collection_id =
+                    albums.apple_collection_id
+            WHERE albums.apple_collection_id
                     IS NOT NULL
               AND TRIM(
-                    apple_collection_id
+                    albums.apple_collection_id
                   ) != ''
               AND (
-                    release_date IS NULL
+                    albums.release_date IS NULL
                     OR TRIM(
-                        release_date
+                        albums.release_date
                     ) = ''
                   )
-            '''
+              AND (
+                    release_date_checks.checked_at
+                        IS NULL
+                    OR release_date_checks.checked_at
+                        < ?
+                  )
+            ''',
+            (retry_cutoff,)
         ).fetchall()
 
         collection_ids = sorted({
@@ -158,6 +176,7 @@ def backfill_release_dates():
             collection_ids
         )
         found = {}
+        successfully_checked = set()
 
         for store in STORES:
             if not unresolved:
@@ -176,6 +195,13 @@ def backfill_release_dates():
                         batch,
                         store
                     )
+                )
+
+                if batch_result is None:
+                    continue
+
+                successfully_checked.update(
+                    batch
                 )
 
                 for (
@@ -224,6 +250,39 @@ def backfill_release_dates():
                     release_date,
                     release_year,
                     collection_id,
+                )
+            )
+
+        checked_at = int(
+            time.time()
+        )
+
+        for collection_id in (
+            successfully_checked
+        ):
+            conn.execute(
+                '''
+                INSERT INTO release_date_checks (
+                    collection_id,
+                    checked_at,
+                    found
+                ) VALUES (?, ?, ?)
+                ON CONFLICT(collection_id)
+                DO UPDATE SET
+                    checked_at =
+                        excluded.checked_at,
+                    found =
+                        excluded.found
+                ''',
+                (
+                    collection_id,
+                    checked_at,
+                    (
+                        1
+                        if collection_id
+                        in found
+                        else 0
+                    ),
                 )
             )
 
