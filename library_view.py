@@ -18,15 +18,31 @@ INDEX_STATE_KEYS = (
 
 INDEX_SORT_SQL = {
     'release_desc': (
-        "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+        "CASE "
+        "WHEN release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+        "THEN 0 "
+        "WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
         "THEN 0 ELSE 1 END ASC, "
-        "CAST(release_year AS INTEGER) DESC, "
+        "CASE "
+        "WHEN release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+        "THEN release_date "
+        "WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+        "THEN release_year || '-00-00' "
+        "ELSE '' END DESC, "
         "album_title COLLATE NOCASE ASC, id DESC"
     ),
     'release_asc': (
-        "CASE WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+        "CASE "
+        "WHEN release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+        "THEN 0 "
+        "WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
         "THEN 0 ELSE 1 END ASC, "
-        "CAST(release_year AS INTEGER) ASC, "
+        "CASE "
+        "WHEN release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+        "THEN release_date "
+        "WHEN release_year GLOB '[0-9][0-9][0-9][0-9]' "
+        "THEN release_year || '-00-00' "
+        "ELSE '' END ASC, "
         "album_title COLLATE NOCASE ASC, id ASC"
     ),
     'price_desc': (
@@ -506,6 +522,34 @@ def release_year_number(album):
     )
 
 
+def release_date_key(album):
+    value = clean_text(
+        album['release_date']
+    )
+
+    if (
+        len(value) == 10
+        and value[4] == '-'
+        and value[7] == '-'
+    ):
+        compact = value.replace(
+            '-',
+            ''
+        )
+
+        if compact.isdigit():
+            return int(compact)
+
+    year = release_year_number(
+        album
+    )
+
+    if year is None:
+        return None
+
+    return year * 10000
+
+
 def purchase_price_number(album):
     value = album['purchase_price']
 
@@ -522,21 +566,21 @@ def _release_sort_key(
     album,
     descending=False
 ):
-    year = release_year_number(
+    release_key = release_date_key(
         album
     )
-    numeric_year = (
-        year
-        if year is not None
+    numeric_release = (
+        release_key
+        if release_key is not None
         else 0
     )
 
     return (
-        year is None,
+        release_key is None,
         (
-            -numeric_year
+            -numeric_release
             if descending
-            else numeric_year
+            else numeric_release
         ),
         name_sort_key(
             album['album_title']
