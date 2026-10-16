@@ -102,6 +102,10 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
       >
 
       <input id="commonPrice" type="number" min="0" step="1" placeholder="공통 금액">
+      <input id="commonPurchaseDate" type="date" title="공통 구매일">
+      <input id="commonPurchaseStore" type="text" placeholder="공통 구매처">
+      <input id="commonStorageLocation" type="text" placeholder="공통 보관 위치">
+      <input id="commonReleaseCountry" type="text" placeholder="공통 발매국">
       <button class="apply" type="button" id="applyCommon">공통값 적용</button>
     </div>
   </div>
@@ -213,6 +217,41 @@ textarea{width:100%;min-height:64px;border-radius:11px;padding:10px;resize:verti
             <input class="row-price" type="number" min="0" step="1" name="album_{{ i }}_purchase_price" >
           </div>
 
+          <div class="field">
+            <label>바코드</label>
+            <input type="text" name="album_{{ i }}_barcode" placeholder="바코드">
+          </div>
+
+          <div class="field">
+            <label>카탈로그 번호</label>
+            <input type="text" name="album_{{ i }}_catalog_no" placeholder="카탈로그 번호">
+          </div>
+
+          <div class="field">
+            <label>발매국</label>
+            <input class="row-release-country" type="text" name="album_{{ i }}_release_country" placeholder="KR / JP / US">
+          </div>
+
+          <div class="field">
+            <label>구매일</label>
+            <input class="row-purchase-date" type="date" name="album_{{ i }}_purchase_date">
+          </div>
+
+          <div class="field">
+            <label>구매처</label>
+            <input class="row-purchase-store" type="text" name="album_{{ i }}_purchase_store" placeholder="구매처">
+          </div>
+
+          <div class="field">
+            <label>보관 위치</label>
+            <input class="row-storage-location" type="text" name="album_{{ i }}_storage_location" placeholder="장식장 A-2">
+          </div>
+
+          <div class="field">
+            <label>에디션 / 판본</label>
+            <input type="text" name="album_{{ i }}_edition" placeholder="초회반, 한정판">
+          </div>
+
           <div class="field memo">
             <label>메모</label>
             <textarea name="album_{{ i }}_memo" placeholder="특이사항이 있으면 입력"></textarea>
@@ -245,6 +284,10 @@ document.getElementById('applyCommon').addEventListener('click', () => {
   const openStatus = document.getElementById('commonOpen').value;
   const signed = document.getElementById('commonSigned').value;
   const price = document.getElementById('commonPrice').value;
+  const purchaseDate = document.getElementById('commonPurchaseDate').value;
+  const purchaseStore = document.getElementById('commonPurchaseStore').value.trim();
+  const storageLocation = document.getElementById('commonStorageLocation').value.trim();
+  const releaseCountry = document.getElementById('commonReleaseCountry').value.trim();
   const commonGenres = document.getElementById('commonGenres');
   const genres = commonGenres
     ? [...commonGenres.selectedOptions].map(option => option.value)
@@ -274,6 +317,18 @@ document.getElementById('applyCommon').addEventListener('click', () => {
 
     if (price !== '') {
       card.querySelector('.row-price').value = price;
+    }
+    if (purchaseDate !== '') {
+      card.querySelector('.row-purchase-date').value = purchaseDate;
+    }
+    if (purchaseStore !== '') {
+      card.querySelector('.row-purchase-store').value = purchaseStore;
+    }
+    if (storageLocation !== '') {
+      card.querySelector('.row-storage-location').value = storageLocation;
+    }
+    if (releaseCountry !== '') {
+      card.querySelector('.row-release-country').value = releaseCountry;
     }
   });
 });
