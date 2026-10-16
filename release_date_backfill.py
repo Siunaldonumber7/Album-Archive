@@ -1,3 +1,4 @@
+import threading
 import time
 
 from album_database import get_db
@@ -12,6 +13,8 @@ STORES = (
 )
 BATCH_SIZE = 50
 MISSING_RETRY_SECONDS = 30 * 24 * 3600
+_START_LOCK = threading.Lock()
+_STARTED = False
 
 
 def _clean_release_date(value):
@@ -319,6 +322,23 @@ def backfill_release_dates():
         }
     finally:
         conn.close()
+
+
+def start_release_date_backfill():
+    global _STARTED
+
+    with _START_LOCK:
+        if _STARTED:
+            return
+
+        _STARTED = True
+
+        thread = threading.Thread(
+            target=backfill_release_dates,
+            name='release-date-backfill',
+            daemon=True
+        )
+        thread.start()
 
 
 if __name__ == '__main__':
