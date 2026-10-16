@@ -1434,6 +1434,7 @@ def lookup_artist_albums(
                         'artist': result_artist,
                         'title': title,
                         'release_year': release_year,
+                        'release_date': release_date,
                         'cover': apple_high_res(
                             item.get(
                                 'artworkUrl100',
@@ -1832,6 +1833,7 @@ def discover_by_album(search_artist, album):
                     'artist': artist_name,
                     'title': title,
                     'release_year': release_year,
+                    'release_date': release_date,
                     'cover': apple_high_res(
                         item.get(
                             'artworkUrl100',
@@ -1896,6 +1898,7 @@ def album_item_to_result(item, store='KR'):
         'artist': str(item.get('artistName') or '').strip(),
         'title': str(item.get('collectionName') or '').strip(),
         'release_year': release_date[:4] if release_date else '',
+        'release_date': release_date,
         'cover': apple_high_res(item.get('artworkUrl100', '') or ''),
         'thumb': apple_artwork_size(item.get('artworkUrl100', '') or '', 400),
         'album_type': normalize_apple_album_type(item),
@@ -2407,6 +2410,7 @@ def find_album_metadata_in_page_data(page, collection_id=''):
                 'title': str(value.get('name') or '').strip(),
                 'artist': artist,
                 'release_year': release_date[:4] if release_date else '',
+                'release_date': release_date[:10] if release_date else '',
                 'cover': normalize_apple_artwork_url(
                     extract_image_url(value.get('image'))
                 ),
@@ -2423,6 +2427,7 @@ def find_album_metadata_in_page_data(page, collection_id=''):
                 'title': str(attrs.get('name') or '').strip(),
                 'artist': str(attrs.get('artistName') or '').strip(),
                 'release_year': str(attrs.get('releaseDate') or '')[:4],
+                'release_date': str(attrs.get('releaseDate') or '')[:10],
                 'cover': normalize_apple_artwork_url(artwork.get('url') or ''),
                 'artist_id': str(attrs.get('artistId') or ''),
                 'album_type': normalize_apple_album_type(value, attrs.get('name') or ''),
@@ -2574,6 +2579,7 @@ def resolve_apple_music_album_link(apple_url):
             'artist': '',
             'title': '',
             'release_year': '',
+            'release_date': '',
             'cover': '',
             'album_type': '',
             'genre': '',
@@ -2593,6 +2599,8 @@ def resolve_apple_music_album_link(apple_url):
             metadata['artist'] = page_metadata['artist']
         if page_metadata.get('release_year'):
             metadata['release_year'] = page_metadata['release_year']
+        if page_metadata.get('release_date'):
+            metadata['release_date'] = page_metadata['release_date']
         if page_metadata.get('cover'):
             metadata['cover'] = page_metadata['cover']
         if page_metadata.get('artist_id'):
