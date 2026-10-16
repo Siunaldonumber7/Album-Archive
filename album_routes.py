@@ -184,6 +184,7 @@ def _duplicate_info(
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 open_status,
                 signed,
                 purchase_price
@@ -333,6 +334,7 @@ def add_album_from_link():
     artist = metadata.get('artist', '')
     album_title = metadata.get('title', '')
     release_year = metadata.get('release_year', '')
+    release_date = metadata.get('release_date', '')
     cover_url = metadata.get('cover', '')
     apple_artist_id = metadata.get('artist_id', '')
     album_type = metadata.get('album_type', '') or '앨범'
@@ -369,6 +371,7 @@ def add_album_from_link():
         'artist': artist,
         'album_title': album_title,
         'release_year': release_year,
+        'release_date': release_date,
         'cover_url': cover_url,
         'album_type': album_type,
         'genre': genre,
@@ -472,13 +475,14 @@ def add_album_manual():
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 open_status,
                 signed,
                 purchase_price,
                 memo,
                 apple_collection_id,
                 cover_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 management_no,
                 album_id,
@@ -489,6 +493,7 @@ def add_album_manual():
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 open_status,
                 signed,
                 purchase_price,
@@ -725,6 +730,7 @@ def save_bulk_albums():
             artist = request.form.get(prefix + 'artist', '').strip()
             album_title = request.form.get(prefix + 'title', '').strip()
             release_year = request.form.get(prefix + 'release_year', '').strip()
+            release_date = request.form.get(prefix + 'release_date', '').strip()
             cover_url = request.form.get(prefix + 'cover', '').strip()
             classification = request.form.get(prefix + 'classification', '').strip()
             media_format = request.form.get(prefix + 'media_format', '').strip()
@@ -775,7 +781,8 @@ def save_bulk_albums():
                 artist,
                 album_title,
                 release_year,
-                cover_url
+                cover_url,
+                release_date
             )
 
             management_no = get_next_management_no(
@@ -797,13 +804,14 @@ def save_bulk_albums():
                     artist,
                     album_title,
                     release_year,
+                    release_date,
                     open_status,
                     signed,
                     purchase_price,
                     memo,
                     apple_collection_id,
                     cover_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     management_no,
@@ -815,6 +823,7 @@ def save_bulk_albums():
                     artist,
                     album_title,
                     release_year,
+                    release_date,
                     open_status,
                     signed,
                     purchase_price,
@@ -855,6 +864,7 @@ def register():
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
+    release_date = request.form.get('release_date', '').strip()
     cover_url = request.form.get('cover_url', '').strip()
     album_type = request.form.get('album_type', '').strip() or '앨범'
     genre = normalize_genres(
@@ -889,6 +899,7 @@ def register():
         'artist': artist,
         'album_title': album_title,
         'release_year': release_year,
+        'release_date': release_date,
         'cover_url': cover_url,
         'album_type': album_type,
         'genre': genre,
@@ -932,6 +943,10 @@ def save_album():
     ).strip()
     release_year = request.form.get(
         'release_year',
+        ''
+    ).strip()
+    release_date = request.form.get(
+        'release_date',
         ''
     ).strip()
     genre = _collect_genres(
@@ -994,7 +1009,8 @@ def save_album():
             artist,
             album_title,
             release_year,
-            cover_url
+            cover_url,
+            release_date
         )
         management_no = get_next_management_no(
             conn,
@@ -1018,13 +1034,14 @@ def save_album():
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 open_status,
                 signed,
                 purchase_price,
                 memo,
                 apple_collection_id,
                 cover_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 management_no,
@@ -1036,6 +1053,7 @@ def save_album():
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 choices['open_status'],
                 choices['signed'],
                 purchase_price,
@@ -1238,6 +1256,7 @@ def update_album(album_row_id):
                 artist,
                 album_title,
                 release_year,
+                release_date,
                 choices['open_status'],
                 choices['signed'],
                 purchase_price,
