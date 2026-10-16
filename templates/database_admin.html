@@ -16,6 +16,8 @@ h1{margin:12px 0 6px;font-size:34px;letter-spacing:-1.3px}
 .notice{margin:0 0 18px;padding:12px 14px;border-radius:12px;background:#edf9f0;color:#237a3b;font-size:12px;font-weight:800}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0 26px}
 .stat{padding:17px 18px;border:1px solid var(--line);border-radius:17px;background:var(--card)}
+.stat-link{display:block;color:inherit;text-decoration:none}
+.stat-link:hover{border-color:#cfcfc8;box-shadow:0 8px 20px rgba(0,0,0,.05)}
 .label{color:#888;font-size:11px;font-weight:750}
 .value{margin-top:7px;font-size:24px;font-weight:880;letter-spacing:-.6px}
 .warn .value{color:#d52d49}
@@ -35,6 +37,22 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
 .meta{color:#888;font-size:11px}
 .download{min-height:32px;background:#f1f1ee;color:#444;padding:0 10px}
 .empty{padding:24px;color:#999;text-align:center;font-size:12px}
+.issue-list{display:grid;gap:10px}
+.issue-group{border:1px solid #e7e7e2;border-radius:14px;background:#fafaf8;overflow:hidden}
+.issue-group summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;font-size:13px;font-weight:850}
+.issue-group summary::-webkit-details-marker{display:none}
+.issue-count{min-width:28px;padding:4px 8px;border-radius:999px;background:#ecece8;color:#555;text-align:center;font-size:11px}
+.issue-group.important .issue-count{background:#fff0f1;color:#c72d44}
+.issue-desc{padding:0 16px 12px;color:#8a8a8f;font-size:11px;line-height:1.6}
+.issue-table-wrap{overflow-x:auto;border-top:1px solid #ecece7;background:#fff}
+.issue-table{width:100%;border-collapse:collapse;min-width:850px}
+.issue-table th,.issue-table td{padding:10px 12px;border-bottom:1px solid #efefeb;text-align:left;vertical-align:top;font-size:11px}
+.issue-table th{background:#fafaf8;color:#888;font-weight:800}
+.issue-table tr:last-child td{border-bottom:0}
+.issue-title{font-weight:800;color:#2b2b2f}
+.issue-detail{max-width:360px;color:#666;line-height:1.55}
+.issue-edit{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 9px;border-radius:8px;background:#efefec;color:#444;text-decoration:none;font-size:10px;font-weight:850}
+.issue-ok{padding:18px 16px;color:#6e8f72;font-size:12px;font-weight:800}
 @media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.backup-row{grid-template-columns:1fr auto}.backup-row .date,.backup-row .size{display:none}}
 </style>
 </head>
@@ -58,15 +76,15 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
 
   <section class="grid">
     <div class="stat"><div class="label">전체 보유본</div><div class="value">{{ stats.total }}</div></div>
-    <div class="stat{% if stats.release_date_missing %} warn{% endif %}"><div class="label">발매일 없음</div><div class="value">{{ stats.release_date_missing }}</div></div>
-    <div class="stat{% if stats.apple_date_missing %} warn{% endif %}"><div class="label">Apple ID + 날짜 없음</div><div class="value">{{ stats.apple_date_missing }}</div></div>
-    <div class="stat"><div class="label">Apple ID 없음</div><div class="value">{{ stats.apple_id_missing }}</div></div>
-    <div class="stat{% if stats.cover_missing %} warn{% endif %}"><div class="label">커버 없음</div><div class="value">{{ stats.cover_missing }}</div></div>
+    <a class="stat stat-link{% if stats.release_date_missing %} warn{% endif %}" href="#issue-release-date"><div class="label">발매일 없음</div><div class="value">{{ stats.release_date_missing }}</div></a>
+    <a class="stat stat-link{% if stats.apple_date_missing %} warn{% endif %}" href="#issue-release-date"><div class="label">Apple ID + 날짜 없음</div><div class="value">{{ stats.apple_date_missing }}</div></a>
+    <a class="stat stat-link" href="#issue-apple-id"><div class="label">Apple ID 없음</div><div class="value">{{ stats.apple_id_missing }}</div></a>
+    <a class="stat stat-link{% if stats.cover_missing %} warn{% endif %}" href="#issue-cover"><div class="label">커버 없음</div><div class="value">{{ stats.cover_missing }}</div></a>
     <div class="stat"><div class="label">중복 보유 그룹</div><div class="value">{{ stats.duplicate_groups }}</div></div>
-    <div class="stat{% if stats.identity_mismatch_groups %} warn{% endif %}"><div class="label">공통정보 불일치 그룹</div><div class="value">{{ stats.identity_mismatch_groups }}</div></div>
-    <div class="stat{% if stats.master_mismatch_groups %} warn{% endif %}"><div class="label">Master 불일치</div><div class="value">{{ stats.master_mismatch_groups }}</div></div>
-    <div class="stat{% if stats.orphan_masters %} warn{% endif %}"><div class="label">연결 끊긴 앨범 정보</div><div class="value">{{ stats.orphan_masters }}</div></div>
-    <div class="stat{% if stats.orphan_artist_map %} warn{% endif %}"><div class="label">연결 끊긴 아티스트 정보</div><div class="value">{{ stats.orphan_artist_map }}</div></div>
+    <a class="stat stat-link{% if stats.identity_mismatch_groups %} warn{% endif %}" href="#issue-identity"><div class="label">공통정보 불일치 그룹</div><div class="value">{{ stats.identity_mismatch_groups }}</div></a>
+    <a class="stat stat-link{% if stats.master_mismatch_groups %} warn{% endif %}" href="#issue-master"><div class="label">Master 불일치</div><div class="value">{{ stats.master_mismatch_groups }}</div></a>
+    <a class="stat stat-link{% if stats.orphan_masters %} warn{% endif %}" href="#issue-disconnected"><div class="label">연결 끊긴 앨범 정보</div><div class="value">{{ stats.orphan_masters }}</div></a>
+    <a class="stat stat-link{% if stats.orphan_artist_map %} warn{% endif %}" href="#issue-disconnected"><div class="label">연결 끊긴 아티스트 정보</div><div class="value">{{ stats.orphan_artist_map }}</div></a>
     <div class="stat"><div class="label">수록곡 영구 캐시</div><div class="value">{{ stats.track_cache_count }}</div></div>
     <div class="stat"><div class="label">DB 파일 크기</div><div class="value">{{ stats.db_size }}</div></div>
   </section>
@@ -86,6 +104,71 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     </div>
     <div class="meta">
       연결 끊긴 수록곡 캐시 {{ stats.orphan_track_cache }}건 · 공통정보 불일치와 Master 불일치는 자동 수정하지 않고 검토 대상으로만 표시합니다.
+    </div>
+  </section>
+
+  <section class="section" id="issue-details">
+    <div class="section-head">
+      <div>
+        <h2>문제 항목 상세</h2>
+        <p>숫자로만 표시하지 않고 실제 어떤 앨범과 데이터가 점검 대상인지 보여줍니다.</p>
+      </div>
+    </div>
+
+    <div class="issue-list">
+      {% for group in issue_groups %}
+      <details
+        class="issue-group{% if group.important %} important{% endif %}"
+        id="issue-{{ group.key }}"
+        {% if group.important and group.items %}open{% endif %}
+      >
+        <summary>
+          <span>{{ group.title }}</span>
+          <span class="issue-count">{{ group.items|length }}</span>
+        </summary>
+        <div class="issue-desc">{{ group.description }}</div>
+
+        {% if group.items %}
+        <div class="issue-table-wrap">
+          <table class="issue-table">
+            <thead>
+              <tr>
+                <th>관리번호</th>
+                <th>앨범 ID</th>
+                <th>아티스트</th>
+                <th>앨범명</th>
+                <th>확인 내용</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in group.items %}
+              <tr>
+                <td>{{ item.management_no or '-' }}</td>
+                <td>{{ item.album_id or '-' }}</td>
+                <td class="issue-title">{{ item.artist or '-' }}</td>
+                <td>{{ item.album_title or '-' }}</td>
+                <td class="issue-detail">{{ item.detail }}</td>
+                <td>
+                  {% if item.id %}
+                  <a
+                    class="issue-edit"
+                    href="{{ url_for('edit_album', album_row_id=item.id) }}"
+                  >수정</a>
+                  {% else %}
+                  <span class="meta">자동 정리 대상</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="issue-ok">✓ 해당 항목은 문제 없습니다.</div>
+        {% endif %}
+      </details>
+      {% endfor %}
     </div>
   </section>
 
