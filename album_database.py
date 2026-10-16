@@ -329,6 +329,121 @@ def init_db():
         'ON album_artist_map (artist_key, album_row_id)'
     )
 
+    try:
+        conn.execute(
+            '''
+            CREATE VIRTUAL TABLE IF NOT EXISTS album_search
+            USING fts5(
+                management_no,
+                album_id,
+                artist,
+                album_title,
+                release_year,
+                memo,
+                tokenize='unicode61'
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TRIGGER IF NOT EXISTS
+            albums_search_ai
+            AFTER INSERT ON albums
+            BEGIN
+                INSERT INTO album_search (
+                    rowid,
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    release_year,
+                    memo
+                ) VALUES (
+                    new.id,
+                    new.management_no,
+                    new.album_id,
+                    new.artist,
+                    new.album_title,
+                    new.release_year,
+                    new.memo
+                );
+            END
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TRIGGER IF NOT EXISTS
+            albums_search_au
+            AFTER UPDATE ON albums
+            BEGIN
+                DELETE FROM album_search
+                WHERE rowid = old.id;
+
+                INSERT INTO album_search (
+                    rowid,
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    release_year,
+                    memo
+                ) VALUES (
+                    new.id,
+                    new.management_no,
+                    new.album_id,
+                    new.artist,
+                    new.album_title,
+                    new.release_year,
+                    new.memo
+                );
+            END
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TRIGGER IF NOT EXISTS
+            albums_search_ad
+            AFTER DELETE ON albums
+            BEGIN
+                DELETE FROM album_search
+                WHERE rowid = old.id;
+            END
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO album_search (
+                rowid,
+                management_no,
+                album_id,
+                artist,
+                album_title,
+                release_year,
+                memo
+            )
+            SELECT
+                albums.id,
+                albums.management_no,
+                albums.album_id,
+                albums.artist,
+                albums.album_title,
+                albums.release_year,
+                albums.memo
+            FROM albums
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM album_search
+                WHERE album_search.rowid =
+                    albums.id
+            )
+            '''
+        )
+    except sqlite3.OperationalError as exc:
+        print(
+            'FTS5 SEARCH DISABLED:',
+            exc
+        )
+
     unmapped_artist_rows = conn.execute(
         '''
         SELECT
@@ -424,6 +539,22 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+
+def has_album_search(
+    conn
+):
+    row = conn.execute(
+        '''
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'album_search'
+        LIMIT 1
+        '''
+    ).fetchone()
+
+    return row is not None
 
 
 def sync_album_artist_map(
