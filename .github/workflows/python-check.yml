@@ -36,6 +36,7 @@ jobs:
 
           expected = {
               'index',
+              'healthz',
               'artists_page',
               'artist_page',
               'album_detail',
