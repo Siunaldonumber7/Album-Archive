@@ -394,6 +394,7 @@ def add_album_manual():
     artist = request.form.get('artist', '').strip()
     album_title = request.form.get('album_title', '').strip()
     release_year = request.form.get('release_year', '').strip()
+    release_date = ''
     classification = request.form.get('classification', '').strip()
     media_format = request.form.get('media_format', '').strip()
     album_type = request.form.get('album_type', '').strip()
@@ -1200,6 +1201,18 @@ def update_album(album_row_id):
                 url_for('manage_albums')
             )
 
+        release_date = str(
+            current['release_date']
+            or ''
+        ).strip()
+
+        if (
+            release_date
+            and release_date[:4]
+            != release_year
+        ):
+            release_date = ''
+
         old_cover_url = (
             current['cover_url']
             or ''
@@ -1241,6 +1254,7 @@ def update_album(album_row_id):
                 artist = ?,
                 album_title = ?,
                 release_year = ?,
+                release_date = ?,
                 open_status = ?,
                 signed = ?,
                 purchase_price = ?,
