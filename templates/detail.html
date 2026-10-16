@@ -117,19 +117,6 @@
                 <span>₩{{ "{:,}".format(copy.purchase_price) }}</span>
                 {% endif %}
             </div>
-
-            {% set has_physical = copy.barcode or copy.catalog_no or copy.release_country or copy.edition or copy.purchase_date or copy.purchase_store or copy.storage_location %}
-            {% if has_physical %}
-            <dl class="copy-meta">
-                {% if copy.catalog_no %}<div><dt>카탈로그</dt><dd>{{ copy.catalog_no }}</dd></div>{% endif %}
-                {% if copy.barcode %}<div><dt>바코드</dt><dd>{{ copy.barcode }}</dd></div>{% endif %}
-                {% if copy.release_country %}<div><dt>발매국</dt><dd>{{ copy.release_country }}</dd></div>{% endif %}
-                {% if copy.edition %}<div><dt>판본</dt><dd>{{ copy.edition }}</dd></div>{% endif %}
-                {% if copy.purchase_date %}<div><dt>구매일</dt><dd>{{ copy.purchase_date }}</dd></div>{% endif %}
-                {% if copy.purchase_store %}<div><dt>구매처</dt><dd>{{ copy.purchase_store }}</dd></div>{% endif %}
-                {% if copy.storage_location %}<div><dt>보관</dt><dd>{{ copy.storage_location }}</dd></div>{% endif %}
-            </dl>
-            {% endif %}
         </article>
         {% endfor %}
     </section>
