@@ -143,6 +143,49 @@ def _normalize_release_date(value):
     return parsed.isoformat()
 
 
+PHYSICAL_TEXT_FIELDS = (
+    'barcode',
+    'catalog_no',
+    'release_country',
+    'edition',
+    'purchase_store',
+    'storage_location',
+)
+
+
+def _collect_physical_metadata(
+    form,
+    prefix=''
+):
+    values = {
+        name: str(
+            form.get(
+                prefix + name,
+                ''
+            )
+            or ''
+        ).strip()
+        for name in PHYSICAL_TEXT_FIELDS
+    }
+
+    purchase_date = (
+        _normalize_release_date(
+            form.get(
+                prefix + 'purchase_date',
+                ''
+            )
+        )
+    )
+
+    values['purchase_date'] = (
+        purchase_date
+        if purchase_date is not None
+        else ''
+    )
+
+    return values
+
+
 def _parse_purchase_price(value):
     text = str(
         value
@@ -454,6 +497,9 @@ def add_album_manual():
             'purchase_price',
             ''
         )
+    )
+    physical = _collect_physical_metadata(
+        request.form
     )
     memo = request.form.get('memo', '').strip()
     cover_file = request.files.get('cover_file')
@@ -803,6 +849,10 @@ def save_bulk_albums():
                     ''
                 )
             )
+            physical = _collect_physical_metadata(
+                request.form,
+                prefix
+            )
             memo = request.form.get(prefix + 'memo', '').strip()
 
             if not artist or not album_title:
@@ -1023,6 +1073,14 @@ def save_album():
             'purchase_price',
             ''
         )
+    )
+
+    physical = _collect_physical_metadata(
+        request.form
+    )
+
+    physical = _collect_physical_metadata(
+        request.form
     )
 
     if not artist or not album_title:
