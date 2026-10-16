@@ -1064,11 +1064,32 @@ def manage_albums():
 
     sort_columns = {
         'id': 'id',
-        'management_no': 'management_no COLLATE NOCASE',
-        'artist': 'artist COLLATE NOCASE',
-        'album_title': 'album_title COLLATE NOCASE',
-        'release_year': 'release_year',
-        'purchase_price': 'purchase_price'
+        'management_no':
+            'management_no COLLATE NOCASE',
+        'artist':
+            'artist COLLATE NOCASE',
+        'album_title':
+            'album_title COLLATE NOCASE',
+        'release_year':
+            'release_year',
+        'release_date': (
+            "CASE "
+            "WHEN release_date "
+            "GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+            "THEN release_date "
+            "WHEN release_year "
+            "GLOB '[0-9][0-9][0-9][0-9]' "
+            "THEN release_year || '-00-00' "
+            "ELSE '' END"
+        ),
+        'purchase_price':
+            'purchase_price',
+        'purchase_date':
+            "COALESCE(purchase_date, '')",
+        'catalog_no':
+            'catalog_no COLLATE NOCASE',
+        'storage_location':
+            'storage_location COLLATE NOCASE',
     }
 
     if sort_by not in sort_columns:
