@@ -1,6 +1,8 @@
+import json
 import re
 import time
 
+from album_database import get_db
 from cache_utils import BoundedCache
 from catalog import normalize_text
 from search_engine import (
@@ -16,11 +18,220 @@ from search_engine import (
 
 TRACK_CACHE = BoundedCache(500)
 TRACK_CACHE_SECONDS = 3600
+PERSISTENT_TRACK_CACHE_SECONDS = 30 * 24 * 3600
+EMPTY_TRACK_CACHE_SECONDS = 6 * 3600
 
 
 def clear_track_caches():
     TRACK_CACHE.clear()
     APPLE_PAGE_CACHE.clear()
+
+
+def _load_persistent_track_cache(
+    album_id
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    if not album_id:
+        return None
+
+    conn = get_db()
+
+    try:
+        row = conn.execute(
+            '''
+            SELECT
+                tracks_json,
+                store,
+                resolved_by,
+                updated_at
+            FROM album_track_cache
+            WHERE album_id = ?
+            LIMIT 1
+            ''',
+            (album_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return None
+
+    try:
+        tracks = json.loads(
+            row['tracks_json']
+            or '[]'
+        )
+    except Exception:
+        return None
+
+    if not isinstance(
+        tracks,
+        list
+    ):
+        return None
+
+    updated_at = int(
+        row['updated_at']
+        or 0
+    )
+    max_age = (
+        PERSISTENT_TRACK_CACHE_SECONDS
+        if tracks
+        else EMPTY_TRACK_CACHE_SECONDS
+    )
+
+    if (
+        updated_at <= 0
+        or time.time() - updated_at
+        >= max_age
+    ):
+        return None
+
+    return {
+        'tracks': tracks,
+        'store': str(
+            row['store']
+            or ''
+        ),
+        'resolved_by': str(
+            row['resolved_by']
+            or ''
+        ),
+    }
+
+
+def _save_persistent_track_cache(
+    album_id,
+    result
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    if not album_id:
+        return
+
+    tracks = result.get(
+        'tracks',
+        []
+    )
+
+    try:
+        payload = json.dumps(
+            tracks,
+            ensure_ascii=False,
+            separators=(
+                ',',
+                ':',
+            )
+        )
+    except Exception:
+        return
+
+    conn = get_db()
+
+    try:
+        conn.execute(
+            '''
+            INSERT INTO album_track_cache (
+                album_id,
+                tracks_json,
+                store,
+                resolved_by,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(album_id)
+            DO UPDATE SET
+                tracks_json = excluded.tracks_json,
+                store = excluded.store,
+                resolved_by = excluded.resolved_by,
+                updated_at = excluded.updated_at
+            ''',
+            (
+                album_id,
+                payload,
+                str(
+                    result.get(
+                        'store',
+                        ''
+                    )
+                    or ''
+                ),
+                str(
+                    result.get(
+                        'resolved_by',
+                        ''
+                    )
+                    or ''
+                ),
+                int(time.time()),
+            )
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def clear_album_track_cache(
+    album_id,
+    conn=None
+):
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+
+    TRACK_CACHE.clear()
+    APPLE_PAGE_CACHE.clear()
+
+    if not album_id:
+        return
+
+    owns_connection = (
+        conn is None
+    )
+
+    if owns_connection:
+        conn = get_db()
+
+    try:
+        conn.execute(
+            '''
+            DELETE FROM album_track_cache
+            WHERE album_id = ?
+            ''',
+            (album_id,)
+        )
+
+        if owns_connection:
+            conn.commit()
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def _remember_track_result(
+    cache_key,
+    album_id,
+    result
+):
+    TRACK_CACHE[cache_key] = {
+        'time': time.time(),
+        'data': result,
+    }
+
+    if album_id:
+        _save_persistent_track_cache(
+            album_id,
+            result
+        )
+
+    return result
 
 
 def has_manual_track_override(conn, album_id):
@@ -516,43 +727,197 @@ def search_kr_tracks_by_term(artist, album_title, release_year=''):
     tracks.sort(key=lambda item: (item['disc_number'], item['track_number']))
     return tracks
 
-def get_album_tracks(collection_id, artist='', album_title='', release_year=''):
-    collection_id = str(collection_id or '').strip()
-    cache_key = 'KR|' + collection_id + '|' + normalize_text(artist) + '|' + normalize_text(album_title) + '|' + str(release_year or '')
-    cached = TRACK_CACHE.get(cache_key)
-    if cached and time.time() - cached['time'] < TRACK_CACHE_SECONDS:
+def get_album_tracks(
+    collection_id,
+    artist='',
+    album_title='',
+    release_year='',
+    album_id=''
+):
+    collection_id = str(
+        collection_id
+        or ''
+    ).strip()
+    album_id = str(
+        album_id
+        or ''
+    ).strip()
+    cache_key = (
+        'KR|'
+        + collection_id
+        + '|'
+        + normalize_text(artist)
+        + '|'
+        + normalize_text(album_title)
+        + '|'
+        + str(
+            release_year
+            or ''
+        )
+    )
+
+    cached = TRACK_CACHE.get(
+        cache_key
+    )
+
+    if (
+        cached
+        and time.time()
+        - cached['time']
+        < TRACK_CACHE_SECONDS
+    ):
         return cached['data']
+
+    if album_id:
+        persistent = (
+            _load_persistent_track_cache(
+                album_id
+            )
+        )
+
+        if persistent is not None:
+            TRACK_CACHE[
+                cache_key
+            ] = {
+                'time': time.time(),
+                'data': persistent,
+            }
+            return persistent
+
     if collection_id:
-        page = fetch_apple_music_kr_page(collection_id)
-        localized_match_title = get_kr_localized_album_title(collection_id, '', album_title) or album_title
-        web_tracks = extract_tracks_from_apple_music_page(page, artist, localized_match_title)
+        page = (
+            fetch_apple_music_kr_page(
+                collection_id
+            )
+        )
+        localized_match_title = (
+            get_kr_localized_album_title(
+                collection_id,
+                '',
+                album_title
+            )
+            or album_title
+        )
+        web_tracks = (
+            extract_tracks_from_apple_music_page(
+                page,
+                artist,
+                localized_match_title
+            )
+        )
+
         if web_tracks:
-            result = {'tracks': web_tracks, 'store': 'KR', 'resolved_by': 'apple_music_web_stored_id'}
-            TRACK_CACHE[cache_key] = {'time': time.time(), 'data': result}
-            return result
-        api_tracks = lookup_kr_tracks_by_id(collection_id)
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': web_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'apple_music_web_stored_id',
+                }
+            )
+
+        api_tracks = (
+            lookup_kr_tracks_by_id(
+                collection_id
+            )
+        )
+
         if api_tracks:
-            result = {'tracks': api_tracks, 'store': 'KR', 'resolved_by': 'itunes_stored_id'}
-            TRACK_CACHE[cache_key] = {'time': time.time(), 'data': result}
-            return result
-    kr_album = find_kr_equivalent_album(artist, album_title, release_year)
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': api_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'itunes_stored_id',
+                }
+            )
+
+    kr_album = find_kr_equivalent_album(
+        artist,
+        album_title,
+        release_year
+    )
+
     if kr_album:
-        kr_id = kr_album['collection_id']
-        kr_url = kr_album.get('collection_url', '')
-        page = fetch_apple_music_kr_page(kr_id, kr_url)
-        localized_match_title = get_kr_localized_album_title(kr_id, kr_url, album_title) or album_title
-        web_tracks = extract_tracks_from_apple_music_page(page, artist, localized_match_title)
+        kr_id = kr_album[
+            'collection_id'
+        ]
+        kr_url = kr_album.get(
+            'collection_url',
+            ''
+        )
+        page = fetch_apple_music_kr_page(
+            kr_id,
+            kr_url
+        )
+        localized_match_title = (
+            get_kr_localized_album_title(
+                kr_id,
+                kr_url,
+                album_title
+            )
+            or album_title
+        )
+        web_tracks = (
+            extract_tracks_from_apple_music_page(
+                page,
+                artist,
+                localized_match_title
+            )
+        )
+
         if web_tracks:
-            result = {'tracks': web_tracks, 'store': 'KR', 'resolved_by': 'apple_music_web_kr_match'}
-            TRACK_CACHE[cache_key] = {'time': time.time(), 'data': result}
-            return result
-        api_tracks = lookup_kr_tracks_by_id(kr_id)
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': web_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'apple_music_web_kr_match',
+                }
+            )
+
+        api_tracks = (
+            lookup_kr_tracks_by_id(
+                kr_id
+            )
+        )
+
         if api_tracks:
-            result = {'tracks': api_tracks, 'store': 'KR', 'resolved_by': 'itunes_kr_match'}
-            TRACK_CACHE[cache_key] = {'time': time.time(), 'data': result}
-            return result
-    tracks = search_kr_tracks_by_term(artist, album_title, release_year)
-    result = {'tracks': tracks, 'store': 'KR', 'resolved_by': 'kr_song_search' if tracks else ''}
-    TRACK_CACHE[cache_key] = {'time': time.time(), 'data': result}
-    return result
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': api_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'itunes_kr_match',
+                }
+            )
+
+    tracks = search_kr_tracks_by_term(
+        artist,
+        album_title,
+        release_year
+    )
+    result = {
+        'tracks': tracks,
+        'store': 'KR',
+        'resolved_by': (
+            'kr_song_search'
+            if tracks
+            else ''
+        ),
+    }
+
+    return _remember_track_result(
+        cache_key,
+        album_id,
+        result
+    )
 
