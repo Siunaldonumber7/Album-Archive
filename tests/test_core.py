@@ -1029,6 +1029,9 @@ class AdminDatabasePageTests(unittest.TestCase):
             )
         )
         self.app.secret_key = 'test'
+        self.app.jinja_env.globals[
+            'csrf_token'
+        ] = lambda: 'test'
         register_album_routes(
             self.app
         )
@@ -1084,7 +1087,6 @@ class AdminDatabasePageTests(unittest.TestCase):
         with self.app.test_request_context(
             '/admin/database'
         ):
-            session['admin_logged_in'] = True
             response = self.app.view_functions[
                 'admin_database'
             ]()
