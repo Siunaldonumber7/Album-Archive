@@ -99,6 +99,7 @@ ADMIN_ENDPOINTS = {
     'create_database_backup',
     'download_database_backup',
     'cleanup_database',
+    'restore_database_backup',
     'manage_albums',
     'set_main_album',
     'add_album_page',
