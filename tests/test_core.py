@@ -12,6 +12,7 @@ from album_service import (
     delete_album_master_if_orphan,
     find_existing_album_id,
     get_next_management_no,
+    sync_album_group_identity,
     sync_album_master_metadata,
 )
 from album_routes import (
@@ -148,6 +149,151 @@ class DatabaseOptimizationTests(unittest.TestCase):
                 ('artist a', 'Artist A'),
                 ('artist b', 'Artist B'),
             ]
+        )
+
+    def test_group_identity_sync_keeps_copy_specific_fields(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.executemany(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    classification,
+                    media_format,
+                    album_type,
+                    genre,
+                    artist,
+                    album_title,
+                    release_year,
+                    release_date,
+                    purchase_price,
+                    barcode,
+                    storage_location
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                [
+                    (
+                        'CD-9410',
+                        'ALB-9410',
+                        '한국',
+                        'CD',
+                        '앨범',
+                        '힙합',
+                        'Old Artist',
+                        'Old Title',
+                        '2020',
+                        '2020-01-01',
+                        20000,
+                        '111',
+                        'A-1',
+                    ),
+                    (
+                        'LP-9410',
+                        'ALB-9410',
+                        '한국',
+                        'LP',
+                        '앨범',
+                        '힙합',
+                        'Old Artist',
+                        'Old Title',
+                        '2020',
+                        '2020-01-01',
+                        45000,
+                        '222',
+                        'B-2',
+                    ),
+                ]
+            )
+
+            row_ids = sync_album_group_identity(
+                conn,
+                'ALB-9410',
+                '해외',
+                'EP(미니)',
+                'R&B',
+                'New Artist',
+                'New Title',
+                '2024',
+                '2024-07-12'
+            )
+            conn.commit()
+
+            rows = conn.execute(
+                '''
+                SELECT *
+                FROM albums
+                WHERE album_id = ?
+                ORDER BY management_no
+                ''',
+                ('ALB-9410',)
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            len(row_ids),
+            2
+        )
+
+        for row in rows:
+            self.assertEqual(
+                row['classification'],
+                '해외'
+            )
+            self.assertEqual(
+                row['album_type'],
+                'EP(미니)'
+            )
+            self.assertEqual(
+                row['genre'],
+                'R&B'
+            )
+            self.assertEqual(
+                row['artist'],
+                'New Artist'
+            )
+            self.assertEqual(
+                row['album_title'],
+                'New Title'
+            )
+            self.assertEqual(
+                row['release_date'],
+                '2024-07-12'
+            )
+
+        self.assertEqual(
+            rows[0]['media_format'],
+            'CD'
+        )
+        self.assertEqual(
+            rows[0]['purchase_price'],
+            20000
+        )
+        self.assertEqual(
+            rows[0]['barcode'],
+            '111'
+        )
+        self.assertEqual(
+            rows[0]['storage_location'],
+            'A-1'
+        )
+        self.assertEqual(
+            rows[1]['media_format'],
+            'LP'
+        )
+        self.assertEqual(
+            rows[1]['purchase_price'],
+            45000
+        )
+        self.assertEqual(
+            rows[1]['barcode'],
+            '222'
+        )
+        self.assertEqual(
+            rows[1]['storage_location'],
+            'B-2'
         )
 
     def test_master_metadata_sync_and_orphan_cleanup(self):
