@@ -41,6 +41,7 @@ jobs:
               'album_detail',
               'admin_database',
               'create_database_backup',
+              'export_database_csv',
               'restore_database_backup',
               'add_album_page',
               'save_album',
