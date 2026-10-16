@@ -1,4 +1,6 @@
+import csv
 import hmac
+import io
 import os
 import secrets
 import shutil
@@ -15,6 +17,7 @@ from flask import (
     request,
     send_file,
     session,
+    Response,
     url_for,
 )
 
@@ -89,6 +92,11 @@ def register_admin_routes(app, admin_pin, login_attempts):
         endpoint='create_database_backup',
         view_func=create_database_backup,
         methods=['POST']
+    )
+    app.add_url_rule(
+        '/admin/database/export.csv',
+        endpoint='export_database_csv',
+        view_func=export_database_csv
     )
     app.add_url_rule(
         '/admin/database/backup/<path:filename>',
@@ -712,6 +720,115 @@ def admin_database():
         cleaned=cleaned,
         restored=restored,
         safety_backup=safety_backup
+    )
+
+
+def export_database_csv():
+    conn = get_db()
+
+    try:
+        rows = conn.execute(
+            '''
+            SELECT
+                management_no,
+                album_id,
+                classification,
+                media_format,
+                album_type,
+                genre,
+                artist,
+                album_title,
+                release_year,
+                release_date,
+                open_status,
+                signed,
+                purchase_price,
+                barcode,
+                catalog_no,
+                release_country,
+                edition,
+                purchase_date,
+                purchase_store,
+                storage_location,
+                memo,
+                apple_collection_id,
+                cover_url,
+                is_primary_display
+            FROM albums
+            ORDER BY id ASC
+            '''
+        ).fetchall()
+    finally:
+        conn.close()
+
+    columns = [
+        'management_no',
+        'album_id',
+        'classification',
+        'media_format',
+        'album_type',
+        'genre',
+        'artist',
+        'album_title',
+        'release_year',
+        'release_date',
+        'open_status',
+        'signed',
+        'purchase_price',
+        'barcode',
+        'catalog_no',
+        'release_country',
+        'edition',
+        'purchase_date',
+        'purchase_store',
+        'storage_location',
+        'memo',
+        'apple_collection_id',
+        'cover_url',
+        'is_primary_display',
+    ]
+
+    output = io.StringIO(
+        newline=''
+    )
+    writer = csv.writer(
+        output
+    )
+    writer.writerow(
+        columns
+    )
+
+    for row in rows:
+        writer.writerow([
+            (
+                row[column]
+                if row[column] is not None
+                else ''
+            )
+            for column in columns
+        ])
+
+    payload = (
+        '\ufeff'
+        + output.getvalue()
+    ).encode(
+        'utf-8'
+    )
+    filename = (
+        'album-archive-'
+        + datetime.now().strftime(
+            '%Y%m%d-%H%M%S'
+        )
+        + '.csv'
+    )
+
+    return Response(
+        payload,
+        mimetype='text/csv; charset=utf-8',
+        headers={
+            'Content-Disposition':
+                f'attachment; filename="{filename}"'
+        }
     )
 
 
