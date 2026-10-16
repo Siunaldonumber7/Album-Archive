@@ -1035,7 +1035,11 @@ X
         <option value="artist" {% if sort_by == 'artist' %}selected{% endif %}>아티스트</option>
         <option value="album_title" {% if sort_by == 'album_title' %}selected{% endif %}>앨범명</option>
         <option value="release_year" {% if sort_by == 'release_year' %}selected{% endif %}>발매년도</option>
+        <option value="release_date" {% if sort_by == 'release_date' %}selected{% endif %}>발매일</option>
         <option value="purchase_price" {% if sort_by == 'purchase_price' %}selected{% endif %}>구입금액</option>
+        <option value="purchase_date" {% if sort_by == 'purchase_date' %}selected{% endif %}>구매일</option>
+        <option value="catalog_no" {% if sort_by == 'catalog_no' %}selected{% endif %}>카탈로그번호</option>
+        <option value="storage_location" {% if sort_by == 'storage_location' %}selected{% endif %}>보관위치</option>
     </select>
 
     <select class="sort-select" name="sort_order">
