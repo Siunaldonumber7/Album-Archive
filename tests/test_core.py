@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 import album_database
+import release_date_backfill
 import media_service
 from PIL import Image
 from album_service import (
@@ -210,6 +211,144 @@ class DatabaseOptimizationTests(unittest.TestCase):
         self.assertEqual(
             next_number,
             'CD-0100'
+        )
+
+
+    def test_release_date_backfill_updates_all_owned_copies(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO album_master (
+                    album_id,
+                    album_key,
+                    apple_collection_id,
+                    artist,
+                    album_title,
+                    release_year
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    'ALB-9301',
+                    'artist|album|2026',
+                    '9301001',
+                    'Artist',
+                    'Album',
+                    '2026',
+                )
+            )
+            conn.executemany(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    release_year,
+                    apple_collection_id,
+                    is_primary_display
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''',
+                [
+                    (
+                        'CD-9301',
+                        'ALB-9301',
+                        'Artist',
+                        'Album',
+                        '2026',
+                        '9301001',
+                        1,
+                    ),
+                    (
+                        'LP-9301',
+                        'ALB-9301',
+                        'Artist',
+                        'Album',
+                        '2026',
+                        '9301001',
+                        0,
+                    ),
+                ]
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        original_lookup = (
+            release_date_backfill
+            ._lookup_batch
+        )
+
+        def fake_lookup(
+            collection_ids,
+            store
+        ):
+            if (
+                store == 'KR'
+                and '9301001'
+                in collection_ids
+            ):
+                return {
+                    '9301001':
+                        '2026-09-18'
+                }
+            return {}
+
+        release_date_backfill._lookup_batch = (
+            fake_lookup
+        )
+
+        try:
+            result = (
+                release_date_backfill
+                .backfill_release_dates()
+            )
+        finally:
+            release_date_backfill._lookup_batch = (
+                original_lookup
+            )
+
+        conn = album_database.get_db()
+
+        try:
+            album_rows = conn.execute(
+                '''
+                SELECT release_date
+                FROM albums
+                WHERE album_id = ?
+                ORDER BY id
+                ''',
+                ('ALB-9301',)
+            ).fetchall()
+            master = conn.execute(
+                '''
+                SELECT release_date
+                FROM album_master
+                WHERE album_id = ?
+                ''',
+                ('ALB-9301',)
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            result['updated'],
+            1
+        )
+        self.assertEqual(
+            [
+                row['release_date']
+                for row in album_rows
+            ],
+            [
+                '2026-09-18',
+                '2026-09-18',
+            ]
+        )
+        self.assertEqual(
+            master['release_date'],
+            '2026-09-18'
         )
 
 
