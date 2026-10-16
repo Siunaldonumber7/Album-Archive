@@ -139,6 +139,61 @@ def get_or_create_album_id(
     )
 
     if existing_album_id:
+        release_date = str(
+            release_date
+            or ''
+        ).strip()
+
+        if release_date:
+            conn.execute(
+                '''
+                UPDATE album_master
+                SET
+                    release_date = CASE
+                        WHEN release_date IS NULL
+                          OR TRIM(release_date) = ''
+                        THEN ?
+                        ELSE release_date
+                    END,
+                    release_year = CASE
+                        WHEN release_year IS NULL
+                          OR TRIM(release_year) = ''
+                        THEN ?
+                        ELSE release_year
+                    END
+                WHERE album_id = ?
+                ''',
+                (
+                    release_date,
+                    release_date[:4],
+                    existing_album_id,
+                )
+            )
+            conn.execute(
+                '''
+                UPDATE albums
+                SET
+                    release_date = CASE
+                        WHEN release_date IS NULL
+                          OR TRIM(release_date) = ''
+                        THEN ?
+                        ELSE release_date
+                    END,
+                    release_year = CASE
+                        WHEN release_year IS NULL
+                          OR TRIM(release_year) = ''
+                        THEN ?
+                        ELSE release_year
+                    END
+                WHERE album_id = ?
+                ''',
+                (
+                    release_date,
+                    release_date[:4],
+                    existing_album_id,
+                )
+            )
+
         return existing_album_id
 
     cursor = conn.execute(
