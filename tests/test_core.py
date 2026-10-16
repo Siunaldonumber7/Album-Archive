@@ -6,6 +6,7 @@ import album_database
 import release_date_backfill
 import media_service
 import track_service
+from flask import Flask
 from PIL import Image
 from album_service import (
     delete_album_master_if_orphan,
@@ -13,7 +14,11 @@ from album_service import (
     get_next_management_no,
     sync_album_master_metadata,
 )
-from album_routes import _normalize_release_date
+from album_routes import (
+    _normalize_release_date,
+    add_album_manual,
+    register_album_routes,
+)
 from catalog import normalize_text
 from library_view import (
     build_index_where,
@@ -851,6 +856,123 @@ class MediaServiceTests(unittest.TestCase):
         self.assertNotEqual(
             first_path,
             second_path
+        )
+
+
+class AlbumRouteIntegrationTests(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.old_db_name = album_database.DB_NAME
+        album_database.DB_NAME = os.path.join(
+            self.temp_dir.name,
+            'route-test.db'
+        )
+        album_database.init_db()
+
+        self.app = Flask(
+            __name__
+        )
+        self.app.secret_key = 'test'
+        register_album_routes(
+            self.app
+        )
+
+    def tearDown(self):
+        album_database.DB_NAME = (
+            self.old_db_name
+        )
+        self.temp_dir.cleanup()
+
+    def test_manual_registration_persists_physical_metadata(self):
+        with self.app.test_request_context(
+            '/add-manual',
+            method='POST',
+            data={
+                'artist': 'Test Artist',
+                'album_title': 'Test Album',
+                'release_year': '2026',
+                'release_date': '2026-04-17',
+                'classification': '한국',
+                'media_format': 'CD',
+                'album_type': '앨범',
+                'open_status': '개봉',
+                'signed': 'X',
+                'purchase_price': '25000',
+                'barcode': '880000000001',
+                'catalog_no': 'TEST-001',
+                'release_country': 'KR',
+                'edition': '초회반',
+                'purchase_date': '2026-05-01',
+                'purchase_store': '테스트샵',
+                'storage_location': 'A-2',
+                'memo': 'integration',
+            }
+        ):
+            response = add_album_manual()
+
+        self.assertEqual(
+            response.status_code,
+            302
+        )
+
+        conn = album_database.get_db()
+
+        try:
+            row = conn.execute(
+                '''
+                SELECT *
+                FROM albums
+                WHERE management_no = ?
+                ''',
+                ('CD-0001',)
+            ).fetchone()
+            master = conn.execute(
+                '''
+                SELECT *
+                FROM album_master
+                WHERE album_id = ?
+                ''',
+                (row['album_id'],)
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            row['release_date'],
+            '2026-04-17'
+        )
+        self.assertEqual(
+            row['barcode'],
+            '880000000001'
+        )
+        self.assertEqual(
+            row['catalog_no'],
+            'TEST-001'
+        )
+        self.assertEqual(
+            row['release_country'],
+            'KR'
+        )
+        self.assertEqual(
+            row['edition'],
+            '초회반'
+        )
+        self.assertEqual(
+            row['purchase_date'],
+            '2026-05-01'
+        )
+        self.assertEqual(
+            row['purchase_store'],
+            '테스트샵'
+        )
+        self.assertEqual(
+            row['storage_location'],
+            'A-2'
+        )
+        self.assertEqual(
+            master['release_date'],
+            '2026-04-17'
         )
 
 
