@@ -1143,6 +1143,13 @@ def export_database_csv():
                 open_status,
                 signed,
                 purchase_price,
+                barcode,
+                catalog_no,
+                release_country,
+                edition,
+                purchase_date,
+                purchase_store,
+                storage_location,
                 memo,
                 apple_collection_id,
                 cover_url,
@@ -1168,6 +1175,13 @@ def export_database_csv():
         'open_status',
         'signed',
         'purchase_price',
+        'barcode',
+        'catalog_no',
+        'release_country',
+        'edition',
+        'purchase_date',
+        'purchase_store',
+        'storage_location',
         'memo',
         'apple_collection_id',
         'cover_url',
@@ -1581,10 +1595,16 @@ def manage_albums():
             ' OR album_title LIKE ?'
             ' OR release_year LIKE ?'
             ' OR memo LIKE ?'
+            ' OR barcode LIKE ?'
+            ' OR catalog_no LIKE ?'
+            ' OR release_country LIKE ?'
+            ' OR edition LIKE ?'
+            ' OR purchase_store LIKE ?'
+            ' OR storage_location LIKE ?'
             ')'
         )
         params.extend(
-            [value] * 6
+            [value] * 12
         )
 
     if classification_filter:
@@ -1630,6 +1650,12 @@ def manage_albums():
         ),
         'purchase_price':
             'purchase_price',
+        'purchase_date':
+            "COALESCE(purchase_date, '')",
+        'catalog_no':
+            'catalog_no COLLATE NOCASE',
+        'storage_location':
+            'storage_location COLLATE NOCASE',
     }
 
     if sort_by not in sort_columns:
