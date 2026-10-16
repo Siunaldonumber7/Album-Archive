@@ -1,6 +1,7 @@
 import hmac
 import os
 import secrets
+import shutil
 import sqlite3
 import tarfile
 import tempfile
@@ -21,7 +22,17 @@ from album_database import (
     DATA_DIR,
     DB_NAME,
     get_db,
+    init_db,
     set_primary_display,
+)
+from media_service import (
+    prewarm_thumbnail_directory,
+)
+from search_engine import (
+    clear_search_cache,
+)
+from track_service import (
+    clear_track_caches,
 )
 from pagination import (
     ALBUMS_PER_PAGE,
@@ -88,6 +99,12 @@ def register_admin_routes(app, admin_pin, login_attempts):
         '/admin/database/cleanup',
         endpoint='cleanup_database',
         view_func=cleanup_database,
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/admin/database/restore',
+        endpoint='restore_database_backup',
+        view_func=restore_database_backup,
         methods=['POST']
     )
 
@@ -312,6 +329,142 @@ def _list_backups():
     return items[:20]
 
 
+def _safe_backup_path(filename):
+    safe_name = os.path.basename(
+        str(
+            filename
+            or ''
+        )
+    )
+
+    if (
+        safe_name != filename
+        or not safe_name.startswith(
+            'album-archive-'
+        )
+        or not safe_name.endswith(
+            '.tar.gz'
+        )
+    ):
+        return '', ''
+
+    path = os.path.join(
+        _backup_directory(),
+        safe_name
+    )
+
+    if not os.path.isfile(path):
+        return '', ''
+
+    return safe_name, path
+
+
+def _create_backup_archive():
+    backup_dir = (
+        _backup_directory()
+    )
+    stamp = datetime.now().strftime(
+        '%Y%m%d-%H%M%S'
+    )
+    filename = (
+        f'album-archive-{stamp}.tar.gz'
+    )
+    archive_path = os.path.join(
+        backup_dir,
+        filename
+    )
+
+    suffix = 2
+
+    while os.path.exists(
+        archive_path
+    ):
+        filename = (
+            f'album-archive-{stamp}'
+            f'-{suffix}.tar.gz'
+        )
+        archive_path = os.path.join(
+            backup_dir,
+            filename
+        )
+        suffix += 1
+
+    snapshot_handle = (
+        tempfile.NamedTemporaryFile(
+            prefix='album-db-',
+            suffix='.db',
+            dir=backup_dir,
+            delete=False
+        )
+    )
+    snapshot_path = (
+        snapshot_handle.name
+    )
+    snapshot_handle.close()
+
+    source = get_db()
+    target = sqlite3.connect(
+        snapshot_path
+    )
+
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+
+    upload_dir = os.path.join(
+        DATA_DIR,
+        'uploads'
+    )
+
+    try:
+        with tarfile.open(
+            archive_path,
+            'w:gz'
+        ) as archive:
+            archive.add(
+                snapshot_path,
+                arcname='albums.db'
+            )
+
+            if os.path.isdir(
+                upload_dir
+            ):
+                for root, dirs, files in os.walk(
+                    upload_dir
+                ):
+                    dirs[:] = [
+                        name
+                        for name in dirs
+                        if name != '.thumbs'
+                    ]
+
+                    for name in files:
+                        source_path = os.path.join(
+                            root,
+                            name
+                        )
+                        relative = os.path.relpath(
+                            source_path,
+                            DATA_DIR
+                        )
+                        archive.add(
+                            source_path,
+                            arcname=relative,
+                            recursive=False
+                        )
+    finally:
+        try:
+            os.remove(
+                snapshot_path
+            )
+        except OSError:
+            pass
+
+    return filename
+
+
 def admin_database():
     created = request.args.get(
         'created',
@@ -319,6 +472,14 @@ def admin_database():
     ).strip()
     cleaned = request.args.get(
         'cleaned',
+        ''
+    ).strip()
+    restored = request.args.get(
+        'restored',
+        ''
+    ).strip()
+    safety_backup = request.args.get(
+        'safety_backup',
         ''
     ).strip()
 
@@ -499,97 +660,16 @@ def admin_database():
         stats=stats,
         backups=_list_backups(),
         created=created,
-        cleaned=cleaned
+        cleaned=cleaned,
+        restored=restored,
+        safety_backup=safety_backup
     )
 
 
 def create_database_backup():
-    backup_dir = (
-        _backup_directory()
-    )
-    stamp = datetime.now().strftime(
-        '%Y%m%d-%H%M%S'
-    )
     filename = (
-        f'album-archive-{stamp}.tar.gz'
+        _create_backup_archive()
     )
-    archive_path = os.path.join(
-        backup_dir,
-        filename
-    )
-
-    snapshot_handle = (
-        tempfile.NamedTemporaryFile(
-            prefix='album-db-',
-            suffix='.db',
-            dir=backup_dir,
-            delete=False
-        )
-    )
-    snapshot_path = (
-        snapshot_handle.name
-    )
-    snapshot_handle.close()
-
-    source = get_db()
-    target = sqlite3.connect(
-        snapshot_path
-    )
-
-    try:
-        source.backup(target)
-    finally:
-        target.close()
-        source.close()
-
-    upload_dir = os.path.join(
-        DATA_DIR,
-        'uploads'
-    )
-
-    try:
-        with tarfile.open(
-            archive_path,
-            'w:gz'
-        ) as archive:
-            archive.add(
-                snapshot_path,
-                arcname='albums.db'
-            )
-
-            if os.path.isdir(
-                upload_dir
-            ):
-                for root, dirs, files in os.walk(
-                    upload_dir
-                ):
-                    dirs[:] = [
-                        name
-                        for name in dirs
-                        if name != '.thumbs'
-                    ]
-
-                    for name in files:
-                        source_path = os.path.join(
-                            root,
-                            name
-                        )
-                        relative = os.path.relpath(
-                            source_path,
-                            DATA_DIR
-                        )
-                        archive.add(
-                            source_path,
-                            arcname=relative,
-                            recursive=False
-                        )
-    finally:
-        try:
-            os.remove(
-                snapshot_path
-            )
-        except OSError:
-            pass
 
     return redirect(
         url_for(
@@ -602,36 +682,169 @@ def create_database_backup():
 def download_database_backup(
     filename
 ):
-    safe_name = os.path.basename(
-        str(
+    safe_name, path = (
+        _safe_backup_path(
             filename
-            or ''
         )
     )
 
-    if (
-        safe_name != filename
-        or not safe_name.startswith(
-            'album-archive-'
-        )
-        or not safe_name.endswith(
-            '.tar.gz'
-        )
-    ):
-        abort(404)
-
-    path = os.path.join(
-        _backup_directory(),
-        safe_name
-    )
-
-    if not os.path.isfile(path):
+    if not path:
         abort(404)
 
     return send_file(
         path,
         as_attachment=True,
         download_name=safe_name
+    )
+
+
+def restore_database_backup():
+    filename = request.form.get(
+        'filename',
+        ''
+    ).strip()
+    safe_name, archive_path = (
+        _safe_backup_path(
+            filename
+        )
+    )
+
+    if not archive_path:
+        abort(404)
+
+    safety_backup = (
+        _create_backup_archive()
+    )
+
+    with tempfile.TemporaryDirectory(
+        prefix='album-restore-'
+    ) as temp_dir:
+        with tarfile.open(
+            archive_path,
+            'r:gz'
+        ) as archive:
+            safe_members = []
+
+            for member in archive.getmembers():
+                name = str(
+                    member.name
+                    or ''
+                ).replace(
+                    '\\',
+                    '/'
+                )
+
+                if (
+                    not name
+                    or name.startswith('/')
+                    or '..' in name.split('/')
+                    or member.issym()
+                    or member.islnk()
+                ):
+                    raise ValueError(
+                        '안전하지 않은 백업 파일입니다.'
+                    )
+
+                if (
+                    name == 'albums.db'
+                    or name.startswith(
+                        'uploads/'
+                    )
+                ):
+                    safe_members.append(
+                        member
+                    )
+
+            archive.extractall(
+                temp_dir,
+                members=safe_members
+            )
+
+        snapshot_path = os.path.join(
+            temp_dir,
+            'albums.db'
+        )
+
+        if not os.path.isfile(
+            snapshot_path
+        ):
+            raise ValueError(
+                '백업에 albums.db가 없습니다.'
+            )
+
+        source = sqlite3.connect(
+            snapshot_path
+        )
+
+        try:
+            integrity = source.execute(
+                'PRAGMA integrity_check'
+            ).fetchone()[0]
+
+            if str(
+                integrity
+                or ''
+            ).lower() != 'ok':
+                raise ValueError(
+                    '백업 DB 무결성 검사에 실패했습니다.'
+                )
+
+            target = get_db()
+
+            try:
+                source.backup(
+                    target
+                )
+            finally:
+                target.close()
+        finally:
+            source.close()
+
+        restored_uploads = os.path.join(
+            temp_dir,
+            'uploads'
+        )
+        live_uploads = os.path.join(
+            DATA_DIR,
+            'uploads'
+        )
+
+        if os.path.isdir(
+            live_uploads
+        ):
+            shutil.rmtree(
+                live_uploads
+            )
+
+        if os.path.isdir(
+            restored_uploads
+        ):
+            shutil.copytree(
+                restored_uploads,
+                live_uploads
+            )
+        else:
+            os.makedirs(
+                live_uploads,
+                exist_ok=True
+            )
+
+    init_db()
+    clear_search_cache()
+    clear_track_caches()
+    prewarm_thumbnail_directory(
+        os.path.join(
+            DATA_DIR,
+            'uploads'
+        )
+    )
+
+    return redirect(
+        url_for(
+            'admin_database',
+            restored=safe_name,
+            safety_backup=safety_backup
+        )
     )
 
 
