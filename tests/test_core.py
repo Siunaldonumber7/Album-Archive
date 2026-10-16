@@ -41,6 +41,55 @@ class DatabaseOptimizationTests(unittest.TestCase):
         album_database.DB_NAME = self.old_db_name
         self.temp_dir.cleanup()
 
+    def test_fts_search_index_tracks_new_albums(self):
+        conn = album_database.get_db()
+
+        try:
+            if not album_database.has_album_search(
+                conn
+            ):
+                self.skipTest(
+                    'SQLite FTS5 unavailable'
+                )
+
+            cursor = conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    release_year
+                ) VALUES (?, ?, ?, ?, ?)
+                ''',
+                (
+                    'CD-9450',
+                    'ALB-9450',
+                    'Search Artist',
+                    'Needle Record',
+                    '2026',
+                )
+            )
+            conn.commit()
+
+            row = conn.execute(
+                '''
+                SELECT rowid
+                FROM album_search
+                WHERE album_search MATCH ?
+                LIMIT 1
+                ''',
+                ('Needle*',)
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertIsNotNone(row)
+        self.assertEqual(
+            row['rowid'],
+            cursor.lastrowid
+        )
+
     def test_artist_map_backfills_and_splits_credits(self):
         conn = album_database.get_db()
 
@@ -840,6 +889,27 @@ class LibraryViewTests(unittest.TestCase):
         self.assertEqual(
             state['sort'],
             'title'
+        )
+
+    def test_index_where_uses_fts_when_enabled(self):
+        where_sql, params = build_index_where(
+            {
+                'library_q': 'B-Free',
+                'classification': '',
+                'media_format': '',
+                'album_type': '',
+                'genre': '',
+            },
+            use_fts=True
+        )
+
+        self.assertIn(
+            'album_search MATCH',
+            where_sql
+        )
+        self.assertEqual(
+            params,
+            ['B* AND Free*']
         )
 
     def test_index_where_keeps_supported_filters(self):
