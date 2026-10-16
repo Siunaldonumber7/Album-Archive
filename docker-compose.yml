@@ -8,6 +8,7 @@ services:
     environment:
       ALBUM_DB_PATH: /data/albums.db
       PYTHONUNBUFFERED: "1"
+      ALBUM_BACKGROUND_MAINTENANCE: "1"
       TZ: Asia/Seoul
     volumes:
       - ./data:/data
