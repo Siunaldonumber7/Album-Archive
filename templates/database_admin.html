@@ -25,10 +25,11 @@ h1{margin:12px 0 6px;font-size:34px;letter-spacing:-1.3px}
 .section p{margin:5px 0 0;color:#888;font-size:12px;line-height:1.6}
 .actions{display:flex;flex-wrap:wrap;gap:9px}
 button,.download{display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:0 14px;border:0;border-radius:10px;text-decoration:none;font-size:12px;font-weight:850;cursor:pointer}
+.restore{min-height:32px;padding:0 10px;background:#fff0f1;color:#c52c43}
 .primary{background:#171719;color:#fff}
 .secondary{background:#efefec;color:#555}
 .backups{border:1px solid #ecece7;border-radius:14px;overflow:hidden}
-.backup-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 90px 92px;gap:12px;align-items:center;padding:11px 13px;border-bottom:1px solid #efefeb}
+.backup-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 90px 92px 76px;gap:12px;align-items:center;padding:11px 13px;border-bottom:1px solid #efefeb}
 .backup-row:last-child{border-bottom:0}
 .filename{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800}
 .meta{color:#888;font-size:11px}
@@ -47,7 +48,9 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
     </div>
   </div>
 
-  {% if created %}
+  {% if restored %}
+  <div class="notice">✓ 복원 완료 · {{ restored }} · 복원 직전 안전 백업 {{ safety_backup }}</div>
+  {% elif created %}
   <div class="notice">✓ 백업 생성 완료 · {{ created }}</div>
   {% elif cleaned %}
   <div class="notice">✓ 고아 데이터 {{ cleaned }}건 정리 완료</div>
@@ -104,6 +107,11 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
           <div class="meta date">{{ backup.created_at }}</div>
           <div class="meta size">{{ backup.size }}</div>
           <a class="download" href="{{ url_for('download_database_backup', filename=backup.filename) }}">다운로드</a>
+          <form method="POST" action="{{ url_for('restore_database_backup') }}" onsubmit="return confirm('이 백업 상태로 복원할까요? 현재 상태는 복원 직전에 자동 백업됩니다.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="filename" value="{{ backup.filename }}">
+            <button class="restore" type="submit">복원</button>
+          </form>
         </div>
         {% endfor %}
       {% else %}
