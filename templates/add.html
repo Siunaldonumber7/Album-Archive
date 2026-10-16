@@ -594,6 +594,7 @@ textarea {
                     <input type="hidden" name="artist" value="{{ item.artist }}">
                     <input type="hidden" name="album_title" value="{{ item.title }}">
                     <input type="hidden" name="release_year" value="{{ item.release_year }}">
+                    <input type="hidden" name="release_date" value="{{ item.release_date or '' }}">
                     <input type="hidden" name="cover_url" value="{{ item.cover }}">
                     <input type="hidden" name="album_type" value="{{ item.album_type or '앨범' }}">
                     <input type="hidden" name="genre" value="{{ item.genre or '' }}">
