@@ -114,7 +114,8 @@ def get_or_create_album_id(
     artist,
     album_title,
     release_year,
-    cover_url
+    cover_url,
+    release_date=''
 ):
     album_key = make_album_key(
         artist,
@@ -141,14 +142,28 @@ def get_or_create_album_id(
         return existing_album_id
 
     cursor = conn.execute(
-        'INSERT INTO album_master ( album_key, apple_collection_id, artist, album_title, release_year, cover_url ) VALUES (?, ?, ?, ?, ?, ?)',
+        '''
+        INSERT INTO album_master (
+            album_key,
+            apple_collection_id,
+            artist,
+            album_title,
+            release_year,
+            release_date,
+            cover_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''',
         (
             album_key,
             apple_id,
             artist,
             album_title,
             release_year,
-            cover_url
+            str(
+                release_date
+                or ''
+            ).strip(),
+            cover_url,
         )
     )
 
