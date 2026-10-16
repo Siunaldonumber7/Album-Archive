@@ -41,6 +41,7 @@ def init_db():
         'artist TEXT NOT NULL, '
         'album_title TEXT NOT NULL, '
         'release_year TEXT, '
+        'release_date TEXT, '
         'open_status TEXT, '
         'signed TEXT, '
         'purchase_price INTEGER, '
@@ -67,6 +68,11 @@ def init_db():
             'ALTER TABLE albums ADD COLUMN genre TEXT'
         )
 
+    if 'release_date' not in existing_columns:
+        conn.execute(
+            'ALTER TABLE albums ADD COLUMN release_date TEXT'
+        )
+
     if 'is_primary_display' not in existing_columns:
         conn.execute(
             'ALTER TABLE albums '
@@ -82,8 +88,22 @@ def init_db():
         'artist TEXT, '
         'album_title TEXT, '
         'release_year TEXT, '
+        'release_date TEXT, '
         'cover_url TEXT )'
     )
+
+    master_columns = {
+        row['name']
+        for row in conn.execute(
+            'PRAGMA table_info(album_master)'
+        ).fetchall()
+    }
+
+    if 'release_date' not in master_columns:
+        conn.execute(
+            'ALTER TABLE album_master '
+            'ADD COLUMN release_date TEXT'
+        )
 
     conn.execute(
         'CREATE TABLE IF NOT EXISTS number_counters ( '
@@ -202,6 +222,11 @@ def init_db():
         'CREATE INDEX IF NOT EXISTS '
         'idx_albums_release_year '
         'ON albums (release_year)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS '
+        'idx_albums_release_date '
+        'ON albums (release_date)'
     )
     conn.execute(
         'CREATE INDEX IF NOT EXISTS '
