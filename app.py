@@ -23,6 +23,7 @@ from catalog import (
 
 from cache_utils import BoundedCache
 from media_service import configure_media, cover_thumbnail_url
+from release_date_backfill import start_release_date_backfill
 from admin_routes import register_admin_routes
 from album_routes import register_album_routes
 from library_routes import register_library_routes
@@ -92,6 +93,14 @@ app.config.update(
 LOGIN_ATTEMPTS = BoundedCache(500)
 
 configure_media(app)
+
+if (
+    os.environ.get(
+        'ALBUM_BACKGROUND_MAINTENANCE',
+        ''
+    ).strip() == '1'
+):
+    start_release_date_backfill()
 
 ADMIN_ENDPOINTS = {
     'admin_dashboard',
