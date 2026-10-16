@@ -14,7 +14,7 @@ from flask import (
 
 from flask_compress import Compress
 
-from album_database import DATA_DIR, init_db
+from album_database import DATA_DIR, get_db, init_db
 from catalog import (
     split_genres,
     artist_credit_parts,
@@ -248,6 +248,22 @@ app.jinja_env.globals['split_genres'] = split_genres
 app.jinja_env.globals['artist_credit_parts'] = artist_credit_parts
 app.jinja_env.globals['split_artists'] = split_artists
 app.jinja_env.globals['cover_thumbnail_url'] = cover_thumbnail_url
+
+@app.get('/healthz')
+def healthz():
+    conn = get_db()
+
+    try:
+        conn.execute(
+            'SELECT 1'
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return {
+        'status': 'ok'
+    }
+
 
 register_admin_routes(
     app,
