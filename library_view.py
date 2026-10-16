@@ -240,9 +240,12 @@ def build_index_where(
         else:
             conditions.append(
                 '('
-                ' artist LIKE ?'
+                ' management_no LIKE ?'
+                ' OR album_id LIKE ?'
+                ' OR artist LIKE ?'
                 ' OR album_title LIKE ?'
                 ' OR release_year LIKE ?'
+                ' OR memo LIKE ?'
                 ' OR barcode LIKE ?'
                 ' OR catalog_no LIKE ?'
                 ' OR release_country LIKE ?'
@@ -252,6 +255,9 @@ def build_index_where(
                 ' )'
             )
             params.extend([
+                value,
+                value,
+                value,
                 value,
                 value,
                 value,
