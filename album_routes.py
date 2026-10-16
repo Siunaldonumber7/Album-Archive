@@ -5,9 +5,11 @@ from flask import render_template, request, redirect, url_for
 
 from album_database import get_db, get_genre_options, remember_genres, ensure_primary_display
 from album_service import (
+    delete_album_master_if_orphan,
     find_existing_album_id,
     get_next_management_no,
     get_or_create_album_id,
+    sync_album_master_metadata,
 )
 from catalog import ALBUM_TYPES, normalize_genres, split_genres
 from media_service import (
@@ -1129,6 +1131,10 @@ def edit_album(album_row_id):
         'updated',
         ''
     ).strip()
+    error = request.args.get(
+        'error',
+        ''
+    ).strip()
 
     conn = get_db()
 
@@ -1150,6 +1156,7 @@ def edit_album(album_row_id):
         'edit.html',
         album=album,
         updated=updated,
+        error=error,
         genre_options=(
             _genre_options_with_current(
                 album['genre']
@@ -1172,6 +1179,25 @@ def update_album(album_row_id):
         'release_year',
         ''
     ).strip()
+    release_date = _normalize_release_date(
+        request.form.get(
+            'release_date',
+            ''
+        )
+    )
+
+    if release_date is None:
+        return redirect(
+            url_for(
+                'edit_album',
+                album_row_id=album_row_id,
+                error='발매일 형식이 올바르지 않습니다.'
+            )
+        )
+
+    if release_date:
+        release_year = release_date[:4]
+
     genre = _collect_genres(
         request.form,
         'genre',
@@ -1239,18 +1265,6 @@ def update_album(album_row_id):
                 url_for('manage_albums')
             )
 
-        release_date = str(
-            current['release_date']
-            or ''
-        ).strip()
-
-        if (
-            release_date
-            and release_date[:4]
-            != release_year
-        ):
-            release_date = ''
-
         old_cover_url = (
             current['cover_url']
             or ''
@@ -1316,6 +1330,16 @@ def update_album(album_row_id):
                 new_cover_url,
                 album_row_id,
             )
+        )
+
+        sync_album_master_metadata(
+            conn,
+            current['album_id'],
+            artist,
+            album_title,
+            release_year,
+            release_date,
+            new_cover_url
         )
         conn.commit()
 
@@ -1424,6 +1448,10 @@ def delete_album(album_row_id):
                 'album_track_settings '
                 'WHERE album_id = ?',
                 (album_id,)
+            )
+            delete_album_master_if_orphan(
+                conn,
+                album_id
             )
 
         if cover_url:
