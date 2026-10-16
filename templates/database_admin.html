@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DB 점검 · Album Archive</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<style>
+:root{--bg:#f5f5f2;--card:#fff;--line:#e5e5df;--text:#171717;--muted:#777;--accent:#fa2d48}
+body{background:var(--bg);color:var(--text)}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:26px}
+.back{color:#555;text-decoration:none;font-size:13px;font-weight:800}
+h1{margin:12px 0 6px;font-size:34px;letter-spacing:-1.3px}
+.sub{color:var(--muted);font-size:13px;line-height:1.6}
+.notice{margin:0 0 18px;padding:12px 14px;border-radius:12px;background:#edf9f0;color:#237a3b;font-size:12px;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0 26px}
+.stat{padding:17px 18px;border:1px solid var(--line);border-radius:17px;background:var(--card)}
+.label{color:#888;font-size:11px;font-weight:750}
+.value{margin-top:7px;font-size:24px;font-weight:880;letter-spacing:-.6px}
+.warn .value{color:#d52d49}
+.section{margin-top:20px;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--card)}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}
+.section h2{margin:0;font-size:19px;letter-spacing:-.4px}
+.section p{margin:5px 0 0;color:#888;font-size:12px;line-height:1.6}
+.actions{display:flex;flex-wrap:wrap;gap:9px}
+button,.download{display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:0 14px;border:0;border-radius:10px;text-decoration:none;font-size:12px;font-weight:850;cursor:pointer}
+.primary{background:#171719;color:#fff}
+.secondary{background:#efefec;color:#555}
+.backups{border:1px solid #ecece7;border-radius:14px;overflow:hidden}
+.backup-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 90px 92px;gap:12px;align-items:center;padding:11px 13px;border-bottom:1px solid #efefeb}
+.backup-row:last-child{border-bottom:0}
+.filename{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800}
+.meta{color:#888;font-size:11px}
+.download{min-height:32px;background:#f1f1ee;color:#444;padding:0 10px}
+.empty{padding:24px;color:#999;text-align:center;font-size:12px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.backup-row{grid-template-columns:1fr auto}.backup-row .date,.backup-row .size{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <a class="back" href="{{ url_for('admin_dashboard') }}">‹ 관리자 메뉴</a>
+      <h1>DB 점검 · 백업</h1>
+      <div class="sub">컬렉션 데이터 상태, 캐시, 고아 데이터와 백업 파일을 한곳에서 확인합니다.</div>
+    </div>
+  </div>
+
+  {% if created %}
+  <div class="notice">✓ 백업 생성 완료 · {{ created }}</div>
+  {% elif cleaned %}
+  <div class="notice">✓ 고아 데이터 {{ cleaned }}건 정리 완료</div>
+  {% endif %}
+
+  <section class="grid">
+    <div class="stat"><div class="label">전체 보유본</div><div class="value">{{ stats.total }}</div></div>
+    <div class="stat{% if stats.release_date_missing %} warn{% endif %}"><div class="label">발매일 없음</div><div class="value">{{ stats.release_date_missing }}</div></div>
+    <div class="stat{% if stats.apple_date_missing %} warn{% endif %}"><div class="label">Apple ID + 날짜 없음</div><div class="value">{{ stats.apple_date_missing }}</div></div>
+    <div class="stat"><div class="label">Apple ID 없음</div><div class="value">{{ stats.apple_id_missing }}</div></div>
+    <div class="stat{% if stats.cover_missing %} warn{% endif %}"><div class="label">커버 없음</div><div class="value">{{ stats.cover_missing }}</div></div>
+    <div class="stat"><div class="label">중복 보유 그룹</div><div class="value">{{ stats.duplicate_groups }}</div></div>
+    <div class="stat{% if stats.orphan_masters %} warn{% endif %}"><div class="label">고아 album_master</div><div class="value">{{ stats.orphan_masters }}</div></div>
+    <div class="stat{% if stats.orphan_artist_map %} warn{% endif %}"><div class="label">고아 아티스트 매핑</div><div class="value">{{ stats.orphan_artist_map }}</div></div>
+    <div class="stat"><div class="label">수록곡 영구 캐시</div><div class="value">{{ stats.track_cache_count }}</div></div>
+    <div class="stat"><div class="label">DB 파일 크기</div><div class="value">{{ stats.db_size }}</div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>정합성 점검</h2>
+        <p>삭제된 앨범을 가리키는 master·아티스트 매핑·트랙 캐시만 안전하게 정리합니다.</p>
+      </div>
+      <div class="actions">
+        <form method="POST" action="{{ url_for('cleanup_database') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="secondary" type="submit">고아 데이터 정리</button>
+        </form>
+      </div>
+    </div>
+    <div class="meta">
+      고아 트랙 캐시 {{ stats.orphan_track_cache }}건 · 정상 데이터와 실제 앨범 행은 삭제하지 않습니다.
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>백업</h2>
+        <p>SQLite 일관성 스냅샷 + 직접 업로드한 원본 커버를 묶습니다. 썸네일은 다시 만들 수 있어 제외합니다.</p>
+      </div>
+      <form method="POST" action="{{ url_for('create_database_backup') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="primary" type="submit">지금 백업 만들기</button>
+      </form>
+    </div>
+
+    <div class="backups">
+      {% if backups %}
+        {% for backup in backups %}
+        <div class="backup-row">
+          <div class="filename">{{ backup.filename }}</div>
+          <div class="meta date">{{ backup.created_at }}</div>
+          <div class="meta size">{{ backup.size }}</div>
+          <a class="download" href="{{ url_for('download_database_backup', filename=backup.filename) }}">다운로드</a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">아직 만든 백업이 없습니다.</div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+</body>
+</html>
