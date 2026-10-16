@@ -120,15 +120,15 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
       <details
         class="issue-group{% if group.important %} important{% endif %}"
         id="issue-{{ group.key }}"
-        {% if group.important and group.items %}open{% endif %}
+        {% if group.important and group.rows %}open{% endif %}
       >
         <summary>
           <span>{{ group.title }}</span>
-          <span class="issue-count">{{ group.items|length }}</span>
+          <span class="issue-count">{{ group.rows|length }}</span>
         </summary>
         <div class="issue-desc">{{ group.description }}</div>
 
-        {% if group.items %}
+        {% if group.rows %}
         <div class="issue-table-wrap">
           <table class="issue-table">
             <thead>
@@ -142,7 +142,7 @@ button,.download{display:inline-flex;align-items:center;justify-content:center;m
               </tr>
             </thead>
             <tbody>
-              {% for item in group.items %}
+              {% for item in group.rows %}
               <tr>
                 <td>{{ item.management_no or '-' }}</td>
                 <td>{{ item.album_id or '-' }}</td>
