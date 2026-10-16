@@ -7,7 +7,7 @@ from flask import (
 
 from album_database import get_db
 from track_service import (
-    clear_track_caches,
+    clear_album_track_cache,
     get_album_tracks,
     get_manual_album_tracks,
     has_manual_track_override,
@@ -145,6 +145,10 @@ def edit_album_tracks(album_row_id):
             ),
             release_year=(
                 album['release_year']
+                or ''
+            ),
+            album_id=(
+                album['album_id']
                 or ''
             )
         )
@@ -332,6 +336,10 @@ def save_album_tracks(album_row_id):
             (album['album_id'],)
         )
 
+        clear_album_track_cache(
+            album['album_id'],
+            conn=conn
+        )
         conn.commit()
     except Exception:
         conn.rollback()
@@ -373,14 +381,16 @@ def reset_album_tracks(album_row_id):
             'WHERE album_id = ?',
             (album['album_id'],)
         )
+        clear_album_track_cache(
+            album['album_id'],
+            conn=conn
+        )
         conn.commit()
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
-
-    clear_track_caches()
 
     return redirect(
         url_for(
