@@ -1,3 +1,5 @@
+import re
+
 from catalog import (
     ALBUM_TYPES,
     artist_group_key,
@@ -80,6 +82,21 @@ def clean_text(value):
     return str(value or '').strip()
 
 
+def build_fts_query(value):
+    tokens = re.findall(
+        r'[0-9A-Za-z_가-힣]+',
+        clean_text(value)
+    )
+
+    if not tokens:
+        return ''
+
+    return ' AND '.join(
+        f'{token}*'
+        for token in tokens[:8]
+    )
+
+
 def resolve_index_state(args, session):
     reset_filters = (
         clean_text(
@@ -159,7 +176,10 @@ def resolve_index_state(args, session):
     return state
 
 
-def build_index_where(state):
+def build_index_where(
+    state,
+    use_fts=False
+):
     conditions = [
         'is_primary_display = 1'
     ]
@@ -182,19 +202,39 @@ def build_index_where(state):
     )
 
     if library_q:
-        value = f'%{library_q}%'
-        conditions.append(
-            '('
-            ' artist LIKE ?'
-            ' OR album_title LIKE ?'
-            ' OR release_year LIKE ?'
-            ' )'
+        fts_query = (
+            build_fts_query(
+                library_q
+            )
+            if use_fts
+            else ''
         )
-        params.extend([
-            value,
-            value,
-            value,
-        ])
+
+        if fts_query:
+            conditions.append(
+                'id IN ('
+                ' SELECT rowid'
+                ' FROM album_search'
+                ' WHERE album_search MATCH ?'
+                ')'
+            )
+            params.append(
+                fts_query
+            )
+        else:
+            value = f'%{library_q}%'
+            conditions.append(
+                '('
+                ' artist LIKE ?'
+                ' OR album_title LIKE ?'
+                ' OR release_year LIKE ?'
+                ' )'
+            )
+            params.extend([
+                value,
+                value,
+                value,
+            ])
 
     if classification:
         conditions.append(
