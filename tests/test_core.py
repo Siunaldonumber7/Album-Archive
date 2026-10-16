@@ -20,6 +20,7 @@ from album_routes import (
     add_album_manual,
     register_album_routes,
 )
+from admin_routes import register_admin_routes
 from catalog import normalize_text
 from library_view import (
     build_index_where,
@@ -1002,6 +1003,113 @@ class MediaServiceTests(unittest.TestCase):
         self.assertNotEqual(
             first_path,
             second_path
+        )
+
+
+class AdminDatabasePageTests(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.old_db_name = album_database.DB_NAME
+        self.old_data_dir = album_database.DATA_DIR
+        album_database.DB_NAME = os.path.join(
+            self.temp_dir.name,
+            'admin-test.db'
+        )
+        album_database.DATA_DIR = self.temp_dir.name
+        album_database.init_db()
+
+        self.app = Flask(
+            __name__,
+            template_folder=os.path.join(
+                os.path.dirname(
+                    os.path.dirname(__file__)
+                ),
+                'templates'
+            )
+        )
+        self.app.secret_key = 'test'
+        register_album_routes(
+            self.app
+        )
+        register_admin_routes(
+            self.app,
+            '1234',
+            {}
+        )
+
+    def tearDown(self):
+        album_database.DB_NAME = (
+            self.old_db_name
+        )
+        album_database.DATA_DIR = (
+            self.old_data_dir
+        )
+        self.temp_dir.cleanup()
+
+    def test_database_admin_renders_issue_details(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    release_year,
+                    release_date,
+                    apple_collection_id,
+                    cover_url,
+                    is_primary_display
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    'CD-9901',
+                    'ALB-9901',
+                    'Render Artist',
+                    'Render Album',
+                    '2026',
+                    '',
+                    '',
+                    '',
+                    1,
+                )
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with self.app.test_request_context(
+            '/admin/database'
+        ):
+            session['admin_logged_in'] = True
+            response = self.app.view_functions[
+                'admin_database'
+            ]()
+
+        html = response
+
+        if not isinstance(
+            response,
+            str
+        ):
+            html = response.get_data(
+                as_text=True
+            )
+
+        self.assertIn(
+            '문제 항목 상세',
+            html
+        )
+        self.assertIn(
+            'Render Album',
+            html
+        )
+        self.assertIn(
+            '발매일 없음',
+            html
         )
 
 
