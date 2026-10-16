@@ -647,11 +647,22 @@ textarea {
             <div class="form-field">
                 <label>발매년도</label>
                 <input
+                    id="manualReleaseYear"
                     name="release_year"
                     inputmode="numeric"
                     maxlength="4"
                     placeholder="예: 2024"
                 >
+            </div>
+
+            <div class="form-field">
+                <label>발매일 <span style="color:#999;font-weight:500;">· 정렬 기준</span></label>
+                <input
+                    id="manualReleaseDate"
+                    type="date"
+                    name="release_date"
+                >
+                <div class="genre-help">정확한 날짜를 넣으면 발매년도도 자동으로 맞춰집니다.</div>
             </div>
 
             <div class="form-field">
@@ -813,6 +824,18 @@ bulkAllButton?.addEventListener('click', () => {
 });
 
 refreshBulkSelection();
+
+const manualReleaseDate = document.getElementById('manualReleaseDate');
+const manualReleaseYear = document.getElementById('manualReleaseYear');
+
+manualReleaseDate?.addEventListener('change', () => {
+    if (
+        manualReleaseDate.value
+        && manualReleaseYear
+    ) {
+        manualReleaseYear.value = manualReleaseDate.value.slice(0, 4);
+    }
+});
 </script>
 </body>
 </html>
