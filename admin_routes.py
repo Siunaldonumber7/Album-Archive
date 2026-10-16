@@ -544,6 +544,47 @@ def admin_database():
             '''
         ).fetchone()['count']
 
+        identity_mismatch_groups = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM (
+                SELECT album_id
+                FROM albums
+                WHERE album_id IS NOT NULL
+                  AND TRIM(album_id) != ''
+                GROUP BY album_id
+                HAVING
+                    COUNT(DISTINCT COALESCE(classification, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(album_type, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(genre, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(artist, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(album_title, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(release_year, '')) > 1
+                    OR COUNT(DISTINCT COALESCE(release_date, '')) > 1
+            )
+            '''
+        ).fetchone()['count']
+
+        master_mismatch_groups = conn.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM album_master
+            INNER JOIN albums
+                ON albums.album_id =
+                    album_master.album_id
+               AND albums.is_primary_display = 1
+            WHERE
+                COALESCE(album_master.artist, '')
+                    != COALESCE(albums.artist, '')
+                OR COALESCE(album_master.album_title, '')
+                    != COALESCE(albums.album_title, '')
+                OR COALESCE(album_master.release_year, '')
+                    != COALESCE(albums.release_year, '')
+                OR COALESCE(album_master.release_date, '')
+                    != COALESCE(albums.release_date, '')
+            '''
+        ).fetchone()['count']
+
         orphan_masters = conn.execute(
             '''
             SELECT COUNT(*) AS count
@@ -632,6 +673,14 @@ def admin_database():
         ),
         'duplicate_groups': int(
             duplicate_groups
+            or 0
+        ),
+        'identity_mismatch_groups': int(
+            identity_mismatch_groups
+            or 0
+        ),
+        'master_mismatch_groups': int(
+            master_mismatch_groups
             or 0
         ),
         'orphan_masters': int(
