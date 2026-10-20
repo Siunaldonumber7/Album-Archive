@@ -8,6 +8,7 @@ from album_database import (
     get_db,
     get_genre_options,
     remember_genres,
+    delete_genre_from_collection,
     sync_album_artist_map,
 )
 from album_service import (
@@ -352,6 +353,12 @@ def register_album_routes(app):
         '/delete/<int:album_row_id>',
         endpoint='delete_album',
         view_func=delete_album,
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/genres/delete/<int:album_row_id>',
+        endpoint='delete_genre',
+        view_func=delete_genre,
         methods=['POST']
     )
 
@@ -1581,6 +1588,59 @@ def update_album(album_row_id):
             'edit_album',
             album_row_id=album_row_id,
             updated=management_no
+        )
+    )
+
+
+def delete_genre(album_row_id):
+    genre_name = request.form.get(
+        'genre_name',
+        ''
+    ).strip()
+
+    if not genre_name:
+        return redirect(
+            url_for(
+                'edit_album',
+                album_row_id=album_row_id
+            )
+        )
+
+    conn = get_db()
+
+    try:
+        album_exists = conn.execute(
+            '''
+            SELECT 1
+            FROM albums
+            WHERE id = ?
+            LIMIT 1
+            ''',
+            (album_row_id,)
+        ).fetchone()
+
+        if album_exists is None:
+            return redirect(
+                url_for(
+                    'manage_albums'
+                )
+            )
+
+        delete_genre_from_collection(
+            conn,
+            genre_name
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return redirect(
+        url_for(
+            'edit_album',
+            album_row_id=album_row_id
         )
     )
 
