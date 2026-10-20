@@ -31,7 +31,6 @@ _PREWARM_STARTED = False
 def _set_media_paths(upload_folder):
     global UPLOAD_FOLDER, THUMBNAIL_FOLDER
 
-    _thumbnail_name_parts.cache_clear()
     _cached_local_thumbnail_name.cache_clear()
 
     UPLOAD_FOLDER = os.path.abspath(
@@ -143,7 +142,6 @@ def _source_path(filename):
     return source_path
 
 
-@lru_cache(maxsize=4096)
 def _thumbnail_name_parts(
     filename
 ):
@@ -773,7 +771,6 @@ def delete_local_cover(cover_url):
             exc
         )
     finally:
-        _thumbnail_name_parts.cache_clear()
         _cached_local_thumbnail_name.cache_clear()
 
 
