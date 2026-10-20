@@ -491,10 +491,6 @@ Album Archive
 
 {% if total_pages > 1 %}
 <div class="pagination-wrap">
-    <div class="pagination-info">
-        {{ filtered_album_count }}장 · {{ page }} / {{ total_pages }} 페이지
-    </div>
-
     <nav class="pagination" aria-label="앨범 페이지">
         {% if page > 1 %}
         <a class="page-link" href="{{ url_for(
