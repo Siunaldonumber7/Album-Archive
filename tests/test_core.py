@@ -10,6 +10,7 @@ from flask import Flask
 from PIL import Image
 from album_service import (
     delete_album_master_if_orphan,
+    delete_genre_from_collection,
     find_existing_album_id,
     get_next_management_no,
     sync_album_group_identity,
@@ -295,6 +296,71 @@ class DatabaseOptimizationTests(unittest.TestCase):
         self.assertEqual(
             rows[1]['storage_location'],
             'B-2'
+        )
+
+    def test_delete_genre_removes_registry_and_album_usage(self):
+        conn = album_database.get_db()
+
+        try:
+            conn.execute(
+                '''
+                INSERT INTO genre_registry (name)
+                VALUES (?)
+                ''',
+                ('인디 록',)
+            )
+            conn.execute(
+                '''
+                INSERT INTO albums (
+                    management_no,
+                    album_id,
+                    artist,
+                    album_title,
+                    genre
+                ) VALUES (?, ?, ?, ?, ?)
+                ''',
+                (
+                    'CD-9499',
+                    'ALB-9499',
+                    'Artist',
+                    'Album',
+                    '인디 록, 록',
+                )
+            )
+
+            updated = delete_genre_from_collection(
+                conn,
+                '인디 록'
+            )
+            conn.commit()
+
+            album = conn.execute(
+                '''
+                SELECT genre
+                FROM albums
+                WHERE album_id = ?
+                ''',
+                ('ALB-9499',)
+            ).fetchone()
+            registry = conn.execute(
+                '''
+                SELECT COUNT(*) AS count
+                FROM genre_registry
+                WHERE name = ? COLLATE NOCASE
+                ''',
+                ('인디 록',)
+            ).fetchone()['count']
+        finally:
+            conn.close()
+
+        self.assertEqual(updated, 1)
+        self.assertEqual(
+            album['genre'],
+            '록'
+        )
+        self.assertEqual(
+            registry,
+            0
         )
 
     def test_master_metadata_sync_and_orphan_cleanup(self):
