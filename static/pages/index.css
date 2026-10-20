@@ -963,12 +963,6 @@ h1 {
     gap: 11px;
 }
 
-.pagination-info {
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 650;
-}
-
 .pagination {
     display: flex;
     align-items: center;
