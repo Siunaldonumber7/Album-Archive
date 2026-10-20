@@ -67,3 +67,36 @@ textarea {
     padding: 0;
     accent-color: var(--accent, #fa2d48);
 }
+
+.genre-chip {
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #fff;
+}
+
+.genre-chip .genre-choice {
+    border-radius: 999px 0 0 999px;
+}
+
+.genre-delete {
+    width: 28px;
+    min-width: 28px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid #ececee;
+    border-radius: 0 999px 999px 0;
+    background: #fff;
+    color: #aaa;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.genre-delete:hover {
+    background: #fff0f2;
+    color: #d72c48;
+}
