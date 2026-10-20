@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 import album_database
+from album_database import delete_genre_from_collection
 import release_date_backfill
 import media_service
 import track_service
@@ -10,7 +11,6 @@ from flask import Flask
 from PIL import Image
 from album_service import (
     delete_album_master_if_orphan,
-    delete_genre_from_collection,
     find_existing_album_id,
     get_next_management_no,
     sync_album_group_identity,
