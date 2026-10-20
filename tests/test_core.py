@@ -453,6 +453,87 @@ class DatabaseOptimizationTests(unittest.TestCase):
             )
         )
 
+    def test_track_lookup_uses_itunes_before_web_page(self):
+        original_lookup = (
+            track_service
+            .lookup_kr_tracks_by_id
+        )
+        original_fetch = (
+            track_service
+            .fetch_apple_music_kr_page
+        )
+
+        calls = {
+            'lookup': 0,
+            'web': 0,
+        }
+
+        def fake_lookup(
+            collection_id
+        ):
+            calls['lookup'] += 1
+            return [
+                {
+                    'id': '1001',
+                    'title': 'Fast Track',
+                    'artist': 'Fast Artist',
+                    'album_name': 'Fast Album',
+                    'duration_ms': 180000,
+                    'duration': '3:00',
+                    'disc_number': 1,
+                    'track_number': 1,
+                }
+            ]
+
+        def fake_fetch(*args, **kwargs):
+            calls['web'] += 1
+            raise AssertionError(
+                'web fallback should not run '
+                'when iTunes lookup succeeds'
+            )
+
+        track_service.TRACK_CACHE.clear()
+        track_service.lookup_kr_tracks_by_id = (
+            fake_lookup
+        )
+        track_service.fetch_apple_music_kr_page = (
+            fake_fetch
+        )
+
+        try:
+            result = track_service.get_album_tracks(
+                collection_id='123456789',
+                artist='Fast Artist',
+                album_title='Fast Album',
+                release_year='2026',
+                album_id=''
+            )
+        finally:
+            track_service.lookup_kr_tracks_by_id = (
+                original_lookup
+            )
+            track_service.fetch_apple_music_kr_page = (
+                original_fetch
+            )
+            track_service.TRACK_CACHE.clear()
+
+        self.assertEqual(
+            calls['lookup'],
+            1
+        )
+        self.assertEqual(
+            calls['web'],
+            0
+        )
+        self.assertEqual(
+            result['resolved_by'],
+            'itunes_stored_id'
+        )
+        self.assertEqual(
+            result['tracks'][0]['title'],
+            'Fast Track'
+        )
+
     def test_primary_display_is_repaired_in_one_group(self):
         conn = album_database.get_db()
 
