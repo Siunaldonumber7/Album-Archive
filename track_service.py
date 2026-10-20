@@ -20,6 +20,7 @@ TRACK_CACHE = BoundedCache(500)
 TRACK_CACHE_SECONDS = 3600
 PERSISTENT_TRACK_CACHE_SECONDS = 30 * 24 * 3600
 EMPTY_TRACK_CACHE_SECONDS = 6 * 3600
+TRACK_API_TIMEOUT = (2.0, 5.0)
 
 
 def clear_track_caches():
@@ -572,7 +573,17 @@ def lookup_kr_tracks_by_id(collection_id):
     if not collection_id:
         return []
     try:
-        response = APPLE_SESSION.get('https://itunes.apple.com/lookup', params={'id': collection_id, 'entity': 'song', 'country': 'KR', 'limit': 300, 'explicit': 'Yes'}, timeout=12)
+        response = APPLE_SESSION.get(
+            'https://itunes.apple.com/lookup',
+            params={
+                'id': collection_id,
+                'entity': 'song',
+                'country': 'KR',
+                'limit': 300,
+                'explicit': 'Yes',
+            },
+            timeout=TRACK_API_TIMEOUT
+        )
         response.raise_for_status()
         data = response.json()
         tracks = []
@@ -598,7 +609,11 @@ def search_kr_album_candidates(search_term, use_album_attribute=False):
         params = {'term': search_term, 'country': 'KR', 'media': 'music', 'entity': 'album', 'limit': 100, 'explicit': 'Yes'}
         if use_album_attribute:
             params['attribute'] = 'albumTerm'
-        response = APPLE_SESSION.get('https://itunes.apple.com/search', params=params, timeout=12)
+        response = APPLE_SESSION.get(
+            'https://itunes.apple.com/search',
+            params=params,
+            timeout=TRACK_API_TIMEOUT
+        )
         response.raise_for_status()
         data = response.json()
         results = []
@@ -673,7 +688,18 @@ def search_kr_tracks_by_term(artist, album_title, release_year=''):
     seen_track_ids = set()
     for term in terms:
         try:
-            response = APPLE_SESSION.get('https://itunes.apple.com/search', params={'term': term, 'country': 'KR', 'media': 'music', 'entity': 'song', 'limit': 200, 'explicit': 'Yes'}, timeout=12)
+            response = APPLE_SESSION.get(
+                'https://itunes.apple.com/search',
+                params={
+                    'term': term,
+                    'country': 'KR',
+                    'media': 'music',
+                    'entity': 'song',
+                    'limit': 200,
+                    'explicit': 'Yes',
+                },
+                timeout=TRACK_API_TIMEOUT
+            )
             response.raise_for_status()
             data = response.json()
             for item in data.get('results', []):
@@ -785,6 +811,24 @@ def get_album_tracks(
             return persistent
 
     if collection_id:
+        api_tracks = (
+            lookup_kr_tracks_by_id(
+                collection_id
+            )
+        )
+
+        if api_tracks:
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': api_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'itunes_stored_id',
+                }
+            )
+
         page = (
             fetch_apple_music_kr_page(
                 collection_id
@@ -818,24 +862,6 @@ def get_album_tracks(
                 }
             )
 
-        api_tracks = (
-            lookup_kr_tracks_by_id(
-                collection_id
-            )
-        )
-
-        if api_tracks:
-            return _remember_track_result(
-                cache_key,
-                album_id,
-                {
-                    'tracks': api_tracks,
-                    'store': 'KR',
-                    'resolved_by':
-                        'itunes_stored_id',
-                }
-            )
-
     kr_album = find_kr_equivalent_album(
         artist,
         album_title,
@@ -850,6 +876,24 @@ def get_album_tracks(
             'collection_url',
             ''
         )
+        api_tracks = (
+            lookup_kr_tracks_by_id(
+                kr_id
+            )
+        )
+
+        if api_tracks:
+            return _remember_track_result(
+                cache_key,
+                album_id,
+                {
+                    'tracks': api_tracks,
+                    'store': 'KR',
+                    'resolved_by':
+                        'itunes_kr_match',
+                }
+            )
+
         page = fetch_apple_music_kr_page(
             kr_id,
             kr_url
@@ -879,24 +923,6 @@ def get_album_tracks(
                     'store': 'KR',
                     'resolved_by':
                         'apple_music_web_kr_match',
-                }
-            )
-
-        api_tracks = (
-            lookup_kr_tracks_by_id(
-                kr_id
-            )
-        )
-
-        if api_tracks:
-            return _remember_track_result(
-                cache_key,
-                album_id,
-                {
-                    'tracks': api_tracks,
-                    'store': 'KR',
-                    'resolved_by':
-                        'itunes_kr_match',
                 }
             )
 
