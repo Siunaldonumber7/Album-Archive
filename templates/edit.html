@@ -629,15 +629,28 @@ textarea {
 {% if genre_options %}
 <div class="genre-checks">
 {% for genre_name in genre_options %}
-<label class="genre-choice">
-    <input
-        type="checkbox"
-        name="genre"
+<div class="genre-chip">
+    <label class="genre-choice">
+        <input
+            type="checkbox"
+            name="genre"
+            value="{{ genre_name }}"
+            {% if genre_name in selected_genres %}checked{% endif %}
+        >
+        <span>{{ genre_name }}</span>
+    </label>
+    <button
+        class="genre-delete"
+        type="submit"
+        name="genre_name"
         value="{{ genre_name }}"
-        {% if genre_name in selected_genres %}checked{% endif %}
-    >
-    <span>{{ genre_name }}</span>
-</label>
+        formaction="{{ url_for('delete_genre', album_row_id=album.id) }}"
+        formmethod="post"
+        title="{{ genre_name }} 삭제"
+        aria-label="{{ genre_name }} 삭제"
+        onclick="return confirm('{{ genre_name }} 장르를 삭제할까요? 기존 앨범에 지정된 이 장르도 함께 제거됩니다.');"
+    >×</button>
+</div>
 {% endfor %}
 </div>
 {% endif %}
