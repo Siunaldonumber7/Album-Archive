@@ -1,7 +1,11 @@
 import os
 import sqlite3
 
-from catalog import split_artists
+from catalog import (
+    normalize_genres,
+    split_artists,
+    split_genres,
+)
 
 
 DB_NAME = os.environ.get('ALBUM_DB_PATH', 'albums.db')
@@ -785,6 +789,71 @@ def remember_genres(conn, value):
             (genre,)
         )
 
+
+
+def delete_genre_from_collection(
+    conn,
+    genre_name
+):
+    genre_name = str(
+        genre_name
+        or ''
+    ).strip()
+
+    if not genre_name:
+        return 0
+
+    target_key = genre_name.casefold()
+    rows = conn.execute(
+        '''
+        SELECT id, genre
+        FROM albums
+        WHERE genre IS NOT NULL
+          AND TRIM(genre) != ''
+        '''
+    ).fetchall()
+
+    updated_count = 0
+
+    for row in rows:
+        genres = split_genres(
+            row['genre']
+            or ''
+        )
+        filtered = [
+            item
+            for item in genres
+            if item.casefold()
+            != target_key
+        ]
+
+        if len(filtered) == len(genres):
+            continue
+
+        conn.execute(
+            '''
+            UPDATE albums
+            SET genre = ?
+            WHERE id = ?
+            ''',
+            (
+                normalize_genres(
+                    filtered
+                ),
+                row['id'],
+            )
+        )
+        updated_count += 1
+
+    conn.execute(
+        '''
+        DELETE FROM genre_registry
+        WHERE name = ? COLLATE NOCASE
+        ''',
+        (genre_name,)
+    )
+
+    return updated_count
 
 
 def get_artist_profile_cache(artist_key):
