@@ -1,6 +1,7 @@
 import hashlib
 import os
 import threading
+from functools import lru_cache
 
 from flask import current_app, url_for
 from PIL import Image, UnidentifiedImageError
@@ -29,6 +30,9 @@ _PREWARM_STARTED = False
 
 def _set_media_paths(upload_folder):
     global UPLOAD_FOLDER, THUMBNAIL_FOLDER
+
+    _thumbnail_name_parts.cache_clear()
+    _cached_local_thumbnail_name.cache_clear()
 
     UPLOAD_FOLDER = os.path.abspath(
         str(
@@ -73,7 +77,13 @@ def configure_media(app):
         40_000_000
     )
 
-    start_thumbnail_prewarm()
+    if (
+        os.environ.get(
+            'ALBUM_SKIP_BACKGROUND_THUMBNAIL_PREWARM',
+            ''
+        ).strip() != '1'
+    ):
+        start_thumbnail_prewarm()
 
 
 def allowed_image_file(filename):
@@ -133,6 +143,7 @@ def _source_path(filename):
     return source_path
 
 
+@lru_cache(maxsize=4096)
 def _thumbnail_name_parts(
     filename
 ):
@@ -202,6 +213,47 @@ def local_cover_thumbnail_path(
             f'__{version_digest}'
             f'__thumb_{int(size)}.webp'
         )
+    )
+
+
+@lru_cache(maxsize=8192)
+def _cached_local_thumbnail_name(
+    filename,
+    size
+):
+    safe_name = _safe_filename(
+        filename
+    )
+
+    if not safe_name:
+        return ''
+
+    source_path = _source_path(
+        safe_name
+    )
+
+    if (
+        not source_path
+        or not os.path.isfile(
+            source_path
+        )
+    ):
+        return ''
+
+    thumb_path = (
+        local_cover_thumbnail_path(
+            safe_name,
+            size
+        )
+    )
+
+    if not os.path.isfile(
+        thumb_path
+    ):
+        return ''
+
+    return os.path.basename(
+        thumb_path
     )
 
 
@@ -436,6 +488,9 @@ def generate_cover_thumbnails(
                 base.close()
             except Exception:
                 pass
+
+    if created:
+        _cached_local_thumbnail_name.cache_clear()
 
     return created
 
@@ -717,6 +772,9 @@ def delete_local_cover(cover_url):
             'LOCAL COVER DELETE ERROR:',
             exc
         )
+    finally:
+        _thumbnail_name_parts.cache_clear()
+        _cached_local_thumbnail_name.cache_clear()
 
 
 def cover_thumbnail_url(
@@ -766,41 +824,28 @@ def cover_thumbnail_url(
     if not filename:
         return cover_url
 
-    source_path = _source_path(
-        filename
-    )
-
-    if (
-        not source_path
-        or not os.path.isfile(
-            source_path
-        )
-    ):
-        return cover_url
-
-    thumb_path = (
-        local_cover_thumbnail_path(
+    thumb_name = (
+        _cached_local_thumbnail_name(
             filename,
             size
         )
     )
 
-    if not os.path.isfile(
-        thumb_path
-    ):
+    if not thumb_name:
         generate_cover_thumbnails(
             filename,
             sizes=(size,)
         )
+        _cached_local_thumbnail_name.cache_clear()
+        thumb_name = (
+            _cached_local_thumbnail_name(
+                filename,
+                size
+            )
+        )
 
-    if not os.path.isfile(
-        thumb_path
-    ):
+    if not thumb_name:
         return cover_url
-
-    thumb_name = os.path.basename(
-        thumb_path
-    )
 
     return url_for(
         'static',
