@@ -122,6 +122,7 @@ ADMIN_ENDPOINTS = {
     'edit_album',
     'update_album',
     'delete_album',
+    'delete_genre',
     'edit_album_tracks',
     'save_album_tracks',
     'reset_album_tracks',
